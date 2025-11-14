@@ -68,3 +68,6 @@ htmlcov/
 
 #  隐私
 /googletest
+*.db-wal
+*.db-shm
+*.db
