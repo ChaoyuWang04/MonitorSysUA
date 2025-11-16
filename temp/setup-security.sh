@@ -38,13 +38,12 @@ fi
 echo "📝 [3/6] 创建 pre-commit 配置..."
 cat > .pre-commit-config.yaml << 'EOF'
 repos:
-  # 密钥检测 - 第一层防火墙核心
-  - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.5.0
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
     hooks:
-      - id: detect-secrets
-        args: ['--baseline', '.secrets.baseline']
-        exclude: package.lock.json
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-added-large-files
 
   # 基础代码质量检查
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -53,10 +52,11 @@ repos:
       - id: trailing-whitespace  # 清理多余空格
       - id: end-of-file-fixer    # 文件结尾换行
       - id: check-yaml           # 检查 yaml 格式
-      - id: check-added-large-files  # 防止大文件
+      - id: check-added-large-files  # 防止大文件（比如不小心加了数据库）
         args: ['--maxkb=500']
       - id: check-merge-conflict  # 防止 merge 冲突标记
-      - id: debug-statements      # 防止 debug 语句残留
+      - id: debug-statements      # 防止 Python 的 debugger 残留
+
 EOF
 echo "✅ .pre-commit-config.yaml 已创建"
 

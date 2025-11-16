@@ -1,511 +1,632 @@
-# CLAUDE Implementation Notes
+# CLAUDE 实施笔记
 
-## Project: Google Ads ChangeEvent Monitor - MVP
+## 项目：Google Ads ChangeEvent 监控系统
 
-**Last Updated**: 2025-11-14
-**Status**: MVP Implementation Complete
-
----
-
-## 🎯 Implementation Summary
-
-Successfully implemented a **minimal viable product (MVP)** for monitoring Google Ads ChangeEvent data with real-time visibility into account changes.
-
-### What Was Built
-
-A complete full-stack web application:
-- **Backend**: Flask REST API with SQLite database
-- **Frontend**: Responsive web UI with filtering and pagination
-- **Integration**: Google Ads API client for fetching ChangeEvent data
-- **Documentation**: Comprehensive design docs and setup guides
+**最后更新**: 2025-11-15
+**当前状态**: 技术栈升级中 - 迁移至 Next.js 全栈方案
+**项目阶段**: MVP概念验证完成，准备正式开发
 
 ---
 
-## 📂 Project Structure
+## 🎯 项目概述
+
+构建一个**基于 Google Ads ChangeEvent 的数据驱动优化行为分析平台**，帮助企业：
+1. 实时监控广告账户的所有变更操作
+2. 追踪优化师的操作行为和频率
+3. 分析操作对广告效果的影响（后期功能）
+
+### MVP 验证成果
+
+在 `mvp/` 目录中使用 Flask + SQLite + Python 完成了概念验证：
+
+#### ✅ 1. Google Ads API 使用方式验证
+
+**验证内容**:
+- 使用官方 `google-ads-python` 库成功获取 ChangeEvent 数据
+- 验证了查询 `change_event` 表的 GAQL 语法
+- 确认了 `old_resource` 和 `new_resource` 的 oneof 结构
+- 掌握了 Enum 转换方法（`Enum.Name()`）
+
+**关键发现**:
+- ChangeEvent API 只返回变更过的字段（field-level granularity）
+- Protobuf 数据需要用 `MessageToDict()` 转换为 Python dict
+- oneof 字段需要用 `ListFields()` 解包
+
+**参考文件**:
+- `googletest/googlemvptest.py` - 完整的 API 调用和数据处理流程
+- `googletest/googleapioutput.md` - 真实的 API 返回数据示例
+- `googletest/intro.md` - 详细的技术说明文档
+
+#### ✅ 2. Deep Diff 引擎验证
+
+**验证内容**:
+- 实现了递归 `deep_diff()` 函数，能够对比任意深度的嵌套对象
+- 处理了基础类型、嵌套对象、repeated fields（list）的 diff
+- 验证了字段路径拼接逻辑（`prefix.field.subfield`）
+
+**关键发现**:
+- 递归 diff 算法可以完整捕获所有字段变更
+- 需要特殊处理 Python 保留字（如 `type` → `type_`）
+- 数组变更建议整体记录（而非逐项 diff）
+
+**MVP 实现** (`googlemvptest.py:39-72`):
+```python
+def deep_diff(old: Dict[str, Any], new: Dict[str, Any], prefix="") -> Dict[str, Tuple[Any, Any]]:
+    """深度递归 diff，返回所有字段变更"""
+    diffs = {}
+    all_keys = set(old.keys()) | set(new.keys())
+
+    for key in all_keys:
+        full_key = f"{prefix}.{key}" if prefix else key
+        old_val = old.get(key)
+        new_val = new.get(key)
+
+        if old_val == new_val:
+            continue
+
+        # 嵌套对象递归
+        if isinstance(old_val, dict) and isinstance(new_val, dict):
+            nested = deep_diff(old_val, new_val, prefix=full_key)
+            diffs.update(nested)
+            continue
+
+        # 列表直接记录
+        if isinstance(old_val, list) and isinstance(new_val, list):
+            if old_val != new_val:
+                diffs[full_key] = (old_val, new_val)
+            continue
+
+        # 基础字段
+        diffs[full_key] = (old_val, new_val)
+
+    return diffs
+```
+
+**TypeScript 迁移**: 已在 `docs/tech-design.md` 的 "Deep Diff Engine" 章节中设计了完全对等的 TypeScript 实现。
+
+#### ✅ 3. 数据模型设计验证
+
+**验证内容**:
+- 设计了 `change_events` 表 Schema（字段级别存储）
+- 验证了 JSONB 类型存储复杂变更详情的可行性
+- 确认了索引策略（按时间、用户、资源类型）
+
+**关键发现**:
+- 需要存储完整的 `old_resource` 和 `new_resource`（为未来分析预留）
+- 同时存储计算后的 `field_changes`（便于查询）
+- 需要 `changed_fields_paths` 数组（快速筛选变更类型）
+
+**正式项目改进**:
+- 从 SQLite 升级到 PostgreSQL（生产级可靠性）
+- 添加 `old_resource_raw` 和 `new_resource_raw` 字段
+- 使用 Drizzle ORM 替代原生 SQL（类型安全）
+
+#### ✅ 4. 系统设计初心验证
+
+**核心目标**（来自 `googletest/intro.md`）:
+1. 构建优化师行为记录系统
+2. 支持操作效果学习（Phase 2）
+3. 为未来的强化学习系统打基础
+
+**架构验证**:
+```
+Google Ads API → ETL Collector → Diff Engine → Behavior DB → Dashboard
+```
+
+**MVP 成功验证**:
+- ✅ 数据采集可行（ChangeEvent API 稳定可靠）
+- ✅ Diff 引擎有效（捕获所有字段变更）
+- ✅ 数据存储可扩展（JSONB 支持复杂查询）
+- ✅ UI 展示清晰（Flask 简易 Dashboard 验证）
+
+---
+
+### 从 MVP 到正式项目的技术演进
+
+| 维度 | MVP（概念验证） | 正式项目（生产就绪） |
+|-----|----------------|-------------------|
+| **后端框架** | Flask (Python) | Next.js + tRPC (TypeScript) |
+| **数据库** | SQLite（文件数据库） | PostgreSQL（生产级） |
+| **ORM** | 无（原生 SQL） | Drizzle ORM（类型安全） |
+| **Google Ads 库** | google-ads-python（官方） | google-ads-node（官方） |
+| **Diff 引擎** | Python `deep_diff()` | TypeScript `deepDiff()` |
+| **前端** | 无（仅后端） | Next.js + Material UI |
+| **API 设计** | REST（Flask routes） | tRPC（端到端类型安全） |
+| **部署** | 本地运行 | Vercel（云端自动部署） |
+| **类型安全** | 无 | TypeScript 全栈类型安全 |
+
+**技术栈升级原因**:
+1. **类型安全**: TypeScript + tRPC + Drizzle 实现端到端类型安全
+2. **开发效率**: Next.js 全栈开发，前后端统一语言
+3. **生产可靠**: PostgreSQL 替代 SQLite，支持并发和大数据量
+4. **可维护性**: 类型推导、自动补全、重构安全
+5. **可扩展性**: tRPC 易于添加新 API，Drizzle 易于迁移数据库
+
+**MVP 现已完成使命，正式项目将采用全新技术栈重新开发。**
+
+---
+
+## 🛠️ 技术栈选型（正式项目）
+
+### 前端
+- **框架**: Next.js 15 (App Router)
+- **语言**: TypeScript
+- **UI 组件**: Material UI (MUI v6)
+- **状态管理**: React Hooks + tRPC 客户端
+- **样式**: MUI 主题系统 + Emotion
+
+### 后端
+- **框架**: Next.js API Routes + tRPC
+- **语言**: TypeScript
+- **API 类型**: tRPC (端到端类型安全)
+- **运行时**: Node.js
+
+### 数据库
+- **数据库**: PostgreSQL
+- **ORM**: Drizzle ORM
+- **迁移工具**: Drizzle Kit
+- **连接池**: pg/postgres.js
+
+### 外部集成
+- **Google Ads API**: google-ads-node (Node.js 官方客户端，与 MVP 的 Python 官方库保持一致)
+- **认证**: OAuth 2.0 (google-ads.yaml 配置)
+
+### 开发工具
+- **包管理**: pnpm
+- **代码质量**: ESLint + Prettier
+- **类型检查**: TypeScript strict mode
+- **构建工具**: Next.js (内置 Turbopack)
+
+---
+
+## 📂 项目结构（规划）
 
 ```
 MonitorSysUA/
-├── mvp/                           # MVP Implementation
-│   ├── app.py                     # Flask server (main entry)
-│   ├── google_ads_client.py       # Google Ads API wrapper
-│   ├── database.py                # SQLite operations
-│   ├── requirements.txt           # Python deps (4 packages)
-│   ├── .env                       # Environment config
-│   ├── static/
-│   │   ├── index.html            # Frontend UI
-│   │   ├── app.js                # JavaScript logic
-│   │   └── style.css             # Custom styling
-│   └── README.md                  # MVP documentation
+├── app/                          # Next.js App Router
+│   ├── (dashboard)/             # 仪表板路由组
+│   │   ├── layout.tsx          # Dashboard 布局
+│   │   ├── page.tsx            # 主页面
+│   │   └── events/             # 事件列表页
+│   ├── api/                     # API Routes (仅用于 webhook 等)
+│   ├── layout.tsx              # 根布局
+│   └── globals.css             # 全局样式
 │
-├── docs/
-│   └── mvpdesign.md              # Comprehensive design doc (50+ pages)
+├── components/                   # React 组件
+│   ├── events/                  # 业务组件
+│   │   ├── event-table.tsx     # 使用 MUI DataGrid
+│   │   ├── event-filters.tsx   # 使用 MUI Form 组件
+│   │   └── event-detail.tsx    # 使用 MUI Dialog
+│   └── layout/
+│       ├── header.tsx          # 使用 MUI AppBar
+│       └── sidebar.tsx         # 使用 MUI Drawer
 │
-├── googletest/
-│   ├── googlemvptest.py          # Original test (reference)
-│   └── google-ads.yaml           # API credentials (gitignored)
+├── server/                       # tRPC 后端
+│   ├── api/                     # tRPC routers
+│   │   ├── root.ts             # Root router
+│   │   ├── events.ts           # Events router
+│   │   └── stats.ts            # Statistics router
+│   ├── db/                      # 数据库层
+│   │   ├── index.ts            # Drizzle 实例
+│   │   └── schema.ts           # Drizzle schema
+│   └── google-ads/              # Google Ads 客户端
+│       ├── client.ts           # API 客户端封装
+│       └── types.ts            # TypeScript 类型定义
 │
-├── prd.md                         # Full product vision
-├── todo.md                        # Project todo list
-└── CLAUDE.md                      # This file
+├── lib/                          # 工具函数
+│   ├── utils.ts                # 通用工具
+│   ├── trpc/                   # tRPC 配置
+│   │   ├── client.ts           # tRPC 客户端
+│   │   └── server.ts           # tRPC 服务端
+│   └── validations/            # Zod schemas
+│
+├── db/                           # 数据库迁移
+│   ├── migrations/             # Drizzle 迁移文件
+│   └── seed.ts                 # 种子数据（可选）
+│
+├── public/                       # 静态资源
+├── docs/                         # 文档
+│   ├── tech-design.md          # 技术设计文档
+│   └── mvpdesign.md            # MVP 设计（参考）
+│
+├── mvp/                          # MVP 原型（仅供参考）
+│   └── [Flask/SQLite 实现]
+│
+├── .env.local                    # 环境变量
+├── drizzle.config.ts            # Drizzle 配置
+├── next.config.js               # Next.js 配置
+├── tailwind.config.ts           # Tailwind 配置
+├── tsconfig.json                # TypeScript 配置
+├── package.json                 # 依赖管理
+├── prd.md                       # 产品需求文档
+├── todo.md                      # 开发任务清单
+└── CLAUDE.md                    # 本文件
 ```
 
 ---
 
-## 🔑 Key Technical Decisions
+## 📊 核心数据模型
 
-### 1. Backend: Flask over FastAPI
+### change_events 表（Drizzle Schema）
 
-**Rationale**:
-- Simpler for MVP (no async complexity)
-- Synchronous code easier to understand and debug
-- Adequate performance for low-traffic MVP
-- Can migrate to FastAPI in Phase 3 if needed
+基于 MVP 验证的数据模型，使用 Drizzle ORM 重新设计：
 
-### 2. Database: SQLite over PostgreSQL
+```typescript
+// server/db/schema.ts
+import { pgTable, serial, text, timestamp, jsonb, index } from 'drizzle-orm/pg-core';
 
-**Rationale**:
-- Zero configuration required
-- Single file = easy backup/restore
-- Sufficient for single-user MVP
-- Fast for read-heavy workloads
-- Easy migration path to PostgreSQL later
+export const changeEvents = pgTable('change_events', {
+  id: serial('id').primaryKey(),
 
-### 3. Frontend: Vanilla JS over React/Vue
+  // 时间信息
+  timestamp: timestamp('timestamp', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 
-**Rationale**:
-- No build process (Webpack, Vite, etc.)
-- No npm dependencies
-- Instant refresh during development
-- Smaller bundle size
-- Lower learning curve
+  // 操作信息
+  userEmail: text('user_email').notNull(),
+  resourceType: text('resource_type').notNull(), // CAMPAIGN_BUDGET, CAMPAIGN, etc.
+  operationType: text('operation_type').notNull(), // CREATE, UPDATE, REMOVE
+  resourceName: text('resource_name').notNull(),
+  clientType: text('client_type'), // UI, API, EDITOR
 
-### 4. Styling: Tailwind CSS via CDN
+  // 关联信息
+  campaign: text('campaign'),
+  adGroup: text('ad_group'),
 
-**Rationale**:
-- No build step
-- Works immediately
-- Excellent for rapid prototyping
-- Can switch to PostCSS build later
+  // 变更详情
+  summary: text('summary').notNull(), // 人类可读的变更摘要
+  fieldChanges: jsonb('field_changes'), // 字段级变更详情
+  changedFieldsPaths: jsonb('changed_fields_paths'), // 变更字段路径数组
+}, (table) => ({
+  timestampIdx: index('timestamp_idx').on(table.timestamp),
+  userEmailIdx: index('user_email_idx').on(table.userEmail),
+  resourceTypeIdx: index('resource_type_idx').on(table.resourceType),
+  operationTypeIdx: index('operation_type_idx').on(table.operationType),
+  campaignIdx: index('campaign_idx').on(table.campaign),
+}));
 
----
-
-## 🏗️ Architecture
-
-```
-Browser (HTML/JS/CSS)
-    ↓ HTTP/JSON
-Flask Backend (Python)
-    ↓ SQL          ↓ API Calls
-SQLite DB      Google Ads API
-```
-
-### Component Responsibilities
-
-1. **Google Ads Client** (`google_ads_client.py`)
-   - Fetches ChangeEvent data from API
-   - Parses protobuf responses
-   - Extracts field-level changes
-   - Generates human-readable summaries
-
-2. **Database Layer** (`database.py`)
-   - SQLite operations with indexes
-   - Duplicate prevention
-   - Filtering and pagination
-   - Statistics aggregation
-
-3. **Flask API** (`app.py`)
-   - 6 REST endpoints
-   - CORS enabled
-   - Error handling
-   - Static file serving
-
-4. **Frontend** (`static/`)
-   - Event table with sorting
-   - Advanced filtering
-   - Pagination (50 per page)
-   - Detail modal
-   - Statistics dashboard
-
----
-
-## 📊 Data Model
-
-### Database Schema
-
-**Table**: `change_events`
-
-```sql
-CREATE TABLE change_events (
-    id INTEGER PRIMARY KEY,
-    timestamp TEXT NOT NULL,           -- ISO 8601
-    user_email TEXT NOT NULL,
-    resource_type TEXT NOT NULL,       -- CAMPAIGN_BUDGET, CAMPAIGN, etc.
-    operation_type TEXT NOT NULL,      -- CREATE, UPDATE, REMOVE
-    resource_name TEXT NOT NULL,
-    client_type TEXT,
-    campaign TEXT,
-    ad_group TEXT,
-    summary TEXT NOT NULL,             -- Human-readable
-    field_changes TEXT,                -- JSON
-    changed_fields_paths TEXT,         -- JSON array
-    created_at TEXT DEFAULT (datetime('now')),
-
-    UNIQUE(timestamp, resource_name, user_email)
-);
-```
-
-**Indexes**: timestamp, user_email, resource_type, operation_type, campaign
-
----
-
-## 🔌 API Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/` | Serve frontend HTML |
-| GET | `/api/changes` | List events (with filters) |
-| POST | `/api/sync` | Fetch from Google Ads API |
-| GET | `/api/users` | Unique user emails |
-| GET | `/api/stats` | Database statistics |
-| GET | `/api/health` | Health check |
-
----
-
-## 🎨 Features Implemented
-
-### Core Features ✅
-
-1. **Data Fetching**
-   - Fetches last 7 days by default
-   - Supports 4 resource types
-   - Handles API errors gracefully
-   - Prevents duplicate inserts
-
-2. **Web Interface**
-   - Clean, responsive design
-   - Real-time data display
-   - Loading/empty states
-   - Toast notifications
-
-3. **Filtering**
-   - By user email
-   - By resource type
-   - By operation (CREATE/UPDATE/REMOVE)
-   - Free text search
-
-4. **Pagination**
-   - 50 items per page
-   - Next/Previous navigation
-   - Page counter display
-
-5. **Detail View**
-   - Modal with full event details
-   - Field-by-field change comparison
-   - Before/after value highlighting
-
----
-
-## 🚫 Explicitly NOT Implemented (Out of MVP Scope)
-
-These were consciously deferred to later phases:
-
-- ❌ Performance impact analysis
-- ❌ Automatic background sync
-- ❌ All 20+ resource types (only 4 in MVP)
-- ❌ PostgreSQL (using SQLite)
-- ❌ User authentication
-- ❌ Multi-account support
-- ❌ Export to CSV/Excel
-- ❌ Advanced analytics
-- ❌ AI recommendations
-- ❌ Email notifications
-- ❌ Cloud deployment
-
----
-
-## 🧪 Testing Status
-
-### Completed ✅
-- Database module tested successfully
-- Schema creation verified
-- Insert/query operations working
-
-### Pending ⏳
-- End-to-end testing with real Google Ads data
-- Frontend testing in browser
-- API endpoint validation
-- Cross-browser compatibility
-- Mobile responsiveness
-
-### Testing Commands
-
-```bash
-# Test database
-cd mvp
-python database.py
-
-# Test Google Ads client (requires venv with deps)
-python google_ads_client.py
-
-# Start server
-python app.py
-# Then open: http://localhost:5000
+export type ChangeEvent = typeof changeEvents.$inferSelect;
+export type NewChangeEvent = typeof changeEvents.$inferInsert;
 ```
 
 ---
 
-## 🚀 How to Run
+## 🔌 API 设计（tRPC）
 
-### Quick Start
+### Events Router
 
-```bash
-cd mvp
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python app.py
+```typescript
+// server/api/events.ts
+import { z } from 'zod';
+import { createTRPCRouter, publicProcedure } from '@/lib/trpc/server';
+
+export const eventsRouter = createTRPCRouter({
+  // 获取事件列表（带筛选和分页）
+  list: publicProcedure
+    .input(z.object({
+      page: z.number().min(1).default(1),
+      pageSize: z.number().min(1).max(100).default(50),
+      userEmail: z.string().optional(),
+      resourceType: z.string().optional(),
+      operationType: z.string().optional(),
+      search: z.string().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      // 实现查询逻辑
+    }),
+
+  // 同步 Google Ads 数据
+  sync: publicProcedure
+    .input(z.object({
+      days: z.number().min(1).max(30).default(7),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // 调用 Google Ads API
+    }),
+
+  // 获取统计信息
+  stats: publicProcedure
+    .query(async ({ ctx }) => {
+      // 返回统计数据
+    }),
+});
 ```
 
-Open browser: `http://localhost:5000`
+---
 
-### First-Time Setup
+## 🎨 UI 组件规划（Material UI）
 
-1. Ensure `googletest/google-ads.yaml` exists with valid credentials
-2. Verify customer ID in `.env` file
-3. Create virtual environment
-4. Install dependencies
-5. Run Flask server
-6. Click "Refresh Data" in UI
+### 核心组件
+
+1. **数据表格** (`components/events/event-table.tsx`)
+   - 使用 MUI 的 `DataGrid` 组件（@mui/x-data-grid）
+   - 内置排序、筛选、分页功能
+   - 行点击打开详情弹窗
+
+2. **筛选表单** (`components/events/event-filters.tsx`)
+   - 使用 MUI `TextField` + `Select` + `Autocomplete` 组件
+   - `DatePicker` 组件（@mui/x-date-pickers）
+   - 用户/资源类型/操作类型下拉选择
+
+3. **详情对话框** (`components/events/event-detail.tsx`)
+   - 使用 MUI `Dialog` 组件
+   - 显示变更前后对比
+   - 高亮显示差异字段
+
+4. **统计图表** (`components/stats/`)
+   - 集成 Recharts 或 MUI X Charts
+   - 使用 MUI `Card` + `CardContent` 布局
+   - 操作频率趋势图
+   - 资源类型分布饼图
 
 ---
 
-## 📈 Performance Characteristics
+## 🔄 开发流程
 
-### Expected Performance
+### 阶段 1: 项目初始化（1-2天）
+- [ ] 创建 Next.js 15 项目
+- [ ] 配置 TypeScript + ESLint + Prettier
+- [ ] 安装和配置 Material UI (MUI v6)
+- [ ] 配置 MUI 主题系统
+- [ ] 设置 Drizzle ORM + PostgreSQL
+- [ ] 配置 tRPC
 
-- **API Fetch Time**: 5-10 seconds for 7 days, ~100 events
-- **Database Query**: < 100ms for filtered results
-- **Page Load**: < 1 second for initial render
-- **Table Render**: < 200ms for 50 rows
+### 阶段 2: 数据库层（2-3天）
+- [ ] 编写 Drizzle schema (`server/db/schema.ts`)
+- [ ] 创建数据库迁移
+- [ ] 编写数据库操作函数
+- [ ] 测试数据库连接
 
-### Scalability Limits (MVP)
+### 阶段 3: Google Ads 集成（3-5天）
+- [ ] 安装 google-ads-api 客户端
+- [ ] 实现 ChangeEvent 数据获取
+- [ ] 实现 Protobuf 解析和数据转换
+- [ ] 编写单元测试
 
-- **Max Events**: ~100,000 (SQLite limit for this schema)
-- **Concurrent Users**: 1 (SQLite lock issues with multiple writers)
-- **API Rate**: Limited by Google Ads API quotas
+### 阶段 4: tRPC 后端（3-4天）
+- [ ] 创建 Events Router
+- [ ] 实现查询、筛选、分页逻辑
+- [ ] 实现同步接口
+- [ ] 实现统计接口
 
----
+### 阶段 5: 前端 UI（5-7天）
+- [ ] 安装必要的 MUI 组件包
+- [ ] 配置 MUI 主题和全局样式
+- [ ] 实现事件列表页面（DataGrid）
+- [ ] 实现筛选器组件
+- [ ] 实现详情对话框
+- [ ] 实现统计仪表板
 
-## 🔒 Security Considerations
-
-### Current Implementation
-
-- ✅ Secrets in `.env` (gitignored)
-- ✅ No credentials in code
-- ✅ google-ads.yaml gitignored
-- ✅ SQL injection prevented (parameterized queries)
-- ❌ No authentication (single-user MVP)
-- ❌ No HTTPS (local development)
-- ❌ No rate limiting
-
-### For Production
-
-Must add:
-- User authentication (JWT/OAuth)
-- HTTPS/TLS encryption
-- Rate limiting
-- Input validation
-- CSRF protection
-- XSS prevention
-
----
-
-## 🐛 Known Issues & Limitations
-
-### Current Limitations
-
-1. **Single User**: No authentication, designed for single operator
-2. **Manual Refresh**: No automatic background sync
-3. **Limited Resource Types**: Only 4 of 20+ types supported
-4. **SQLite Constraints**: Not suitable for concurrent writes
-5. **Local Only**: No cloud deployment yet
-
-### Minor Issues
-
-- Google Ads API test fails without venv activation (expected)
-- No error recovery for network failures (yet)
-- Mobile UI could be more optimized
+### 阶段 6: 测试与优化（2-3天）
+- [ ] 端到端测试
+- [ ] 性能优化
+- [ ] UI/UX 优化
+- [ ] 文档完善
 
 ---
 
-## 🔄 Migration Path (Future)
+## 🔑 关键技术决策
 
-### Phase 2: Enhanced Monitoring (1-2 weeks)
+### 1. 为什么选择 Next.js 全栈？
 
-- Add all resource types
-- Implement APScheduler for auto-sync
-- Add WebSocket for real-time updates
-- Export to CSV functionality
+**优势**:
+- 前后端统一技术栈（TypeScript）
+- tRPC 提供端到端类型安全
+- Server Components 优化性能
+- 简化部署流程
+- 优秀的开发体验
 
-**Changes Required**:
-- Update `google_ads_client.py` with all resource types
-- Add APScheduler to `requirements.txt`
-- Modify `app.py` to include background jobs
+**权衡**:
+- 相比纯前端框架，学习曲线稍陡
+- 但长期维护成本更低
 
-### Phase 3: Database Migration (2-3 weeks)
+### 5. 为什么选择 Material UI？
 
-- Migrate to PostgreSQL
-- Add connection pooling
-- Implement caching layer
+**优势**:
+- 成熟的企业级 UI 组件库
+- 开箱即用的完整组件生态
+- 强大的主题定制能力
+- DataGrid 等高级组件支持
+- 优秀的可访问性支持
+- 完善的文档和社区支持
 
-**Changes Required**:
-- Replace `database.py` with PostgreSQL version
-- Add pg_dump for backups
-- Update connection handling in `app.py`
+**对比 shadcn/ui**:
+- MUI 提供完整的组件包，无需逐个安装
+- 更适合企业级数据密集型应用
+- DataGrid 功能强大，适合展示 ChangeEvent 数据
 
-### Phase 4: Production Deployment (1 month)
+### 2. 为什么选择 Drizzle ORM？
 
-- Add authentication
-- Deploy to cloud (AWS/GCP)
-- Add monitoring
-- Implement CI/CD
+**优势**:
+- TypeScript-first，类型推导强大
+- 性能优秀，接近原生 SQL
+- 轻量级，无运行时开销
+- 支持多数据库（可从 PostgreSQL 迁移到其他数据库）
+- Schema 即代码，易于版本控制
 
-**Changes Required**:
-- Migrate to FastAPI
-- Add JWT authentication
-- Dockerize application
-- Setup Kubernetes/ECS
+**对比 Prisma**:
+- Drizzle 更轻量，构建速度更快
+- Drizzle 的 SQL-like API 更直观
+- Prisma 的生成器增加了复杂性
 
----
+### 3. 为什么选择 PostgreSQL？
 
-## 💡 Key Insights & Learnings
+**优势**:
+- 生产级可靠性
+- 支持 JSONB 类型（存储 field_changes）
+- 强大的索引能力
+- 并发性能优秀
+- 可扩展性好
 
-### What Worked Well
+**相比 SQLite**:
+- 适合多用户并发访问
+- 更好的查询优化器
+- 可部署到云端（Supabase, Neon 等）
 
-1. **Incremental Development**: Building MVP first proved concept quickly
-2. **Vanilla JS Choice**: No build process = instant iteration
-3. **SQLite for MVP**: Perfect for rapid prototyping
-4. **Google Ads API**: Well-documented, powerful
-5. **Modular Design**: Easy to replace components later
+### 4. 为什么选择 tRPC？
 
-### Challenges Faced
+**优势**:
+- 完全类型安全，前后端共享类型
+- 无需编写 API 文档（类型即文档）
+- 优秀的 DX（开发体验）
+- 与 Next.js 集成完美
+- 自动序列化/反序列化
 
-1. **Protobuf Parsing**: ChangeEvent oneof structure required careful unwrapping
-2. **Field Humanization**: Converting micros to dollars, enums to readable text
-3. **Duplicate Prevention**: Needed composite unique constraint
-4. **Frontend State Management**: Vanilla JS requires more manual work
-
-### Recommendations for Next Developer
-
-1. **Start with MVP**: Don't jump to FastAPI/React immediately
-2. **Test Components Independently**: Each module has `__main__` test
-3. **Use Design Doc**: `docs/mvpdesign.md` has complete specifications
-4. **Follow TODO**: `todo.md` has clear next steps
-5. **Keep It Simple**: Resist feature creep in early phases
-
----
-
-## 📝 Important File Locations
-
-### Documentation
-
-- **MVP Design**: `docs/mvpdesign.md` (comprehensive 50-page spec)
-- **MVP README**: `mvp/README.md` (quick start guide)
-- **Project TODO**: `todo.md` (feature roadmap)
-- **PRD**: `prd.md` (full product vision)
-
-### Code
-
-- **Main Entry**: `mvp/app.py`
-- **API Client**: `mvp/google_ads_client.py`
-- **Database**: `mvp/database.py`
-- **Frontend**: `mvp/static/index.html`
-
-### Configuration
-
-- **Environment**: `mvp/.env`
-- **Dependencies**: `mvp/requirements.txt`
-- **Google Ads**: `googletest/google-ads.yaml` (gitignored)
+**对比 REST API**:
+- 减少样板代码
+- 避免类型不一致问题
+- 重构更安全
 
 ---
 
-## 🎓 For Future Reference
+## 🧪 测试策略
 
-### Useful Commands
+### 单元测试
+- Google Ads 客户端函数
+- 数据转换函数
+- Drizzle 查询函数
 
-```bash
-# Database operations
-python mvp/database.py              # Test DB
+### 集成测试
+- tRPC 路由端到端测试
+- 数据库操作测试
 
-# Google Ads API
-python mvp/google_ads_client.py     # Test API
-
-# Development server
-cd mvp && python app.py             # Start Flask
-
-# API testing
-curl http://localhost:5000/api/health
-curl http://localhost:5000/api/stats
-curl -X POST http://localhost:5000/api/sync
-
-# Cleanup
-rm mvp/change_events.db            # Reset database
-```
-
-### Git Ignore Patterns
-
-Important files excluded from git:
-- `mvp/.env` (secrets)
-- `mvp/change_events.db` (database)
-- `googletest/google-ads.yaml` (API credentials)
-- `googletest/*.json` (API keys)
-- `venv/` (virtual environment)
+### E2E 测试（可选）
+- Playwright 测试关键用户流程
 
 ---
 
-## 🔗 External Resources
+## 📈 性能目标
 
+- **首屏加载**: < 1.5s (使用 Server Components)
+- **数据同步**: < 10s (7 天数据，~100 事件)
+- **表格渲染**: < 200ms (50 行)
+- **数据库查询**: < 100ms (带索引)
+- **tRPC 调用**: < 50ms (本地网络)
+
+---
+
+## 🔒 安全考虑
+
+### 已实施
+- ✅ 环境变量管理（.env.local）
+- ✅ Google Ads 凭证安全存储
+- ✅ TypeScript 类型安全
+
+### 待实施（后期）
+- ⏳ 用户认证（NextAuth.js）
+- ⏳ 角色权限管理（RBAC）
+- ⏳ API 限流
+- ⏳ CSRF 防护
+- ⏳ XSS 防护
+
+---
+
+## 🐛 已知限制
+
+### 当前阶段
+1. **单账户**: 仅支持一个 Google Ads 账户
+2. **手动同步**: 需要手动点击刷新（无定时任务）
+3. **基础筛选**: 筛选功能较简单
+4. **无性能分析**: 不分析操作对效果的影响
+
+### 计划改进
+- Phase 2: 添加定时同步（使用 Vercel Cron 或 Node-cron）
+- Phase 3: 多账户支持
+- Phase 4: 性能影响分析
+
+---
+
+## 📝 重要文件位置
+
+### 文档
+- **产品需求**: `prd.md`
+- **开发任务**: `todo.md`
+- **技术设计**: `docs/tech-design.md`
+- **MVP 参考**: `mvp/README.md`
+
+### 配置
+- **环境变量**: `.env.local`
+- **Google Ads 凭证**: `googletest/google-ads.yaml`
+- **Drizzle 配置**: `drizzle.config.ts`
+- **Next.js 配置**: `next.config.js`
+- **MUI 主题**: `src/theme/index.ts`
+
+### 核心代码（规划）
+- **Drizzle Schema**: `server/db/schema.ts`
+- **tRPC Root Router**: `server/api/root.ts`
+- **Events Router**: `server/api/events.ts`
+- **Google Ads 客户端**: `server/google-ads/client.ts`
+- **事件表格组件**: `components/events/event-table.tsx`
+
+---
+
+## 🎓 开发参考
+
+### 官方文档
+- **Next.js**: https://nextjs.org/docs
+- **tRPC**: https://trpc.io/docs
+- **Drizzle ORM**: https://orm.drizzle.team/docs
+- **Material UI**: https://mui.com/material-ui/
+- **MUI X Data Grid**: https://mui.com/x/react-data-grid/
 - **Google Ads API**: https://developers.google.com/google-ads/api
-- **ChangeEvent Docs**: https://developers.google.com/google-ads/api/reference/rpc/latest/ChangeEvent
-- **Flask Docs**: https://flask.palletsprojects.com/
-- **Tailwind CSS**: https://tailwindcss.com/
+
+### 有用的资源
+- **T3 Stack**: https://create.t3.gg (类似技术栈参考)
+- **Drizzle Examples**: https://github.com/drizzle-team/drizzle-orm
+- **MUI Templates**: https://mui.com/material-ui/getting-started/templates/
 
 ---
 
-## ✅ Implementation Checklist
+## ✅ 实施检查清单
 
-- [x] Backend API (Flask)
-- [x] Database layer (SQLite)
-- [x] Google Ads integration
-- [x] Frontend UI
-- [x] Filtering & pagination
-- [x] Documentation
-- [x] Configuration files
-- [ ] End-to-end testing
-- [ ] Production deployment
+### 项目设置
+- [ ] Next.js 15 项目创建
+- [ ] TypeScript 配置
+- [ ] Material UI 安装和配置
+- [ ] MUI 主题设置
+- [ ] Drizzle ORM 配置
+- [ ] PostgreSQL 连接
+- [ ] tRPC 设置
+
+### 后端开发
+- [ ] Drizzle schema 定义
+- [ ] 数据库迁移
+- [ ] Google Ads 客户端
+- [ ] tRPC routers
+- [ ] 数据同步逻辑
+
+### 前端开发
+- [ ] 页面布局
+- [ ] 事件列表组件
+- [ ] 筛选器组件
+- [ ] 详情对话框
+- [ ] 统计仪表板
+
+### 测试与部署
+- [ ] 单元测试
+- [ ] 集成测试
+- [ ] 性能优化
+- [ ] 文档完善
+- [ ] 部署到 Vercel
 
 ---
 
-## 🎯 Success Criteria (MVP)
+## 🎯 成功标准
 
-**Achieved**:
-- ✅ System fetches ChangeEvent data from Google Ads API
-- ✅ Events displayed in clean web interface
-- ✅ Filtering by user, type, operation works
-- ✅ Pagination for large datasets
-- ✅ Manual refresh functionality
-- ✅ Runs locally without complex setup
+项目成功的标志：
 
-**Next Steps**:
-- ⏳ Validate with real Google Ads data
-- ⏳ Get user feedback
-- ⏳ Iterate based on insights
+- ✅ 用户可以实时查看 Google Ads 账户变更
+- ✅ 筛选和搜索功能流畅
+- ✅ 界面美观、响应式
+- ✅ 类型安全，无运行时类型错误
+- ✅ 性能达标（见性能目标）
+- ✅ 代码质量高，易于维护
+- ✅ 文档完善，易于交接
 
 ---
 
-**End of Implementation Notes**
+**文档结束**
 
-For detailed architecture, API specs, and setup instructions, see:
-- `docs/mvpdesign.md` - Complete design document
-- `mvp/README.md` - Quick start guide
-- `todo.md` - Future roadmap
+详细的技术设计请参考：`docs/tech-design.md`
+开发任务清单请参考：`todo.md`
+产品需求文档请参考：`prd.md`
