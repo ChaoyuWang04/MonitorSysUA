@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: monitorsysua-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: monitor_sys_ua
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
+      PGDATA: /var/lib/postgresql/data/pgdata
+
+    ports:
+      # Host:Container - Using 5433 to avoid conflict with local PostgreSQL
+      - "5433:5432"
+
+    volumes:
+      # Named volume for data persistence
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d monitor_sys_ua"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    networks:
+      - monitorsysua-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  monitorsysua-network:
+    driver: bridge

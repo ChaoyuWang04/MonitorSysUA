@@ -1,0 +1,61 @@
+# Dependencies
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Next.js build output
+.next
+out
+build
+dist
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation (not needed in Docker context)
+*.md
+docs
+context
+README.md
+CLAUDE.md
+
+# Testing
+coverage
+.nyc_output
+
+# Misc
+*.log
+.cache
+temp
+tmp
+
+# MVP prototype (legacy)
+mvp
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Drizzle Studio
+.drizzle
+
+# Playwright artifacts
+.playwright-mcp

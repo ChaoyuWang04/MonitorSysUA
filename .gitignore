@@ -55,6 +55,12 @@ yarn-error.log*
 frontend/dist/
 frontend/build/
 
+# Next.js
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
 # 测试
 .pytest_cache/
 .coverage

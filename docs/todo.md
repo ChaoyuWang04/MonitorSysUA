@@ -196,7 +196,12 @@
   - [x] `npm add -D drizzle-kit @types/pg`
 
 - [x] 创建 PostgreSQL 16 数据库
-  - [x] 使用 Homebrew 安装 PostgreSQL 16
+  - [x] ~~使用 Homebrew 安装 PostgreSQL 16~~ (已弃用)
+  - [x] **使用 Docker 部署 PostgreSQL 16** (当前方式)
+    - [x] 创建 `docker-compose.yml` (端口 5433)
+    - [x] 创建 `.dockerignore`
+    - [x] 添加 Docker npm 脚本
+    - [x] 更新环境变量配置为 Docker 端口
   - [x] 创建数据库 `monitor_sys_ua`
   - [x] 配置数据库用户和权限
 
