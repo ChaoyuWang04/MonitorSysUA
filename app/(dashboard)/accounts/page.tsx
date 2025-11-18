@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import {
   Box,
   Button,
@@ -50,57 +50,59 @@ export default function AccountsPage() {
   const [accountToDelete, setAccountToDelete] = useState<number | null>(null)
 
   const toast = useToast()
+  const utils = trpc.useUtils()
 
   // Fetch accounts
-  const { data: accounts, isLoading, refetch } = trpc.accounts.list.useQuery()
+  const { data: accounts, isLoading } = trpc.accounts.list.useQuery()
 
   // Mutations
   const deleteAccount = trpc.accounts.delete.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success('Account deleted successfully')
-      refetch()
+      // Invalidate accounts query to trigger refetch
+      await utils.accounts.list.invalidate()
     },
     onError: (error) => {
       toast.error(`Failed to delete account: ${error.message}`)
     },
   })
 
-  const handleAddAccount = () => {
+  const handleAddAccount = useCallback(() => {
     setEditingAccount(null)
     setDialogOpen(true)
-  }
+  }, [])
 
-  const handleEditAccount = (account: Account) => {
+  const handleEditAccount = useCallback((account: Account) => {
     setEditingAccount(account)
     setDialogOpen(true)
-  }
+  }, [])
 
-  const handleDeleteAccount = (id: number) => {
+  const handleDeleteAccount = useCallback((id: number) => {
     setAccountToDelete(id)
     setConfirmDialogOpen(true)
-  }
+  }, [])
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = useCallback(async () => {
     if (accountToDelete) {
       await deleteAccount.mutateAsync({ id: accountToDelete })
       setConfirmDialogOpen(false)
       setAccountToDelete(null)
     }
-  }
+  }, [accountToDelete, deleteAccount])
 
-  const handleCancelDelete = () => {
+  const handleCancelDelete = useCallback(() => {
     setConfirmDialogOpen(false)
     setAccountToDelete(null)
-  }
+  }, [])
 
-  const handleDialogClose = () => {
+  const handleDialogClose = useCallback(() => {
     setDialogOpen(false)
     setEditingAccount(null)
-    refetch()
-  }
+    // Query invalidation is now handled by the mutations in AccountDialog
+  }, [])
 
-  // DataGrid columns
-  const columns: GridColDef[] = [
+  // DataGrid columns (memoized to prevent unnecessary re-renders)
+  const columns: GridColDef[] = useMemo(() => [
     {
       field: 'name',
       headerName: 'Account Name',
@@ -202,16 +204,18 @@ export default function AccountsPage() {
           label="Edit"
           onClick={() => handleEditAccount(params.row as Account)}
           showInMenu={false}
+          key="edit"
         />,
         <GridActionsCellItem
           icon={<DeleteIcon />}
           label="Delete"
           onClick={() => handleDeleteAccount(params.row.id)}
           showInMenu={false}
+          key="delete"
         />,
       ],
     },
-  ]
+  ], [handleEditAccount, handleDeleteAccount])
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -249,7 +253,7 @@ export default function AccountsPage() {
       {/* DataGrid */}
       <Box sx={{ flex: 1, px: 3, pb: 3 }}>
         <DataGrid
-          rows={accounts || []}
+          rows={accounts ?? []}
           columns={columns}
           loading={isLoading}
           disableRowSelectionOnClick

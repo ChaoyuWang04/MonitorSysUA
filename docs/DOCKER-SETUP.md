@@ -84,6 +84,69 @@ npm run dev
 
 ---
 
+## ⚠️ 重要:重启 Docker Desktop 后的必要步骤
+
+**如果你重启了 Docker Desktop 或系统,必须按以下顺序操作:**
+
+### 为什么需要这些步骤?
+
+重启 Docker Desktop 后,容器可能会被重新创建,数据库可能处于空白状态。即使数据卷(volume)被保留,**数据库迁移追踪状态也可能丢失**,导致应用无法正常工作。
+
+### 正确的重启流程
+
+```bash
+# 1. 启动 Docker 数据库容器
+npm run docker:db:up
+
+# 2. 【关键步骤】重新运行数据库迁移
+npm run db:migrate
+
+# 3. 启动应用
+npm run dev
+```
+
+### ⛔ 常见错误
+
+**❌ 错误做法**: 重启后直接运行 `npm run dev`
+- 结果:应用无法连接数据库或数据表不存在
+
+**✅ 正确做法**: 按上述三步顺序操作
+- 保证:数据库表结构正确,迁移状态一致
+
+### 验证数据库状态
+
+如果不确定数据库是否正常,可以先验证:
+
+```bash
+# 检查容器状态
+docker ps | grep postgres
+
+# 检查数据库表
+docker exec monitorsysua-postgres psql -U postgres -d monitor_sys_ua -c "\dt"
+
+# 检查迁移记录
+docker exec monitorsysua-postgres psql -U postgres -d monitor_sys_ua -c "SELECT COUNT(*) FROM drizzle.__drizzle_migrations;"
+```
+
+### 完全重置(如果遇到问题)
+
+如果数据库状态混乱或迁移出现问题:
+
+```bash
+# 完全重置数据库(会删除所有数据!)
+npm run docker:db:reset
+
+# 运行迁移
+npm run db:migrate
+
+# 启动应用
+npm run dev
+```
+
+**注意**: `docker:db:reset` 会删除所有数据,包括你添加的账户信息。
+
+---
+
 ## 📦 npm 脚本命令
 
 | 命令 | 作用 | 使用场景 |
