@@ -57,7 +57,8 @@ export const changeEvents = pgTable('change_events', {
   adGroup: text('ad_group'),
 
   // Change details
-  summary: text('summary').notNull(),
+  summary: text('summary').notNull(), // English summary (for technical reference)
+  summaryZh: text('summary_zh'), // Chinese summary (user-facing, nullable for backward compatibility)
   fieldChanges: jsonb('field_changes'),
   changedFieldsPaths: jsonb('changed_fields_paths').$type<string[]>(),
 }, (table) => ({

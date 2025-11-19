@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import {
   Dialog,
   DialogTitle,
@@ -12,14 +13,39 @@ import {
   Chip,
   Paper,
   Alert,
+  Collapse,
+  IconButton,
 } from '@mui/material'
 import {
   Close as CloseIcon,
   Person as PersonIcon,
   Schedule as ScheduleIcon,
   Label as LabelIcon,
+  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material'
 import type { ChangeEvent } from '@/server/db/schema'
+
+/**
+ * Format field value for display, including special handling for Micros fields
+ */
+function formatFieldValue(fieldName: string, value: any): string {
+  if (value === null || value === undefined) {
+    return '(null)'
+  }
+
+  // Handle Micros fields (monetary values)
+  if (typeof fieldName === 'string' && fieldName.toLowerCase().includes('micros') && typeof value === 'number') {
+    const amount = value / 1_000_000
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${value} micros)`
+  }
+
+  // Handle objects
+  if (typeof value === 'object') {
+    return JSON.stringify(value, null, 2)
+  }
+
+  return String(value)
+}
 
 interface EventDetailDialogProps {
   event: ChangeEvent | null
@@ -28,6 +54,8 @@ interface EventDetailDialogProps {
 }
 
 export function EventDetailDialog({ event, open, onClose }: EventDetailDialogProps) {
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
+
   if (!event) return null
 
   const fieldChanges = event.fieldChanges as Record<string, { old: any; new: any }> | null
@@ -128,11 +156,46 @@ export function EventDetailDialog({ event, open, onClose }: EventDetailDialogPro
         {/* Summary */}
         <Box sx={{ mb: 3 }}>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-            Summary
+            摘要
           </Typography>
           <Alert severity="info" icon={false}>
-            {event.summary}
+            {event.summaryZh || event.summary}
           </Alert>
+
+          {/* Collapsible Technical Details */}
+          {event.summaryZh && event.summary && (
+            <Box sx={{ mt: 1 }}>
+              <Button
+                size="small"
+                onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
+                endIcon={
+                  <ExpandMoreIcon
+                    sx={{
+                      transform: showTechnicalDetails ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s',
+                    }}
+                  />
+                }
+                sx={{ textTransform: 'none', color: 'text.secondary' }}
+              >
+                技术详情
+              </Button>
+              <Collapse in={showTechnicalDetails}>
+                <Box
+                  sx={{
+                    mt: 1,
+                    p: 1.5,
+                    bgcolor: 'grey.50',
+                    borderRadius: 1,
+                    fontFamily: 'monospace',
+                    fontSize: '0.875rem',
+                  }}
+                >
+                  {event.summary}
+                </Box>
+              </Collapse>
+            </Box>
+          )}
         </Box>
 
         {/* Field Changes */}
@@ -179,13 +242,10 @@ export function EventDetailDialog({ event, open, onClose }: EventDetailDialogPro
                             fontFamily: 'monospace',
                             fontSize: '0.875rem',
                             wordBreak: 'break-all',
+                            whiteSpace: 'pre-wrap',
                           }}
                         >
-                          {change.old === null || change.old === undefined
-                            ? '(null)'
-                            : typeof change.old === 'object'
-                            ? JSON.stringify(change.old, null, 2)
-                            : String(change.old)}
+                          {formatFieldValue(field, change.old)}
                         </Box>
                       </Box>
                       <Box>
@@ -201,13 +261,10 @@ export function EventDetailDialog({ event, open, onClose }: EventDetailDialogPro
                             fontFamily: 'monospace',
                             fontSize: '0.875rem',
                             wordBreak: 'break-all',
+                            whiteSpace: 'pre-wrap',
                           }}
                         >
-                          {change.new === null || change.new === undefined
-                            ? '(null)'
-                            : typeof change.new === 'object'
-                            ? JSON.stringify(change.new, null, 2)
-                            : String(change.new)}
+                          {formatFieldValue(field, change.new)}
                         </Box>
                       </Box>
                     </Box>

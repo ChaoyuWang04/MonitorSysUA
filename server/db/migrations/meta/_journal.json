@@ -15,6 +15,13 @@
       "when": 1763292641539,
       "tag": "0001_sad_the_phantom",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1763536702867,
+      "tag": "0002_concerned_aaron_stack",
+      "breakpoints": true
     }
   ]
 }

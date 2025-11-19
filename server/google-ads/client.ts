@@ -14,20 +14,22 @@ import type { NewChangeEvent } from '../db/schema'
  *
  * @param customerId - The Google Ads customer ID to fetch events for
  * @param days - Number of days to look back (default: 7, max: 30)
+ * @param currency - Currency code for formatting monetary values (default: 'USD')
  * @returns Array of parsed ChangeEvents ready for database insertion (without accountId)
  */
 export async function fetchAndParseChangeEvents(
   customerId: string,
-  days: number = 7
+  days: number = 7,
+  currency: string = 'USD'
 ): Promise<Omit<NewChangeEvent, 'accountId'>[]> {
   return new Promise((resolve, reject) => {
-    console.log(`Fetching ChangeEvents for account ${customerId} (last ${days} days) via Python...`)
+    console.log(`Fetching ChangeEvents for account ${customerId} (last ${days} days, currency: ${currency}) via Python...`)
 
     // Path to Python script
     const scriptPath = join(process.cwd(), 'server', 'google-ads', 'fetch_events.py')
 
-    // Spawn Python process
-    const pythonProcess = spawn('python3', [scriptPath, customerId, days.toString()])
+    // Spawn Python process with currency parameter
+    const pythonProcess = spawn('python3', [scriptPath, customerId, days.toString(), currency])
 
     let stdout = ''
     let stderr = ''
@@ -72,6 +74,7 @@ export async function fetchAndParseChangeEvents(
           campaign: event.campaign || null,
           adGroup: event.adGroup || null,
           summary: event.summary,
+          summaryZh: event.summaryZh || null,
           fieldChanges: event.fieldChanges,
           changedFieldsPaths: event.changedFieldsPaths,
         }))

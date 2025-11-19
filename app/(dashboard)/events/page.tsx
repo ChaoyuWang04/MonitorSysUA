@@ -126,9 +126,11 @@ export default function EventsPage() {
       flex: 1,
       minWidth: 200,
       renderCell: (params) => (
-        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-          {params.value}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+            {params.value}
+          </Typography>
+        </Box>
       ),
     },
     {
@@ -168,15 +170,21 @@ export default function EventsPage() {
       ),
     },
     {
-      field: 'summary',
+      field: 'summaryZh',
       headerName: 'Summary',
       flex: 2,
       minWidth: 300,
-      renderCell: (params) => (
-        <Typography variant="body2" color="text.secondary" noWrap>
-          {params.value}
-        </Typography>
-      ),
+      renderCell: (params) => {
+        // Use Chinese summary if available, fallback to English summary
+        const summaryText = params.row.summaryZh || params.row.summary
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', height: '100%', py: 1 }}>
+            <Typography variant="body2" color="text.primary">
+              {summaryText}
+            </Typography>
+          </Box>
+        )
+      },
     },
     {
       field: 'clientType',

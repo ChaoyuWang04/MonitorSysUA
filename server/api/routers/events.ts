@@ -33,8 +33,9 @@ export const eventsRouter = createTRPCRouter({
           throw new Error('Account not found')
         }
 
-        // Fetch from Google Ads API for this specific account
-        const events = await fetchAndParseChangeEvents(account.customerId, input.days)
+        // Fetch from Google Ads API for this specific account with currency info
+        const currency = account.currency || 'USD'
+        const events = await fetchAndParseChangeEvents(account.customerId, input.days, currency)
 
         // Insert into database (with automatic deduplication and account association)
         const eventsWithAccountId = events.map(event => ({
