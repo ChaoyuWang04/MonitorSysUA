@@ -74,9 +74,18 @@ export function CampaignEvaluationDialog({
     evaluationDate,
   } = evaluation
 
+  // Convert decimal strings to numbers (Drizzle returns decimals as strings)
+  const numMinAchievementRate = minAchievementRate
+    ? (typeof minAchievementRate === 'string' ? parseFloat(minAchievementRate) : minAchievementRate)
+    : 0
+  const numActualRoas7 = actualRoas7 ? (typeof actualRoas7 === 'string' ? parseFloat(actualRoas7) : actualRoas7) : null
+  const numActualRet7 = actualRet7 ? (typeof actualRet7 === 'string' ? parseFloat(actualRet7) : actualRet7) : null
+  const numBaselineRoas7 = baselineRoas7 ? (typeof baselineRoas7 === 'string' ? parseFloat(baselineRoas7) : baselineRoas7) : null
+  const numBaselineRet7 = baselineRet7 ? (typeof baselineRet7 === 'string' ? parseFloat(baselineRet7) : baselineRet7) : null
+
   // Calculate percentage difference
-  const roasDiff = actualRoas7 && baselineRoas7 ? actualRoas7 - baselineRoas7 : null
-  const retDiff = actualRet7 && baselineRet7 ? actualRet7 - baselineRet7 : null
+  const roasDiff = numActualRoas7 && numBaselineRoas7 ? numActualRoas7 - numBaselineRoas7 : null
+  const retDiff = numActualRet7 && numBaselineRet7 ? numActualRet7 - numBaselineRet7 : null
 
   return (
     <Dialog
@@ -316,7 +325,7 @@ export function CampaignEvaluationDialog({
                   <Gauge
                     width={200}
                     height={150}
-                    value={minAchievementRate || 0}
+                    value={numMinAchievementRate}
                     valueMin={0}
                     valueMax={150}
                     sx={(theme) => ({
@@ -326,13 +335,13 @@ export function CampaignEvaluationDialog({
                       },
                       [`& .${gaugeClasses.valueArc}`]: {
                         fill:
-                          (minAchievementRate || 0) >= 110
+                          numMinAchievementRate >= 110
                             ? theme.palette.success.main
-                            : (minAchievementRate || 0) >= 100
+                            : numMinAchievementRate >= 100
                             ? theme.palette.info.main
-                            : (minAchievementRate || 0) >= 85
+                            : numMinAchievementRate >= 85
                             ? theme.palette.warning.main
-                            : (minAchievementRate || 0) >= 60
+                            : numMinAchievementRate >= 60
                             ? theme.palette.warning.dark
                             : theme.palette.error.main,
                       },

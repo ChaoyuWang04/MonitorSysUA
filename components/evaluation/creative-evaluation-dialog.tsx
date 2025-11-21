@@ -75,9 +75,15 @@ export function CreativeEvaluationDialog({
     creativeStatus,
   } = evaluation
 
+  // Convert decimal strings to numbers (Drizzle returns decimals as strings)
+  const numActualCpi = actualCpi ? (typeof actualCpi === 'string' ? parseFloat(actualCpi) : actualCpi) : null
+  const numActualRoas = actualRoas ? (typeof actualRoas === 'string' ? parseFloat(actualRoas) : actualRoas) : null
+  const numMaxCpiThreshold = maxCpiThreshold ? (typeof maxCpiThreshold === 'string' ? parseFloat(maxCpiThreshold) : maxCpiThreshold) : null
+  const numMinRoasThreshold = minRoasThreshold ? (typeof minRoasThreshold === 'string' ? parseFloat(minRoasThreshold) : minRoasThreshold) : null
+
   // Check if CPI and ROAS passed thresholds
-  const cpiPassed = maxCpiThreshold && actualCpi ? actualCpi <= maxCpiThreshold : null
-  const roasPassed = minRoasThreshold && actualRoas ? actualRoas >= minRoasThreshold : null
+  const cpiPassed = numMaxCpiThreshold && numActualCpi ? numActualCpi <= numMaxCpiThreshold : null
+  const roasPassed = numMinRoasThreshold && numActualRoas ? numActualRoas >= numMinRoasThreshold : null
 
   const handleSyncClick = () => {
     setSyncDialogOpen(true)

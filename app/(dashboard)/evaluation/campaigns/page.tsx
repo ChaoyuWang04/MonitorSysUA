@@ -131,11 +131,15 @@ export default function CampaignEvaluationPage() {
         const rate = params.value
         if (rate === null || rate === undefined) return 'N/A'
 
+        // Convert to number (Drizzle decimal returns string)
+        const numRate = typeof rate === 'string' ? parseFloat(rate) : rate
+        if (isNaN(numRate)) return 'N/A'
+
         return (
           <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', gap: 1 }}>
             <LinearProgress
               variant="determinate"
-              value={Math.min(rate, 150)} // Cap at 150% for visual purposes
+              value={Math.min(numRate, 150)} // Cap at 150% for visual purposes
               sx={{
                 flex: 1,
                 height: 6,
@@ -143,13 +147,13 @@ export default function CampaignEvaluationPage() {
                 bgcolor: 'grey.200',
                 '& .MuiLinearProgress-bar': {
                   bgcolor:
-                    rate >= 110
+                    numRate >= 110
                       ? 'success.main'
-                      : rate >= 100
+                      : numRate >= 100
                       ? 'info.main'
-                      : rate >= 85
+                      : numRate >= 85
                       ? 'warning.main'
-                      : rate >= 60
+                      : numRate >= 60
                       ? 'warning.dark'
                       : 'error.main',
                 },
@@ -162,13 +166,13 @@ export default function CampaignEvaluationPage() {
                 minWidth: '60px',
                 textAlign: 'right',
                 color:
-                  rate >= 110
+                  numRate >= 110
                     ? 'success.main'
-                    : rate >= 100
+                    : numRate >= 100
                     ? 'info.main'
-                    : rate >= 85
+                    : numRate >= 85
                     ? 'warning.main'
-                    : rate >= 60
+                    : numRate >= 60
                     ? 'warning.dark'
                     : 'error.main',
               }}
