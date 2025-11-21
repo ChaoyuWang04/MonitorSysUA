@@ -20,6 +20,9 @@ import {
   Dashboard as DashboardIcon,
   EventNote as EventNoteIcon,
   AccountCircle as AccountIcon,
+  Assessment as AssessmentIcon,
+  Image as ImageIcon,
+  Speed as SpeedIcon,
 } from '@mui/icons-material'
 import { usePathname, useRouter } from 'next/navigation'
 import { AccountSelector } from '@/components/layout/account-selector'
@@ -43,6 +46,10 @@ export default function DashboardLayout({
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
     { text: 'Events', icon: <EventNoteIcon />, path: '/events' },
     { text: 'Accounts', icon: <AccountIcon />, path: '/accounts' },
+    'divider',
+    { text: 'Campaign Evaluation', icon: <AssessmentIcon />, path: '/evaluation/campaigns' },
+    { text: 'Creative Evaluation', icon: <ImageIcon />, path: '/evaluation/creatives' },
+    { text: 'Operation Scores', icon: <SpeedIcon />, path: '/evaluation/operations' },
   ]
 
   const drawer = (
@@ -64,27 +71,38 @@ export default function DashboardLayout({
 
       {/* Navigation Menu */}
       <List sx={{ flex: 1, pt: 2, px: 1 }}>
-        {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              selected={pathname === item.path}
-              onClick={() => {
-                router.push(item.path)
-                setMobileOpen(false)
-              }}
-              sx={{ mb: 0.5 }}
-            >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText
-                primary={item.text}
-                primaryTypographyProps={{
-                  fontSize: '0.9375rem',
-                  fontWeight: pathname === item.path ? 600 : 400,
-                }}
+        {menuItems.map((item, index) => {
+          if (item === 'divider') {
+            return (
+              <Divider
+                key={`divider-${index}`}
+                sx={{ my: 2, mx: 2 }}
               />
-            </ListItemButton>
-          </ListItem>
-        ))}
+            )
+          }
+
+          return (
+            <ListItem key={item.text} disablePadding>
+              <ListItemButton
+                selected={pathname === item.path}
+                onClick={() => {
+                  router.push(item.path)
+                  setMobileOpen(false)
+                }}
+                sx={{ mb: 0.5 }}
+              >
+                <ListItemIcon>{item.icon}</ListItemIcon>
+                <ListItemText
+                  primary={item.text}
+                  primaryTypographyProps={{
+                    fontSize: '0.9375rem',
+                    fontWeight: pathname === item.path ? 600 : 400,
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+          )
+        })}
       </List>
     </Box>
   )
