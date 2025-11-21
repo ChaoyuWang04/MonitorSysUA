@@ -286,29 +286,53 @@ export async function getCampaignEvaluationStats() {
 // ============================================
 
 /**
- * Get creative evaluations for a campaign
+ * Get creative evaluations for a campaign with pagination
  */
 export async function getCreativeEvaluations(params: {
-  campaignId: string
+  campaignId?: string
+  creativeId?: string
   evaluationDay?: string
-  creativeStatus?: string
+  page?: number
+  pageSize?: number
 }) {
-  const { campaignId, evaluationDay, creativeStatus } = params
+  const { campaignId, creativeId, evaluationDay, page = 1, pageSize = 50 } = params
 
-  const conditions = [eq(creativeEvaluation.campaignId, campaignId)]
-
+  const conditions = []
+  if (campaignId) {
+    conditions.push(eq(creativeEvaluation.campaignId, campaignId))
+  }
+  if (creativeId) {
+    conditions.push(eq(creativeEvaluation.creativeId, creativeId))
+  }
   if (evaluationDay) {
     conditions.push(eq(creativeEvaluation.evaluationDay, evaluationDay))
   }
-  if (creativeStatus) {
-    conditions.push(eq(creativeEvaluation.creativeStatus, creativeStatus))
-  }
 
-  return await db
+  const where = conditions.length > 0 ? and(...conditions) : undefined
+
+  const data = await db
     .select()
     .from(creativeEvaluation)
-    .where(and(...conditions))
+    .where(where)
     .orderBy(desc(creativeEvaluation.evaluationDate))
+    .limit(pageSize)
+    .offset((page - 1) * pageSize)
+
+  const totalResult = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(creativeEvaluation)
+    .where(where)
+
+  const total = Number(totalResult[0]?.count || 0)
+  const totalPages = Math.ceil(total / pageSize)
+
+  return {
+    data,
+    total,
+    page,
+    pageSize,
+    totalPages,
+  }
 }
 
 /**

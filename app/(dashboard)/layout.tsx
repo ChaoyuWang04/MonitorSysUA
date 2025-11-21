@@ -29,6 +29,14 @@ import { AccountSelector } from '@/components/layout/account-selector'
 
 const drawerWidth = 280
 
+type MenuItem = {
+  text: string
+  icon: React.ReactNode
+  path: string
+}
+
+type MenuItemOrDivider = MenuItem | 'divider'
+
 export default function DashboardLayout({
   children,
 }: {
@@ -42,7 +50,7 @@ export default function DashboardLayout({
     setMobileOpen(!mobileOpen)
   }
 
-  const menuItems = [
+  const menuItems: MenuItemOrDivider[] = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
     { text: 'Events', icon: <EventNoteIcon />, path: '/events' },
     { text: 'Accounts', icon: <AccountIcon />, path: '/accounts' },

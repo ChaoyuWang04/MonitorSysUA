@@ -12,7 +12,6 @@ import {
   Stack,
   Card,
   CardContent,
-  Grid,
   Divider,
   IconButton,
   Stepper,
@@ -138,32 +137,32 @@ export function CreativeEvaluationDialog({
                 <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
                   Creative Information
                 </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={4}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 2 }}>
+                  <Box>
                     <Typography variant="caption" color="text.secondary" gutterBottom>
                       Creative ID
                     </Typography>
                     <Typography variant="body2" sx={{ fontWeight: 500, wordBreak: 'break-all' }}>
                       {creativeId || 'N/A'}
                     </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
+                  </Box>
+                  <Box>
                     <Typography variant="caption" color="text.secondary" gutterBottom>
                       Campaign ID
                     </Typography>
                     <Typography variant="body2" sx={{ fontWeight: 500, wordBreak: 'break-all' }}>
                       {campaignId}
                     </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
+                  </Box>
+                  <Box>
                     <Typography variant="caption" color="text.secondary" gutterBottom>
                       Evaluation Day
                     </Typography>
                     <Typography variant="body2" sx={{ fontWeight: 600, color: 'primary.main' }}>
                       {evaluationDay || 'N/A'}
                     </Typography>
-                  </Grid>
-                </Grid>
+                  </Box>
+                </Box>
               </CardContent>
             </Card>
 
@@ -174,139 +173,130 @@ export function CreativeEvaluationDialog({
                   Performance Metrics
                 </Typography>
 
-                <Grid container spacing={2}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)' }, gap: 2 }}>
                   {/* Impressions */}
-                  <Grid item xs={6} sm={4}>
-                    <Box
-                      sx={{
-                        p: 2,
-                        bgcolor: 'grey.50',
-                        borderRadius: 2,
-                        textAlign: 'center',
-                      }}
-                    >
-                      <Typography variant="caption" color="text.secondary" gutterBottom>
-                        Impressions
-                      </Typography>
-                      <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                        {formatNumber(impressions)}
-                      </Typography>
-                    </Box>
-                  </Grid>
+                  <Box
+                    sx={{
+                      p: 2,
+                      bgcolor: 'grey.50',
+                      borderRadius: 2,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <Typography variant="caption" color="text.secondary" gutterBottom>
+                      Impressions
+                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                      {formatNumber(impressions)}
+                    </Typography>
+                  </Box>
 
                   {/* Installs */}
-                  <Grid item xs={6} sm={4}>
-                    <Box
-                      sx={{
-                        p: 2,
-                        bgcolor: 'grey.50',
-                        borderRadius: 2,
-                        textAlign: 'center',
-                      }}
-                    >
-                      <Typography variant="caption" color="text.secondary" gutterBottom>
-                        Installs
-                      </Typography>
-                      <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                        {formatNumber(installs)}
-                      </Typography>
-                    </Box>
-                  </Grid>
+                  <Box
+                    sx={{
+                      p: 2,
+                      bgcolor: 'grey.50',
+                      borderRadius: 2,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <Typography variant="caption" color="text.secondary" gutterBottom>
+                      Installs
+                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                      {formatNumber(installs)}
+                    </Typography>
+                  </Box>
 
                   {/* CVR */}
-                  <Grid item xs={12} sm={4}>
-                    <Box
+                  <Box
+                    sx={{
+                      p: 2,
+                      bgcolor: cvr && cvr >= 0.0067 ? 'success.lighter' : 'grey.50',
+                      borderRadius: 2,
+                      textAlign: 'center',
+                      gridColumn: { xs: '1 / -1', sm: 'auto' },
+                    }}
+                  >
+                    <Typography variant="caption" color="text.secondary" gutterBottom>
+                      CVR (Conversion Rate)
+                    </Typography>
+                    <Typography
+                      variant="h5"
                       sx={{
-                        p: 2,
-                        bgcolor: cvr && cvr >= 0.0067 ? 'success.lighter' : 'grey.50',
-                        borderRadius: 2,
-                        textAlign: 'center',
+                        fontWeight: 700,
+                        color: cvr && cvr >= 0.0067 ? 'success.main' : 'text.primary',
                       }}
                     >
-                      <Typography variant="caption" color="text.secondary" gutterBottom>
-                        CVR (Conversion Rate)
+                      {formatCVR(cvr)}
+                    </Typography>
+                    {cvr && cvr >= 0.0067 && (
+                      <Typography variant="caption" color="success.main">
+                        Excellent! ⭐
                       </Typography>
-                      <Typography
-                        variant="h5"
-                        sx={{
-                          fontWeight: 700,
-                          color: cvr && cvr >= 0.0067 ? 'success.main' : 'text.primary',
-                        }}
-                      >
-                        {formatCVR(cvr)}
-                      </Typography>
-                      {cvr && cvr >= 0.0067 && (
-                        <Typography variant="caption" color="success.main">
-                          Excellent! ⭐
-                        </Typography>
-                      )}
-                    </Box>
-                  </Grid>
+                    )}
+                  </Box>
 
                   {/* CPI */}
-                  <Grid item xs={6}>
-                    <Box
-                      sx={{
-                        p: 2,
-                        bgcolor: 'grey.50',
-                        borderRadius: 2,
-                      }}
-                    >
-                      <Typography variant="caption" color="text.secondary" gutterBottom>
-                        CPI (Cost Per Install)
+                  <Box
+                    sx={{
+                      p: 2,
+                      bgcolor: 'grey.50',
+                      borderRadius: 2,
+                    }}
+                  >
+                    <Typography variant="caption" color="text.secondary" gutterBottom>
+                      CPI (Cost Per Install)
+                    </Typography>
+                    <Stack direction="row" alignItems="baseline" spacing={1} mb={1}>
+                      <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                        {formatCPI(actualCpi)}
                       </Typography>
-                      <Stack direction="row" alignItems="baseline" spacing={1} mb={1}>
-                        <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                          {formatCPI(actualCpi)}
-                        </Typography>
-                        {cpiPassed !== null && (
-                          cpiPassed ? (
-                            <CheckCircleIcon color="success" fontSize="small" />
-                          ) : (
-                            <CancelIcon color="error" fontSize="small" />
-                          )
-                        )}
-                      </Stack>
-                      {maxCpiThreshold && (
-                        <Typography variant="caption" color="text.secondary">
-                          Threshold: {formatCPI(maxCpiThreshold)}
-                        </Typography>
+                      {cpiPassed !== null && (
+                        cpiPassed ? (
+                          <CheckCircleIcon color="success" fontSize="small" />
+                        ) : (
+                          <CancelIcon color="error" fontSize="small" />
+                        )
                       )}
-                    </Box>
-                  </Grid>
+                    </Stack>
+                    {maxCpiThreshold && (
+                      <Typography variant="caption" color="text.secondary">
+                        Threshold: {formatCPI(maxCpiThreshold)}
+                      </Typography>
+                    )}
+                  </Box>
 
                   {/* ROAS */}
-                  <Grid item xs={6}>
-                    <Box
-                      sx={{
-                        p: 2,
-                        bgcolor: 'grey.50',
-                        borderRadius: 2,
-                      }}
-                    >
-                      <Typography variant="caption" color="text.secondary" gutterBottom>
-                        ROAS (Return on Ad Spend)
+                  <Box
+                    sx={{
+                      p: 2,
+                      bgcolor: 'grey.50',
+                      borderRadius: 2,
+                    }}
+                  >
+                    <Typography variant="caption" color="text.secondary" gutterBottom>
+                      ROAS (Return on Ad Spend)
+                    </Typography>
+                    <Stack direction="row" alignItems="baseline" spacing={1} mb={1}>
+                      <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                        {formatPercentage(actualRoas)}
                       </Typography>
-                      <Stack direction="row" alignItems="baseline" spacing={1} mb={1}>
-                        <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                          {formatPercentage(actualRoas)}
-                        </Typography>
-                        {roasPassed !== null && (
-                          roasPassed ? (
-                            <CheckCircleIcon color="success" fontSize="small" />
-                          ) : (
-                            <CancelIcon color="error" fontSize="small" />
-                          )
-                        )}
-                      </Stack>
-                      {minRoasThreshold && (
-                        <Typography variant="caption" color="text.secondary">
-                          Threshold: {formatPercentage(minRoasThreshold)}
-                        </Typography>
+                      {roasPassed !== null && (
+                        roasPassed ? (
+                          <CheckCircleIcon color="success" fontSize="small" />
+                        ) : (
+                          <CancelIcon color="error" fontSize="small" />
+                        )
                       )}
-                    </Box>
-                  </Grid>
-                </Grid>
+                    </Stack>
+                    {minRoasThreshold && (
+                      <Typography variant="caption" color="text.secondary">
+                        Threshold: {formatPercentage(minRoasThreshold)}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
               </CardContent>
             </Card>
 

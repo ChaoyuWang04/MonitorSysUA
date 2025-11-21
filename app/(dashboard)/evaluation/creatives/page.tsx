@@ -51,7 +51,11 @@ export default function CreativeEvaluationPage() {
   })
 
   // Filter state
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<{
+    campaignId: string
+    status: string
+    evaluationDay: '' | 'D3' | 'D7'
+  }>({
     campaignId: '',
     status: '',
     evaluationDay: '',
@@ -68,8 +72,7 @@ export default function CreativeEvaluationPage() {
       page: paginationModel.page + 1,
       pageSize: paginationModel.pageSize,
       campaignId: filters.campaignId || undefined,
-      status: filters.status || undefined,
-      evaluationDay: filters.evaluationDay || undefined,
+      evaluationDay: filters.evaluationDay === '' ? undefined : filters.evaluationDay,
     },
     {
       enabled: !!selectedAccountId,
@@ -264,7 +267,7 @@ export default function CreativeEvaluationPage() {
             label="Evaluation Day"
             select
             value={filters.evaluationDay}
-            onChange={(e) => setFilters({ ...filters, evaluationDay: e.target.value })}
+            onChange={(e) => setFilters({ ...filters, evaluationDay: e.target.value as '' | 'D3' | 'D7' })}
             sx={{ minWidth: 150 }}
           >
             <MenuItem value="">All Days</MenuItem>

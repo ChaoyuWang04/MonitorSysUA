@@ -56,10 +56,8 @@ export default function OperationScoresPage() {
 
   // Filter state
   const [filters, setFilters] = useState({
-    optimizerId: '',
-    status: '',
-    dateFrom: '',
-    dateTo: '',
+    optimizerEmail: '',
+    campaignId: '',
   })
 
   // Detail dialog state
@@ -72,10 +70,8 @@ export default function OperationScoresPage() {
       accountId: selectedAccountId!,
       page: paginationModel.page + 1,
       pageSize: paginationModel.pageSize,
-      optimizerId: filters.optimizerId || undefined,
-      status: filters.status || undefined,
-      dateFrom: filters.dateFrom || undefined,
-      dateTo: filters.dateTo || undefined,
+      optimizerEmail: filters.optimizerEmail || undefined,
+      campaignId: filters.campaignId || undefined,
     },
     {
       enabled: !!selectedAccountId && activeTab === 0,
@@ -147,7 +143,7 @@ export default function OperationScoresPage() {
       width: 150,
       align: 'right',
       headerAlign: 'right',
-      valueFormatter: (value) => (value !== null && value !== undefined ? value.toFixed(1) : 'N/A'),
+      valueFormatter: (value: number | null | undefined) => (value !== null && value !== undefined ? value.toFixed(1) : 'N/A'),
     },
     {
       field: 'executionEfficiencyScore',
@@ -155,7 +151,7 @@ export default function OperationScoresPage() {
       width: 120,
       align: 'right',
       headerAlign: 'right',
-      valueFormatter: (value) => (value !== null && value !== undefined ? value.toFixed(1) : 'N/A'),
+      valueFormatter: (value: number | null | undefined) => (value !== null && value !== undefined ? value.toFixed(1) : 'N/A'),
     },
     {
       field: 'riskManagementScore',
@@ -163,7 +159,7 @@ export default function OperationScoresPage() {
       width: 120,
       align: 'right',
       headerAlign: 'right',
-      valueFormatter: (value) => (value !== null && value !== undefined ? value.toFixed(1) : 'N/A'),
+      valueFormatter: (value: number | null | undefined) => (value !== null && value !== undefined ? value.toFixed(1) : 'N/A'),
     },
     {
       field: 'actionsExecuted',
@@ -278,43 +274,11 @@ export default function OperationScoresPage() {
                 size="small"
                 label="Optimizer ID"
                 placeholder="Filter by optimizer..."
-                value={filters.optimizerId}
-                onChange={(e) => setFilters({ ...filters, optimizerId: e.target.value })}
+                value={filters.optimizerEmail}
+                onChange={(e) => setFilters({ ...filters, optimizerEmail: e.target.value })}
                 sx={{ minWidth: 200 }}
               />
 
-              <TextField
-                size="small"
-                label="Status"
-                select
-                value={filters.status}
-                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                sx={{ minWidth: 150 }}
-              >
-                <MenuItem value="">All Statuses</MenuItem>
-                <MenuItem value={OperationStatus.NORMAL}>Normal</MenuItem>
-                <MenuItem value={OperationStatus.EXCELLENT}>Excellent ⭐</MenuItem>
-              </TextField>
-
-              <TextField
-                size="small"
-                label="Date From"
-                type="date"
-                InputLabelProps={{ shrink: true }}
-                value={filters.dateFrom}
-                onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-                sx={{ minWidth: 160 }}
-              />
-
-              <TextField
-                size="small"
-                label="Date To"
-                type="date"
-                InputLabelProps={{ shrink: true }}
-                value={filters.dateTo}
-                onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-                sx={{ minWidth: 160 }}
-              />
             </Stack>
           </Paper>
 

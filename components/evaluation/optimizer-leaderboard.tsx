@@ -9,7 +9,6 @@ import {
   Avatar,
   Card,
   CardContent,
-  Grid,
   Chip,
   TextField,
   MenuItem,
@@ -47,7 +46,6 @@ export function OptimizerLeaderboard() {
   // Fetch optimizer leaderboard
   const { data, isLoading } = trpc.evaluation.getOptimizerLeaderboard.useQuery(
     {
-      accountId: selectedAccountId!,
       days: parseInt(timeRange),
     },
     {
@@ -76,7 +74,7 @@ export function OptimizerLeaderboard() {
 
     return (
       <Card
-        key={optimizer.optimizerId}
+        key={optimizer.optimizer_email}
         elevation={isTopThree ? 3 : 0}
         sx={{
           border: isTopThree ? 3 : 1,
@@ -110,18 +108,18 @@ export function OptimizerLeaderboard() {
               <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
                 <Box>
                   <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    {optimizer.optimizerName || optimizer.optimizerId}
+                    {optimizer.optimizer_email}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {optimizer.totalOperations} operations • {optimizer.totalDays} days active
+                    {optimizer.total_operations} operations
                   </Typography>
                 </Box>
                 <Chip
-                  label={`Score: ${optimizer.avgTotalScore?.toFixed(1) || 'N/A'}`}
+                  label={`Min Rate: ${optimizer.avg_min_achievement.toFixed(1)}%`}
                   color={
-                    (optimizer.avgTotalScore || 0) >= 90
+                    optimizer.avg_min_achievement >= 110
                       ? 'success'
-                      : (optimizer.avgTotalScore || 0) >= 70
+                      : optimizer.avg_min_achievement >= 100
                         ? 'info'
                         : 'default'
                   }
@@ -129,22 +127,22 @@ export function OptimizerLeaderboard() {
                 />
               </Stack>
 
-              {/* Score Breakdown */}
-              <Grid container spacing={2} sx={{ mt: 1 }}>
-                {/* Decision Quality */}
-                <Grid item xs={12} sm={4}>
+              {/* Achievement Rates Breakdown */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 2, mt: 1 }}>
+                {/* ROAS Achievement */}
+                <Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                     <TrendingUpIcon fontSize="small" color="primary" />
                     <Typography variant="caption" color="text.secondary">
-                      Decision Quality
+                      ROAS7
                     </Typography>
                   </Box>
                   <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                    {optimizer.avgDecisionQuality?.toFixed(1) || 'N/A'}
+                    {optimizer.avg_roas_achievement.toFixed(1)}%
                   </Typography>
                   <LinearProgress
                     variant="determinate"
-                    value={optimizer.avgDecisionQuality || 0}
+                    value={Math.min(optimizer.avg_roas_achievement, 150)}
                     sx={{
                       height: 6,
                       borderRadius: 1,
@@ -155,22 +153,22 @@ export function OptimizerLeaderboard() {
                       },
                     }}
                   />
-                </Grid>
+                </Box>
 
-                {/* Execution Efficiency */}
-                <Grid item xs={12} sm={4}>
+                {/* RET Achievement */}
+                <Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                     <SpeedIcon fontSize="small" color="success" />
                     <Typography variant="caption" color="text.secondary">
-                      Execution
+                      RET7
                     </Typography>
                   </Box>
                   <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                    {optimizer.avgExecutionEfficiency?.toFixed(1) || 'N/A'}
+                    {optimizer.avg_ret_achievement.toFixed(1)}%
                   </Typography>
                   <LinearProgress
                     variant="determinate"
-                    value={optimizer.avgExecutionEfficiency || 0}
+                    value={Math.min(optimizer.avg_ret_achievement, 150)}
                     sx={{
                       height: 6,
                       borderRadius: 1,
@@ -181,22 +179,22 @@ export function OptimizerLeaderboard() {
                       },
                     }}
                   />
-                </Grid>
+                </Box>
 
-                {/* Risk Management */}
-                <Grid item xs={12} sm={4}>
+                {/* Min Achievement */}
+                <Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                     <SecurityIcon fontSize="small" color="warning" />
                     <Typography variant="caption" color="text.secondary">
-                      Risk Mgmt
+                      Min Rate
                     </Typography>
                   </Box>
                   <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                    {optimizer.avgRiskManagement?.toFixed(1) || 'N/A'}
+                    {optimizer.avg_min_achievement.toFixed(1)}%
                   </Typography>
                   <LinearProgress
                     variant="determinate"
-                    value={optimizer.avgRiskManagement || 0}
+                    value={Math.min(optimizer.avg_min_achievement, 150)}
                     sx={{
                       height: 6,
                       borderRadius: 1,
@@ -207,39 +205,45 @@ export function OptimizerLeaderboard() {
                       },
                     }}
                   />
-                </Grid>
-              </Grid>
+                </Box>
+              </Box>
 
               {/* Performance Stats */}
               <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
                 <Box>
                   <Typography variant="caption" color="text.secondary">
-                    Success Rate
+                    Excellent Rate
                   </Typography>
                   <Typography
                     variant="body2"
                     sx={{
                       fontWeight: 600,
-                      color: (optimizer.successRate || 0) >= 95 ? 'success.main' : 'text.primary',
+                      color: optimizer.excellent_rate >= 0.5 ? 'success.main' : 'text.primary',
                     }}
                   >
-                    {formatPercentage(optimizer.successRate)}
+                    {formatPercentage(optimizer.excellent_rate)}
                   </Typography>
                 </Box>
                 <Box>
                   <Typography variant="caption" color="text.secondary">
-                    Avg Response Time
+                    Good Rate
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {optimizer.avgResponseTime?.toFixed(2)}s
+                    {formatPercentage(optimizer.good_rate)}
                   </Typography>
                 </Box>
                 <Box>
                   <Typography variant="caption" color="text.secondary">
-                    Total Actions
+                    Failed Rate
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {optimizer.totalActions}
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 600,
+                      color: optimizer.failed_rate >= 0.2 ? 'error.main' : 'text.primary',
+                    }}
+                  >
+                    {formatPercentage(optimizer.failed_rate)}
                   </Typography>
                 </Box>
               </Stack>
@@ -291,7 +295,7 @@ export function OptimizerLeaderboard() {
       )}
 
       {/* Empty State */}
-      {!isLoading && (!data || data.length === 0) && (
+      {!isLoading && (!data?.leaderboard || data.leaderboard.length === 0) && (
         <EmptyState
           icon={TrophyIcon}
           title="No Optimizer Data"
@@ -300,23 +304,23 @@ export function OptimizerLeaderboard() {
       )}
 
       {/* Leaderboard */}
-      {!isLoading && data && data.length > 0 && (
+      {!isLoading && data?.leaderboard && data.leaderboard.length > 0 && (
         <Stack spacing={2}>
           {/* Top Performer Alert */}
-          {data.length > 0 && data[0].avgTotalScore && data[0].avgTotalScore >= 90 && (
+          {data.leaderboard.length > 0 && data.leaderboard[0].avg_min_achievement >= 110 && (
             <Alert severity="success" icon={<TrophyIcon />}>
               <Typography variant="body2" sx={{ fontWeight: 600 }} gutterBottom>
-                Top Performer: {data[0].optimizerName || data[0].optimizerId}
+                Top Performer: {data.leaderboard[0].optimizer_email}
               </Typography>
               <Typography variant="caption">
-                Achieved an outstanding average score of {data[0].avgTotalScore.toFixed(1)} over{' '}
-                {data[0].totalDays} days with {data[0].totalOperations} operations.
+                Achieved an outstanding minimum achievement rate of {data.leaderboard[0].avg_min_achievement.toFixed(1)}% with{' '}
+                {data.leaderboard[0].total_operations} operations. Excellent rate: {formatPercentage(data.leaderboard[0].excellent_rate)}
               </Typography>
             </Alert>
           )}
 
           {/* Optimizer Cards */}
-          {data.map((optimizer, index) => renderOptimizerCard(optimizer, index))}
+          {data.leaderboard.map((optimizer, index) => renderOptimizerCard(optimizer, index))}
         </Stack>
       )}
     </Box>

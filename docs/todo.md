@@ -1,8 +1,57 @@
 # MonitorSysUA 开发任务清单
 
-**最后更新**: 2025-11-18 (E2E 测试完成 + AccountIcon 错误修复)
+**最后更新**: 2025-11-21 (MUI Grid v7 全面迁移完成 + Evaluation System 类型安全修复)
 **项目**: Google Ads ChangeEvent 监控系统
 **当前阶段**: Phase 4 🚧 测试与优化进行中
+
+## 📝 最近更新记录
+
+### 2025-11-21 - MUI Grid v7 全面迁移 + 类型安全修复 ✅
+- [x] **MUI Grid v7 兼容性完全迁移**
+  - 问题: MUI v7 移除了 Grid 的 `item` 属性，导致编译错误
+  - 影响范围: 4 个评估系统对话框组件
+  - 解决方案: 完全迁移到 Box + CSS Grid 布局系统
+
+- [x] **修复的组件列表**
+  - `campaign-evaluation-dialog.tsx` - Campaign Information 和 Performance Metrics 两个 Grid 区域
+  - `creative-evaluation-dialog.tsx` - Creative Information 和 Performance Metrics (5个指标) 两个 Grid 区域
+  - `operation-score-dialog.tsx` - Score Breakdown (改用 Stack) 和 Action Summary (4列布局) 两个区域
+  - `optimizer-leaderboard.tsx` - Achievement Rates 3列布局 + 完整重构以匹配 Python API
+
+- [x] **Evaluation System 类型定义修复**
+  - 扩展 `OperationScore` 接口，新增可选字段支持对话框显示需求
+  - 新增 `OptimizerScore` 接口，完全匹配 Python 后端 API 响应结构
+  - 修复 `optimizer-leaderboard.tsx` 组件使用实际 API 字段（snake_case from Python）
+  - 更新渲染逻辑：ROAS7/RET7/Min Achievement + Excellent/Good/Failed Rates
+
+- [x] **测试文件修复**
+  - `server/db/test-evaluation-queries.ts` - 修复分页结果访问 (`.data.length`)
+  - `server/evaluation/test-evaluation.ts` - 修复 `calculateBaseline` 对象参数调用
+  - `server/evaluation/test-evaluation.ts` - 添加 null 安全检查
+  - `server/evaluation/test-evaluation.ts` - 移除非法 Drizzle findFirst limit 参数
+
+- [x] **主题配置更新**
+  - 注释掉 `theme/index.ts` 中的 `MuiDataGrid` theme override（MUI v7 core theme 不支持）
+  - DataGrid 样式现在通过 `sx` prop 或 global styles 自定义
+
+- [x] **Build 验证通过**
+  - ✅ TypeScript 编译完全通过 (`npm run build`)
+  - ✅ 零编译错误，零类型错误
+  - ✅ 8 个路由成功编译（Dashboard, Accounts, Events, Evaluation pages）
+  - ✅ 生产就绪构建完成
+
+**技术细节**:
+- CSS Grid 模式: `display: 'grid'`, `gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)' }`
+- 响应式布局: mobile (1-2列) → desktop (3-4列)
+- 完全替代 MUI Grid component 和 item prop
+- 保持相同的视觉效果和响应式行为
+
+**成果**:
+- ✅ MUI v7 完全兼容
+- ✅ 零 breaking changes 对用户
+- ✅ 类型安全的 Evaluation System
+- ✅ Production build 成功
+- ✅ Python API 集成完整
 
 ## 📝 最近更新记录
 

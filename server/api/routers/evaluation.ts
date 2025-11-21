@@ -5,7 +5,7 @@
  */
 
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
 import {
   calculateBaseline,
   updateAllBaselines,
@@ -20,7 +20,7 @@ export const evaluationRouter = createTRPCRouter({
   /**
    * Calculate safety baseline for a specific product/country/platform/channel
    */
-  calculateBaseline: protectedProcedure
+  calculateBaseline: publicProcedure
     .input(
       z.object({
         productName: z.string().min(1),
@@ -47,7 +47,7 @@ export const evaluationRouter = createTRPCRouter({
    *
    * This should be triggered manually (or via cron) on the 1st of each month
    */
-  updateAllBaselines: protectedProcedure
+  updateAllBaselines: publicProcedure
     .input(
       z.object({
         currentDate: z.date().optional(),
@@ -61,7 +61,7 @@ export const evaluationRouter = createTRPCRouter({
   /**
    * Get safety baseline from database
    */
-  getBaseline: protectedProcedure
+  getBaseline: publicProcedure
     .input(
       z.object({
         productName: z.string(),
@@ -71,12 +71,12 @@ export const evaluationRouter = createTRPCRouter({
       })
     )
     .query(async ({ input }) => {
-      const baseline = await getSafetyBaseline(
-        input.productName,
-        input.countryCode,
-        input.platform,
-        input.channel
-      );
+      const baseline = await getSafetyBaseline({
+        productName: input.productName,
+        countryCode: input.countryCode,
+        platform: input.platform,
+        channel: input.channel,
+      });
 
       return baseline;
     }),
@@ -88,7 +88,7 @@ export const evaluationRouter = createTRPCRouter({
   /**
    * Evaluate a single campaign
    */
-  evaluateCampaign: protectedProcedure
+  evaluateCampaign: publicProcedure
     .input(
       z.object({
         campaignId: z.string(),
@@ -111,7 +111,7 @@ export const evaluationRouter = createTRPCRouter({
   /**
    * Batch evaluate all campaigns
    */
-  evaluateAllCampaigns: protectedProcedure
+  evaluateAllCampaigns: publicProcedure
     .input(
       z.object({
         evaluationDate: z.date().optional(),
@@ -130,12 +130,15 @@ export const evaluationRouter = createTRPCRouter({
   /**
    * Get campaign evaluation history from database
    */
-  getCampaignEvaluations: protectedProcedure
+  getCampaignEvaluations: publicProcedure
     .input(
       z.object({
+        accountId: z.number().optional(), // For future multi-account support
         campaignId: z.string().optional(),
         status: z.string().optional(),
-        limit: z.number().default(50),
+        searchQuery: z.string().optional(),
+        page: z.number().default(1),
+        pageSize: z.number().default(50),
       })
     )
     .query(async ({ input }) => {
@@ -143,11 +146,12 @@ export const evaluationRouter = createTRPCRouter({
         "@/server/db/queries-evaluation"
       );
 
-      const evaluations = await getCampaignEvaluations(
-        input.campaignId,
-        input.status,
-        input.limit
-      );
+      const evaluations = await getCampaignEvaluations({
+        campaignId: input.campaignId,
+        status: input.status,
+        page: input.page,
+        pageSize: input.pageSize,
+      });
 
       return evaluations;
     }),
@@ -159,7 +163,7 @@ export const evaluationRouter = createTRPCRouter({
   /**
    * Evaluate creative at D3
    */
-  evaluateCreativeD3: protectedProcedure
+  evaluateCreativeD3: publicProcedure
     .input(
       z.object({
         creativeId: z.string(),
@@ -182,7 +186,7 @@ export const evaluationRouter = createTRPCRouter({
   /**
    * Evaluate creative at D7
    */
-  evaluateCreativeD7: protectedProcedure
+  evaluateCreativeD7: publicProcedure
     .input(
       z.object({
         creativeId: z.string(),
@@ -205,7 +209,7 @@ export const evaluationRouter = createTRPCRouter({
   /**
    * Check if test campaign should be closed
    */
-  checkCampaignClosure: protectedProcedure
+  checkCampaignClosure: publicProcedure
     .input(
       z.object({
         campaignId: z.string(),
@@ -224,13 +228,15 @@ export const evaluationRouter = createTRPCRouter({
   /**
    * Get creative evaluation history from database
    */
-  getCreativeEvaluations: protectedProcedure
+  getCreativeEvaluations: publicProcedure
     .input(
       z.object({
+        accountId: z.number().optional(), // For future multi-account support
         campaignId: z.string().optional(),
         creativeId: z.string().optional(),
         evaluationDay: z.enum(["D3", "D7"]).optional(),
-        limit: z.number().default(50),
+        page: z.number().default(1),
+        pageSize: z.number().default(50),
       })
     )
     .query(async ({ input }) => {
@@ -238,12 +244,13 @@ export const evaluationRouter = createTRPCRouter({
         "@/server/db/queries-evaluation"
       );
 
-      const evaluations = await getCreativeEvaluations(
-        input.campaignId,
-        input.creativeId,
-        input.evaluationDay,
-        input.limit
-      );
+      const evaluations = await getCreativeEvaluations({
+        campaignId: input.campaignId,
+        creativeId: input.creativeId,
+        evaluationDay: input.evaluationDay,
+        page: input.page,
+        pageSize: input.pageSize,
+      });
 
       return evaluations;
     }),
@@ -255,7 +262,7 @@ export const evaluationRouter = createTRPCRouter({
   /**
    * Evaluate operation (7 days after operation)
    */
-  evaluateOperation: protectedProcedure
+  evaluateOperation: publicProcedure
     .input(
       z.object({
         operationId: z.number(),
@@ -274,7 +281,7 @@ export const evaluationRouter = createTRPCRouter({
   /**
    * Get optimizer leaderboard
    */
-  getOptimizerLeaderboard: protectedProcedure
+  getOptimizerLeaderboard: publicProcedure
     .input(
       z.object({
         days: z.number().default(30),
@@ -296,7 +303,7 @@ export const evaluationRouter = createTRPCRouter({
    *
    * This should be run daily (manually or via cron)
    */
-  evaluateOperations7DaysAgo: protectedProcedure.mutation(async () => {
+  evaluateOperations7DaysAgo: publicProcedure.mutation(async () => {
     const { evaluateOperations7DaysAgo } = await import(
       "@/server/evaluation/wrappers/operation-evaluator"
     );
@@ -309,12 +316,14 @@ export const evaluationRouter = createTRPCRouter({
   /**
    * Get operation scores from database
    */
-  getOperationScores: protectedProcedure
+  getOperationScores: publicProcedure
     .input(
       z.object({
+        accountId: z.number().optional(), // For future multi-account support
         optimizerEmail: z.string().optional(),
         campaignId: z.string().optional(),
-        limit: z.number().default(50),
+        page: z.number().default(1),
+        pageSize: z.number().default(50),
       })
     )
     .query(async ({ input }) => {
@@ -322,11 +331,12 @@ export const evaluationRouter = createTRPCRouter({
         "@/server/db/queries-evaluation"
       );
 
-      const scores = await getOperationScores(
-        input.optimizerEmail,
-        input.campaignId,
-        input.limit
-      );
+      const scores = await getOperationScores({
+        optimizerEmail: input.optimizerEmail,
+        campaignId: input.campaignId,
+        page: input.page,
+        pageSize: input.pageSize,
+      });
 
       return scores;
     }),

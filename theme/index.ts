@@ -280,33 +280,35 @@ export const theme = createTheme({
       },
     },
 
-    MuiDataGrid: {
-      styleOverrides: {
-        root: {
-          borderRadius: borderRadius.lg,
-          border: `1px solid ${colors.grey[300]}`,
-          '& .MuiDataGrid-columnHeaders': {
-            backgroundColor: colors.grey[50],
-            borderBottom: `2px solid ${colors.grey[300]}`,
-          },
-          '& .MuiDataGrid-columnHeader': {
-            fontWeight: typographyTokens.fontWeight.semibold,
-            fontSize: typographyTokens.fontSize.xs,
-            color: colors.text.primary,
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-          },
-          '& .MuiDataGrid-cell': {
-            fontSize: typographyTokens.fontSize.sm,
-          },
-          '& .MuiDataGrid-row': {
-            '&:hover': {
-              backgroundColor: colors.grey[50],
-            },
-          },
-        },
-      },
-    },
+    // MuiDataGrid: {
+    //   // Note: MuiDataGrid theme customization is not supported in MUI v7 core theme
+    //   // DataGrid styles should be customized via sx prop or global styles
+    //   styleOverrides: {
+    //     root: {
+    //       borderRadius: borderRadius.lg,
+    //       border: `1px solid ${colors.grey[300]}`,
+    //       '& .MuiDataGrid-columnHeaders': {
+    //         backgroundColor: colors.grey[50],
+    //         borderBottom: `2px solid ${colors.grey[300]}`,
+    //       },
+    //       '& .MuiDataGrid-columnHeader': {
+    //         fontWeight: typographyTokens.fontWeight.semibold,
+    //         fontSize: typographyTokens.fontSize.xs,
+    //         color: colors.text.primary,
+    //         textTransform: 'uppercase',
+    //         letterSpacing: '0.05em',
+    //       },
+    //       '& .MuiDataGrid-cell': {
+    //         fontSize: typographyTokens.fontSize.sm,
+    //       },
+    //       '& .MuiDataGrid-row': {
+    //         '&:hover': {
+    //           backgroundColor: colors.grey[50],
+    //         },
+    //       },
+    //     },
+    //   },
+    // },
 
     MuiAppBar: {
       styleOverrides: {

@@ -11,7 +11,6 @@ import {
   Stack,
   Card,
   CardContent,
-  Grid,
   Divider,
   IconButton,
   Chip,
@@ -126,16 +125,16 @@ export function CampaignEvaluationDialog({
               <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
                 Campaign Information
               </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={6} sm={3}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' }, gap: 2 }}>
+                <Box>
                   <Typography variant="caption" color="text.secondary" gutterBottom>
                     Campaign ID
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 500, wordBreak: 'break-all' }}>
                     {campaignId}
                   </Typography>
-                </Grid>
-                <Grid item xs={6} sm={3}>
+                </Box>
+                <Box>
                   <Typography variant="caption" color="text.secondary" gutterBottom>
                     Type
                   </Typography>
@@ -144,24 +143,24 @@ export function CampaignEvaluationDialog({
                     size="small"
                     color={campaignType === 'test' ? 'info' : 'default'}
                   />
-                </Grid>
-                <Grid item xs={6} sm={3}>
+                </Box>
+                <Box>
                   <Typography variant="caption" color="text.secondary" gutterBottom>
                     Total Spend
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>
                     {formatCurrency(totalSpend)}
                   </Typography>
-                </Grid>
-                <Grid item xs={6} sm={3}>
+                </Box>
+                <Box>
                   <Typography variant="caption" color="text.secondary" gutterBottom>
                     Evaluation Date
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
                     {formatDate(evaluationDate)}
                   </Typography>
-                </Grid>
-              </Grid>
+                </Box>
+              </Box>
             </CardContent>
           </Card>
 
@@ -172,9 +171,9 @@ export function CampaignEvaluationDialog({
                 Performance Metrics vs Baseline
               </Typography>
 
-              <Grid container spacing={3}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 3 }}>
                 {/* ROAS7 */}
-                <Grid item xs={12} sm={6}>
+                <Box>
                   <Box
                     sx={{
                       p: 2,
@@ -238,10 +237,10 @@ export function CampaignEvaluationDialog({
                       </Typography>
                     </Box>
                   </Box>
-                </Grid>
+                </Box>
 
                 {/* RET7 */}
-                <Grid item xs={12} sm={6}>
+                <Box>
                   <Box
                     sx={{
                       p: 2,
@@ -305,8 +304,8 @@ export function CampaignEvaluationDialog({
                       </Typography>
                     </Box>
                   </Box>
-                </Grid>
-              </Grid>
+                </Box>
+              </Box>
 
               {/* Overall Achievement Gauge */}
               <Box mt={3} sx={{ display: 'flex', justifyContent: 'center' }}>
@@ -338,7 +337,7 @@ export function CampaignEvaluationDialog({
                             : theme.palette.error.main,
                       },
                     })}
-                    text={({ value }) => `${value.toFixed(1)}%`}
+                    text={({ value }) => `${value?.toFixed(1) ?? '0.0'}%`}
                   />
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
                     Takes the lower of ROAS7 and RET7 achievement rates

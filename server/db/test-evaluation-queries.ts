@@ -350,14 +350,14 @@ async function runTests() {
 
     logTest('Get Creative Evaluations by campaignId')
     const campaignCreatives = await getCreativeEvaluations({ campaignId: 'campaign_002' })
-    assert(campaignCreatives.length >= 3, `Found ${campaignCreatives.length} creatives for campaign_002`)
+    assert(campaignCreatives.data.length >= 3, `Found ${campaignCreatives.data.length} creatives for campaign_002`)
 
     logTest('Get Creative Evaluations by evaluationDay')
     const d7Creatives = await getCreativeEvaluations({
       campaignId: 'campaign_002',
       evaluationDay: 'D7',
     })
-    assert(d7Creatives.length >= 2, `Found ${d7Creatives.length} D7 evaluations`)
+    assert(d7Creatives.data.length >= 2, `Found ${d7Creatives.data.length} D7 evaluations`)
 
     logTest('Get Creative Evaluation by ID')
     const singleCreative = await getCreativeEvaluation({

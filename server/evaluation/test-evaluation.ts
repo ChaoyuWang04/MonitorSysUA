@@ -63,17 +63,17 @@ async function testA2BaselineCalculation() {
     printTest("Test 1", "INFO", "Calculating baseline for Solitaire US Android Google");
 
     const currentDate = new Date();
-    const baselineResult = await calculateBaseline(
-      "Solitaire",
-      "US",
-      "Android",
-      "Google",
-      currentDate
-    );
+    const baselineResult = await calculateBaseline({
+      productName: "Solitaire",
+      countryCode: "US",
+      platform: "Android",
+      channel: "Google",
+      currentDate,
+    });
 
     printResult("Baseline Result", baselineResult);
 
-    if (baselineResult.baseline_roas7 > 0 && baselineResult.baseline_ret7 > 0) {
+    if (baselineResult.baseline_roas7 && baselineResult.baseline_roas7 > 0 && baselineResult.baseline_ret7 && baselineResult.baseline_ret7 > 0) {
       printTest(
         "Baseline Calculation",
         "PASS",
@@ -251,9 +251,7 @@ async function testA5OperationEvaluation() {
 
   try {
     // Test 1: Check if we have any change_events to use
-    const existingEvent = await db.query.changeEvents.findFirst({
-      limit: 1,
-    });
+    const existingEvent = await db.query.changeEvents.findFirst();
 
     if (!existingEvent) {
       printTest("A5 Test Suite", "FAIL", "No change_events found - need existing events to test operation evaluation");
@@ -280,11 +278,11 @@ async function testA5OperationEvaluation() {
           "INFO",
           `Expected outcome: ${evaluationResult.error}`
         );
-      } else if (evaluationResult.operationScore) {
+      } else if (evaluationResult.score) {
         printTest(
           "Operation Evaluation",
           "PASS",
-          `Score: ${evaluationResult.operationScore}, Min Achievement: ${evaluationResult.minAchievementRate?.toFixed(2)}%`
+          `Score: ${evaluationResult.score}, Min Achievement: ${evaluationResult.min_achievement_rate.toFixed(2)}%`
         );
 
         // Test 3: Verify database persistence

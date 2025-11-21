@@ -11,7 +11,6 @@ import {
   Stack,
   Card,
   CardContent,
-  Grid,
   Divider,
   IconButton,
   Chip,
@@ -65,7 +64,9 @@ export function OperationScoreDialog({
     status,
   } = operation
 
-  const successRate = actionsExecuted > 0 ? (successfulActions / actionsExecuted) * 100 : 0
+  const successRate = actionsExecuted && actionsExecuted > 0 && successfulActions !== undefined
+    ? (successfulActions / actionsExecuted) * 100
+    : 0
 
   // Score data for bar chart
   const scoreData = [
@@ -142,106 +143,100 @@ export function OperationScoreDialog({
                 Score Breakdown
               </Typography>
 
-              <Grid container spacing={2}>
+              <Stack spacing={2}>
                 {/* Decision Quality */}
-                <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-                    <TrendingUpIcon color="primary" />
-                    <Box sx={{ flex: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          Decision Quality
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 700, color: 'primary.main' }}>
-                          {decisionQualityScore?.toFixed(1) || 'N/A'}
-                        </Typography>
-                      </Box>
-                      <LinearProgress
-                        variant="determinate"
-                        value={decisionQualityScore || 0}
-                        sx={{
-                          height: 8,
-                          borderRadius: 1,
-                          bgcolor: 'grey.200',
-                          '& .MuiLinearProgress-bar': {
-                            bgcolor: 'primary.main',
-                            borderRadius: 1,
-                          },
-                        }}
-                      />
-                      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-                        Quality of recommended actions and strategy decisions
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                  <TrendingUpIcon color="primary" />
+                  <Box sx={{ flex: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        Decision Quality
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                        {decisionQualityScore?.toFixed(1) || 'N/A'}
                       </Typography>
                     </Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={decisionQualityScore || 0}
+                      sx={{
+                        height: 8,
+                        borderRadius: 1,
+                        bgcolor: 'grey.200',
+                        '& .MuiLinearProgress-bar': {
+                          bgcolor: 'primary.main',
+                          borderRadius: 1,
+                        },
+                      }}
+                    />
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                      Quality of recommended actions and strategy decisions
+                    </Typography>
                   </Box>
-                </Grid>
+                </Box>
 
                 {/* Execution Efficiency */}
-                <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-                    <SpeedIcon color="success" />
-                    <Box sx={{ flex: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          Execution Efficiency
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 700, color: 'success.main' }}>
-                          {executionEfficiencyScore?.toFixed(1) || 'N/A'}
-                        </Typography>
-                      </Box>
-                      <LinearProgress
-                        variant="determinate"
-                        value={executionEfficiencyScore || 0}
-                        sx={{
-                          height: 8,
-                          borderRadius: 1,
-                          bgcolor: 'grey.200',
-                          '& .MuiLinearProgress-bar': {
-                            bgcolor: 'success.main',
-                            borderRadius: 1,
-                          },
-                        }}
-                      />
-                      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-                        Speed and accuracy of action execution
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                  <SpeedIcon color="success" />
+                  <Box sx={{ flex: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        Execution Efficiency
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: 'success.main' }}>
+                        {executionEfficiencyScore?.toFixed(1) || 'N/A'}
                       </Typography>
                     </Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={executionEfficiencyScore || 0}
+                      sx={{
+                        height: 8,
+                        borderRadius: 1,
+                        bgcolor: 'grey.200',
+                        '& .MuiLinearProgress-bar': {
+                          bgcolor: 'success.main',
+                          borderRadius: 1,
+                        },
+                      }}
+                    />
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                      Speed and accuracy of action execution
+                    </Typography>
                   </Box>
-                </Grid>
+                </Box>
 
                 {/* Risk Management */}
-                <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-                    <SecurityIcon color="warning" />
-                    <Box sx={{ flex: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          Risk Management
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 700, color: 'warning.main' }}>
-                          {riskManagementScore?.toFixed(1) || 'N/A'}
-                        </Typography>
-                      </Box>
-                      <LinearProgress
-                        variant="determinate"
-                        value={riskManagementScore || 0}
-                        sx={{
-                          height: 8,
-                          borderRadius: 1,
-                          bgcolor: 'grey.200',
-                          '& .MuiLinearProgress-bar': {
-                            bgcolor: 'warning.main',
-                            borderRadius: 1,
-                          },
-                        }}
-                      />
-                      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-                        Ability to avoid risky decisions and minimize losses
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                  <SecurityIcon color="warning" />
+                  <Box sx={{ flex: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        Risk Management
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: 'warning.main' }}>
+                        {riskManagementScore?.toFixed(1) || 'N/A'}
                       </Typography>
                     </Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={riskManagementScore || 0}
+                      sx={{
+                        height: 8,
+                        borderRadius: 1,
+                        bgcolor: 'grey.200',
+                        '& .MuiLinearProgress-bar': {
+                          bgcolor: 'warning.main',
+                          borderRadius: 1,
+                        },
+                      }}
+                    />
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                      Ability to avoid risky decisions and minimize losses
+                    </Typography>
                   </Box>
-                </Grid>
-              </Grid>
+                </Box>
+              </Stack>
             </CardContent>
           </Card>
 
@@ -277,51 +272,43 @@ export function OperationScoreDialog({
                 Action Execution Summary
               </Typography>
 
-              <Grid container spacing={2}>
-                <Grid item xs={6} sm={3}>
-                  <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 2, textAlign: 'center' }}>
-                    <Typography variant="caption" color="text.secondary" gutterBottom>
-                      Total Actions
-                    </Typography>
-                    <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                      {actionsExecuted}
-                    </Typography>
-                  </Box>
-                </Grid>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' }, gap: 2 }}>
+                <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 2, textAlign: 'center' }}>
+                  <Typography variant="caption" color="text.secondary" gutterBottom>
+                    Total Actions
+                  </Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                    {actionsExecuted}
+                  </Typography>
+                </Box>
 
-                <Grid item xs={6} sm={3}>
-                  <Box sx={{ p: 2, bgcolor: 'success.lighter', borderRadius: 2, textAlign: 'center' }}>
-                    <Typography variant="caption" color="text.secondary" gutterBottom>
-                      Successful
-                    </Typography>
-                    <Typography variant="h5" sx={{ fontWeight: 700, color: 'success.main' }}>
-                      {successfulActions}
-                    </Typography>
-                  </Box>
-                </Grid>
+                <Box sx={{ p: 2, bgcolor: 'success.lighter', borderRadius: 2, textAlign: 'center' }}>
+                  <Typography variant="caption" color="text.secondary" gutterBottom>
+                    Successful
+                  </Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 700, color: 'success.main' }}>
+                    {successfulActions}
+                  </Typography>
+                </Box>
 
-                <Grid item xs={6} sm={3}>
-                  <Box sx={{ p: 2, bgcolor: 'error.lighter', borderRadius: 2, textAlign: 'center' }}>
-                    <Typography variant="caption" color="text.secondary" gutterBottom>
-                      Failed
-                    </Typography>
-                    <Typography variant="h5" sx={{ fontWeight: 700, color: 'error.main' }}>
-                      {failedActions}
-                    </Typography>
-                  </Box>
-                </Grid>
+                <Box sx={{ p: 2, bgcolor: 'error.lighter', borderRadius: 2, textAlign: 'center' }}>
+                  <Typography variant="caption" color="text.secondary" gutterBottom>
+                    Failed
+                  </Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 700, color: 'error.main' }}>
+                    {failedActions}
+                  </Typography>
+                </Box>
 
-                <Grid item xs={6} sm={3}>
-                  <Box sx={{ p: 2, bgcolor: 'info.lighter', borderRadius: 2, textAlign: 'center' }}>
-                    <Typography variant="caption" color="text.secondary" gutterBottom>
-                      Success Rate
-                    </Typography>
-                    <Typography variant="h5" sx={{ fontWeight: 700, color: 'info.main' }}>
-                      {successRate.toFixed(0)}%
-                    </Typography>
-                  </Box>
-                </Grid>
-              </Grid>
+                <Box sx={{ p: 2, bgcolor: 'info.lighter', borderRadius: 2, textAlign: 'center' }}>
+                  <Typography variant="caption" color="text.secondary" gutterBottom>
+                    Success Rate
+                  </Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 700, color: 'info.main' }}>
+                    {successRate.toFixed(0)}%
+                  </Typography>
+                </Box>
+              </Box>
 
               {avgResponseTime !== null && avgResponseTime !== undefined && (
                 <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
