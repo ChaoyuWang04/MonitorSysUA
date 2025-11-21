@@ -22,6 +22,27 @@
       "when": 1763536702867,
       "tag": "0002_concerned_aaron_stack",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1763549457246,
+      "tag": "0003_concerned_bushwacker",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1763698774809,
+      "tag": "0004_outgoing_supernaut",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1763699318378,
+      "tag": "0005_bouncy_shard",
+      "breakpoints": true
     }
   ]
 }

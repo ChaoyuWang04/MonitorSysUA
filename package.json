@@ -19,7 +19,9 @@
     "docker:db:down": "docker-compose down",
     "docker:db:logs": "docker-compose logs -f postgres",
     "docker:db:restart": "docker-compose restart postgres",
-    "docker:db:reset": "docker-compose down -v && docker-compose up -d"
+    "docker:db:reset": "docker-compose down -v && docker-compose up -d",
+    "eval:seed": "tsx server/evaluation/mock-data/seed.ts",
+    "eval:test": "tsx server/evaluation/test-evaluation.ts"
   },
   "repository": {
     "type": "git",
