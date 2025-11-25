@@ -1,5 +1,5 @@
 The most important thing that u need to keep in your mind:
-**Remember**: Always think ultra hard and use proper mcp tools and sub-agents when needed. For requirements, always think proactively first and always articulate the reasoning process step by step—identify which parts of the existing system this new change will affect. For implementation, always analyze how we can ensure the new feature implementation integrates perfectly with the existing system and ensure the new system is robust and complete. Meanwhile, please ask me questions at any time to ensure our expectations for the system are aligned. We not only need to implement this new feature but also ensure its interaction with other system components is perfect. After implementation, please update todo.md in the docs folder.
+**Remember**: Always think ultra hard and use proper mcp tools and sub-agents when needed, also remember to plan reading docs wisely, some are way too long with your limited context window. For requirements, always think proactively first and always articulate the reasoning process step by step—identify which parts of the existing system this new change will affect. For implementation, always analyze how we can ensure the new feature implementation integrates perfectly with the existing system and ensure the new system is robust and complete. Meanwhile, please ask me questions at any time to ensure our expectations for the system are aligned. We not only need to implement this new feature but also ensure its interaction with other system components is perfect. After implementation, please update todo.md in the root directory.
 
 ## 🎯 Core Directives
 
@@ -7,297 +7,228 @@ When working here:
 1. **Follow instructions literally** - don't assume or improvise unless explicitly told
 2. **Ask for clarification** when requirements are ambiguous
 3. **Report what you're doing** before executing complex operations
-
+4. **Always analyze and plan before acting.**
 ## 📍 Workspace Routing System
 
-### How Routing Works
-```
-User Input → Analyze Requirements → Search & Assess Current State → Create Implementation Plan → Execute in Target Workspace
-```
-
-### Routing Workflow
-
-**CRITICAL**: This is NOT keyword-based routing. You must analyze and plan before acting.
-
-#### Phase 1: Requirement Analysis
-When receiving any task, FIRST:
-1. **Identify the core requirement** - What does the user actually want to achieve?
-2. **Determine scope** - Which parts of the codebase will be affected?
-3. **List success criteria** - How will we know the task is complete?
-
-#### Phase 2: Current State Assessment
-Before any implementation:
-1. **Create search plan** - List all files/directories that might be relevant
-2. **Execute search and read files**
-3. **Document current implementation**
-   - What already exists?
-   - What patterns are being used?
-   - What can be reused?
-
-#### Phase 3: Implementation Planning
-Based on assessment, create an execution plan and then confirm with me:
-1. **Identify target workspace(s)** - Where will changes be made?
-2. **Load relevant CLAUDE.md files** - Get workspace-specific rules
-3. **Create task list** with specific order and a todo.md file in the root
-
-#### Phase 4: Execution
-Only NOW do you start implementation:
-1. **Announce plan to user** - "Based on analysis, I'll need to modify X files..."
-2. **Load workspace CLAUDE.md** - `[workspace]/CLAUDE.md`
-3. **Execute plan step by step** - Follow workspace-specific instructions
-4. **Validate each step** - Run tests, check for errors
-
-### Workspace Reference Table
-
-**Note**: These are NOT trigger keywords. They're reference categories for Phase 3 planning.
-
-| Workspace | Actual Directories | Purpose | Key Files |
-|-----------|-------------------|---------|-----------|
-| **Frontend** | `/app/*`, `/components/*`, `/theme/*` | Client-side UI and routing | `app/(dashboard)/*`, `components/events/*`, `components/layout/*` |
-| **Backend** | `/server/*` | Server-side API and business logic | `server/api/routers/*`, `server/google-ads/*` |
-| **Database** | `/server/db/*` | Database schema and queries | `server/db/schema.ts`, `server/db/queries.ts`, `server/db/migrations/*` |
-| **Configuration** | Root files | Project configuration | `package.json`, `tsconfig.json`, `drizzle.config.ts`, `next.config.js` |
-| **Documentation** | `/docs/*`, `/context/*`, root `.md` files | Project documentation | `prd.md`, `docs/todo.md`, `context/design-principles.md`, `context/prd.md` |
+### Core Principle (must follow step by step, do not skip!!!)
+**CRITICAL**:  User Input → Analyze Requirements → Assess Current State → Plan → Execute in Target Workspace - git commit
+### Standard Flow (Do NOT skip phases)
+**Phase 1: Requirement Analysis**
+1. Identify core requirement - What does user actually want?
+2. Determine scope - Which parts affected?
+3. Define success criteria - How to verify completion?
+**Phase 2: Current State Assessment**
+1. Create search plan - List relevant files/directories
+2. Execute search and read files
+3. Document current implementation - What exists? What patterns? What's reusable?
+**Phase 3: Implementation Planning**
+1. Identify target workspace(s)
+2. Load relevant CLAUDE.md files
+3. Create ordered task list + root `todo.md`
+4. **Confirm plan with user before proceeding**
+**Phase 4: Execution**
+1. Announce plan - "Based on analysis, I'll modify X files..."
+2. Execute step by step - Follow workspace-specific rules
+3. Validate each step - Run tests, check errors
+4. Git commit with proper comment.
 
 ### Technology Stack
-
-- **Framework**: Next.js 16.0.3 (App Router)
-- **Language**: TypeScript 5.7.2
-- **Runtime**: Node.js 18+ (20 LTS recommended)
-- **Database**: PostgreSQL 16 (Docker)
-- **ORM**: Drizzle ORM 0.44.7 (type-safe, lightweight)
-- **API Layer**: tRPC 11.7.1 (end-to-end type safety)
-- **Validation**: Zod 4.1.12 (schema validation)
-- **UI Library**: Material UI 7.3.5 (enterprise components)
-- **Styling Engine**: Emotion 11.14.0+ (CSS-in-JS, MUI's engine)
-- **Data Grid**: MUI X DataGrid 8.18.0 (advanced tables)
-- **Date Pickers**: MUI X Date Pickers 8.18.0
-- **State Management**: React Context + React Query 5.90.9 (TanStack Query)
-- **Icons**: MUI Icons Material 7.3.5
-- **Date Utilities**: date-fns 4.1.0
-- **Google Ads Integration**: google-ads-api 21.0.1 (official Node.js client)
-- **Package Manager**: npm
-
-### Project Structure
-
-```
-MonitorSysUA/
-├── app/                           # Next.js App Router
-│   ├── (dashboard)/              # Dashboard route group
-│   │   ├── layout.tsx            # Sidebar + AppBar + AccountSelector
-│   │   ├── page.tsx              # Statistics Dashboard
-│   │   ├── events/page.tsx       # Events List (DataGrid)
-│   │   └── accounts/page.tsx     # Account Management
-│   ├── api/trpc/[trpc]/route.ts  # tRPC HTTP handler
-│   ├── layout.tsx                # Root layout (HTML, theme providers)
-│   └── providers.tsx             # tRPC + React Query + AccountContext
-│
-├── components/                    # React components
-│   ├── events/
-│   │   └── event-detail.tsx      # Event detail dialog
-│   ├── layout/
-│   │   └── account-selector.tsx  # Account dropdown selector
-│   ├── accounts/
-│   │   └── account-dialog.tsx    # Add/Edit account form
-│   └── stats/                    # Statistics components
-│
-├── server/                        # Backend logic
-│   ├── api/
-│   │   ├── root.ts               # Root tRPC router
-│   │   ├── trpc.ts               # tRPC initialization
-│   │   └── routers/              # accounts, events, stats routers
-│   ├── db/
-│   │   ├── schema.ts             # Drizzle schema (accounts, change_events)
-│   │   ├── queries.ts            # Database query functions
-│   │   └── migrations/           # SQL migration files
-│   └── google-ads/
-│       ├── client.ts             # Google Ads API client (MCC support)
-│       ├── parser.ts             # ChangeEvent parser
-│       └── diff-engine.ts        # Deep diff algorithm
-│
-├── lib/
-│   ├── trpc/
-│   │   └── client.ts             # tRPC React client
-│   └── contexts/
-│       └── account-context.tsx   # Global account state
-│
-├── context/                       # Design documentation
-│   ├── design-principles.md      # S-Tier SaaS design checklist
-│   └── prd.md                    # Product requirements (symlink)
-│
-├── theme/
-│   └── index.ts                  # MUI theme configuration
-│
-├── docs/                          # Project documentation
-│   ├── todo.md                   # Development tasks
-│   └── TESTING-SUMMARY.md        # Testing guide
-│
-├── mvp/                          # MVP prototype (Flask/Python - reference only)
-│
-├── .env.example                  # Environment variables template
-├── drizzle.config.ts             # Drizzle ORM configuration
-├── next.config.js                # Next.js configuration
-├── tsconfig.json                 # TypeScript configuration
-├── package.json                  # Dependencies
-├── prd.md                        # Product requirements document
-└── CLAUDE.md                     # Project instructions
-```
+- **Framework**: Next.js 16.0.3 with App Router
+- **Language**: TypeScript 5.7.2 (strict mode enabled)
+- **Runtime**: React 19.2.0
+- **Database**: PostgreSQL 16-alpine (Docker) + Drizzle ORM 0.44.7
+- **API Layer**: tRPC 11.7.1 (end-to-end type-safe RPC)
+- **UI Library**: Material-UI (MUI) 7.3.5 with Emotion CSS-in-JS
+- **State Management**: React Query 5.90.9 (@tanstack/react-query) + React Context
+- **Validation**: Zod 4.1.12
+- **Testing**: tsx for script execution (no formal test framework configured)
+- **External APIs**: Google Ads API (google-ads-api 21.0.1)
 
 ### Key Architecture Patterns
+- **Component Structure**: Feature-based organization (accounts/, evaluation/, events/, stats/)
+- **State Management**: tRPC + React Query for server state, React Context for UI state
+- **API Communication**: tRPC with end-to-end type safety (no REST/GraphQL)
+- **Styling Strategy**: MUI sx prop with Emotion CSS-in-JS
+- **Error Handling**: tRPC error formatting + toast notifications + form validation
+- **Performance**: Server Components by default, 'use client' only for interactivity
+- **Type Safety**: TypeScript strict mode + Zod validation + Drizzle type inference
 
-1. **Component Structure**:
-   - Server Components by default (Next.js App Router)
-   - Client Components marked with 'use client'
-   - Modular component organization by feature
-
-2. **State Management**:
-   - React Context for global UI state (account selection)
-   - React Query (via tRPC) for server state
-   - Local state for UI components
-
-3. **API Communication**:
-   - tRPC for type-safe client-server communication
-   - Zod for runtime validation
-   - Batched HTTP requests via httpBatchLink
-
-4. **Styling Strategy**:
-   - Material UI v7 component library
-   - Emotion CSS-in-JS (MUI's styling engine)
-   - Theme system with design tokens
-   - Responsive design with MUI breakpoints
-
-5. **Data Layer**:
-   - Drizzle ORM for type-safe database queries
-   - PostgreSQL with JSONB for complex data
-   - Indexes for query performance
-   - Unique constraints for data integrity
-
-6. **Error Handling**:
-   - TRPCError for API errors
-   - Zod validation errors
-   - Toast notifications for user feedback
-   - Try-catch blocks in async operations
-
-7. **Performance**:
-   - Server-side pagination (50 items/page)
-   - React Query caching
-   - Server Components for reduced client JS
-   - MUI's tree-shaking support
-
-8. **Multi-Account Architecture**:
-   - Supports multiple Google Ads accounts via MCC (Manager Account)
-   - Single Service Account authentication for all accounts
-   - Account selector in sidebar with localStorage persistence
-   - All data queries scoped by accountId
-
-## 💻 Development Workflow
-
-### Setup Commands
-
-```bash
-# Install dependencies
-npm install
-
-# Development server (runs on port 4000)
-npm run dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm start
-
-# Docker database operations
-npm run docker:db:up     # Start PostgreSQL container
-npm run docker:db:down   # Stop PostgreSQL container
-npm run docker:db:logs   # View database logs
-npm run docker:db:restart # Restart database container
-npm run docker:db:reset  # Reset database (WARNING: deletes all data)
-
-# Database operations
-npm run db:generate      # Generate Drizzle migration files
-npm run db:migrate       # Run database migrations
-npm run db:studio        # Open Drizzle Studio (DB GUI)
-
-# Code quality
-npm run lint             # ESLint
-npx tsc --noEmit        # TypeScript type checking
+### Project Structure
 ```
-
-### Environment Variables
-
-Required variables (see `.env.example`):
-- `DATABASE_URL` - PostgreSQL connection string (Docker: `postgresql://postgres:postgres@localhost:5433/monitor_sys_ua`)
-- `GOOGLE_ADS_DEVELOPER_TOKEN` - From MCC account
-- `GOOGLE_ADS_JSON_KEY_FILE_PATH` - Service account key file path
-- `GOOGLE_ADS_LOGIN_CUSTOMER_ID` - MCC manager ID (10 digits, no dashes)
-- `GOOGLE_ADS_DEFAULT_CUSTOMER_ID` - Default client account
-- `NEXT_PUBLIC_APP_URL` - Application URL
-
-**Database Setup**:
-1. Start Docker database: `npm run docker:db:up`
-2. Run migrations: `npm run db:migrate`
-3. See detailed Docker guide: `docs/DOCKER-SETUP.md`
-
-## Git Workflow (Before Making Changes)
-
-**ALWAYS execute these checks first:**
-
-1. **Verify current branch**
-   ```bash
-   git branch --show-current
-   ```
-
-2. **Add unsaved file and commit with correct comment **
-   ```bash
-   git add .
-   git commit -m "related comment to the change"
-   ```
-
-### Commit Message Format
+MonitorSysUA/
+├── app/                              # Next.js App Router
+│   ├── (dashboard)/                  # Dashboard route group
+│   │   ├── page.tsx                  # Main dashboard
+│   │   ├── layout.tsx                # Shared layout
+│   │   ├── accounts/                 # Account management page
+│   │   ├── evaluation/               # Evaluation system pages (A2-A7)
+│   │   └── events/                   # Event management page
+│   ├── api/trpc/[trpc]/              # tRPC API handler
+│   ├── layout.tsx                    # Root layout (MUI theme setup)
+│   └── providers.tsx                 # Root providers (tRPC, React Query)
+│
+├── server/                           # Backend business logic
+│   ├── api/                          # tRPC API layer
+│   │   ├── trpc.ts                   # tRPC setup & context
+│   │   ├── root.ts                   # Root router (accounts, events, stats, evaluation)
+│   │   └── routers/                  # Individual routers
+│   │       ├── accounts.ts           # Account CRUD procedures
+│   │       ├── events.ts             # Event queries/mutations
+│   │       ├── stats.ts              # Statistics procedures
+│   │       └── evaluation.ts         # Evaluation system procedures
+│   │
+│   ├── db/                           # Database layer (Drizzle ORM)
+│   │   ├── schema.ts                 # Drizzle schema definition
+│   │   ├── queries.ts                # Common query helpers
+│   │   ├── queries-evaluation.ts     # Evaluation-specific queries
+│   │   ├── index.ts                  # DB client export
+│   │   └── migrations/               # Drizzle-generated SQL migrations
+│   │
+│   ├── evaluation/                   # Evaluation system (Phase 4-5)
+│   │   ├── mock-data/                # Test data generators
+│   │   └── python/                   # Python evaluation scripts
+│   │
+│   └── google-ads/                   # Google Ads API integration
+│
+├── components/                       # React components
+│   ├── common/                       # Shared (confirm-dialog, toast-provider)
+│   ├── accounts/                     # Account management UI
+│   ├── evaluation/                   # Evaluation system UI
+│   ├── events/                       # Event display components
+│   ├── stats/                        # Statistics components
+│   └── layout/                       # Layout components (account-selector)
+│
+├── lib/                              # Frontend utilities
+│   ├── contexts/                     # React Context (account-context)
+│   ├── services/                     # API service layer
+│   ├── types/                        # TypeScript type definitions
+│   ├── trpc/                         # tRPC client setup
+│   └── utils/                        # Utility functions
+│
+├── context/                          # Design & documentation context
+│   ├── design-principles.md          # S-Tier SaaS Design Checklist
+│   ├── trd.md                        # Technical Reference Document
+│   └── prd.md                        # Product Requirements
+│
+├── docs/                             # Project documentation
+│   ├── prd_v1.md, prd_v2.md, prd_v3.md  # PRD versions
+│   └── TODO-AUTHENTICATION.md        # Auth implementation plan
+│
+├── mvp/                              # Legacy MVP (Python Flask) - Reference only
+│
+├── docker-compose.yml                # PostgreSQL database
+├── drizzle.config.ts                 # Drizzle Kit configuration
+├── next.config.js                    # Next.js configuration
+├── tsconfig.json                     # TypeScript (strict mode)
+├── package.json                      # Dependencies & scripts
+├── .env.example                      # Environment template
+└── CLAUDE.md                         # This file
 ```
-type(scope): subject
+**Key Principles:**
+- **app/**: Next.js App Router with route groups for dashboard
+- **server/**: All backend logic (tRPC routers, DB queries, external APIs)
+- **components/**: Feature-based React components
+- **lib/**: Frontend utilities, contexts, types
+- **context/**: Design docs and PRD (for Claude reference)
+- **Root files**: Only global configs
+
+## 🛠️ Build, Test & Development
+### Common Commands
+| Task | Command | Purpose |
+|------|---------|---------|
+| **Install deps** | `npm install` | Sync dependencies |
+| **Dev server** | `npm run dev` | Start dev server (port 4000) |
+| **Build** | `npm run build` | Production build |
+| **Lint** | `npm run lint` | ESLint check |
+| **DB Generate** | `npm run db:generate` | Create Drizzle migration |
+| **DB Migrate** | `npm run db:migrate` | Apply pending migrations |
+| **DB Studio** | `npm run db:studio` | Open Drizzle Studio GUI |
+| **Docker Up** | `npm run docker:db:up` | Start PostgreSQL container |
+| **Docker Down** | `npm run docker:db:down` | Stop PostgreSQL container |
+| **Docker Logs** | `npm run docker:db:logs` | View database logs |
+| **Eval Seed** | `npm run eval:seed` | Seed evaluation test data |
+| **Eval Test** | `npm run eval:test` | Run evaluation tests |
+
+### Development Workflow
+**Daily**: `npm run docker:db:up` → `npm run dev` → Make changes
+**Pre-commit (REQUIRED)**: `npm run build` to verify compilation → `npm run lint`
+
+### Database Access
+**Drizzle Studio**: `npm run db:studio` - Visual database browser
+**Direct PostgreSQL**: `psql postgresql://postgres:postgres@localhost:5433/monitor_sys_ua`
+
+### ⚠️ Critical Rules
+1. **Build before PR** - Always verify `npm run build` passes
+2. **Soft delete pattern** - Use `isActive: false` instead of DELETE
+3. **Docker required** - PostgreSQL runs in Docker, start with `npm run docker:db:up`
+4. **Port 4000** - Dev server runs on http://localhost:4000
+
+
+## 🗄️ Database Migration Workflow
+### Core Principle
 ```
-
-**Types**:
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes (formatting, missing semicolons, etc.)
-- `refactor`: Code refactoring without changing functionality
-- `test`: Adding or updating tests
-- `chore`: Maintenance tasks
-
-## 🐛 Debugging Instructions
-
-### Debug Workflow
-
-1. Error Collection : Browser errors via Chrome DevTools MCP and Playwright MCP
-2. Documentation Research : Query official docs via Context7 mcp
-3. Solution Planning : Create fix plan based on findings
-4. User Confirmation:
-**MUST present findings before fixing:**
+Design Doc → Schema Definition → Migration → Database
+(context/trd.md)  (server/db/schema.ts)  (server/db/migrations/)
 ```
-Found: [error] caused by [root cause]
-Official docs recommend: [solution]
-I need to change: [specific changes]
-May I proceed?
-```
-5. Implementation
-Only after approval, implement fixes and verify using Chrome/Playwright tools.
+**Single source of truth**: `server/db/schema.ts` (Drizzle schema)
+- 🚫 Never edit migration files manually
+- ✅ All changes via schema.ts → generate → migrate
+- ✅ Types auto-inferred from schema
+
+### Standard Flow (Do NOT skip steps)
+1. **Update design**: `context/trd.md` or `docs/prd_v*.md`
+2. **Update schema**: `server/db/schema.ts`
+3. **Generate migration**: `npm run db:generate`
+4. **Review SQL**: `server/db/migrations/*.sql`
+5. **Apply**: `npm run db:migrate`
+6. **Verify**: Open Drizzle Studio (`npm run db:studio`)
+
+### Key Commands
+| Command | Use |
+|---------|-----|
+| `npm run db:generate` | Create migration from schema changes |
+| `npm run db:migrate` | Apply pending migrations |
+| `npm run db:studio` | Open Drizzle Studio GUI |
+| `npm run docker:db:up` | Start PostgreSQL container |
+| `npm run docker:db:logs` | View database logs |
+
+
+## 💅 Coding Style & Naming
+### Format & Lint
+- **Linter**: ESLint with Next.js config (`npm run lint`)
+- **Indentation**: 2 spaces
+- **No Prettier**: Use ESLint for formatting
+
+### Naming Conventions
+| Element | Convention | Example |
+|---------|-----------|---------|
+| **Variables/Functions** | camelCase | `selectedAccountId`, `getAccounts()` |
+| **Components** | PascalCase | `AccountDialog`, `StatusChip` |
+| **Component Files** | kebab-case.tsx | `account-dialog.tsx`, `status-chip.tsx` |
+| **Database Columns** | snake_case | `customer_id`, `is_active`, `created_at` |
+| **Constants** | UPPER_SNAKE_CASE | `TIME_ZONES`, `CURRENCIES` |
+| **Interfaces** | PascalCase + Props | `AccountDialogProps`, `StatusChipProps` |
+| **Types** | PascalCase | `Account`, `NewAccount` |
+
+### Code Organization
+- **Path alias**: `@/*` maps to root directory
+- **Import ordering**: React → MUI → @/ internal imports → types
+- **Feature co-location**: Keep related components in feature folders
+
+### Project-Specific Rules
+- **'use client'**: Add directive for interactive components
+- **Soft delete**: Use `isActive: false` instead of DELETE
+- **Zod validation**: All tRPC inputs validated with Zod schemas
+- **Type inference**: Use Drizzle's `$inferSelect` / `$inferInsert` for DB types
+
 
 ## UI/UX design
-
 ### Design Principles
-
 - Comprehensive design checklist in `/context/design-principles.md`
 - Brand style guide in `/context/style-guide.md`
 - When making visual (front-end, UI/UX) changes, always refer to these files for guidance
-
 ### Quick Visual Check
-
 IMMEDIATELY after implementing any front-end change:
-
 1. **Identify what changed** – Review the modified components/pages
 2. **Navigate to affected pages** – Use `mcp__playwright__browser_navigate` to visit each changed view
 3. **Verify design compliance** – Compare against `/context/design-principles.md` and `/context/style-guide.md`
@@ -305,43 +236,105 @@ IMMEDIATELY after implementing any front-end change:
 5. **Check acceptance criteria** – Review any provided context files or requirements
 6. **Capture evidence** – Take full page screenshot at desktop viewport (1440px) of each changed view
 7. **Check for errors** – Run `mcp__playwright__browser_console_messages`
-
 This verification ensures changes meet design standards and user requirements.
+### Component Library
+| Config | Value |
+|--------|-------|
+| **Library** | Material-UI (MUI) 7.3.5 |
+| **Base** | Material Design |
+| **Components Path** | `/components/` (feature-based) |
+| **Styling** | Emotion CSS-in-JS with `sx` prop |
+| **Icons** | @mui/icons-material |
+| **Theme** | MUI ThemeProvider in `app/layout.tsx` |
+| **Data Grid** | @mui/x-data-grid |
+| **Charts** | @mui/x-charts |
+| **Date Pickers** | @mui/x-date-pickers with date-fns |
 
-### Comprehensive Design Review
+### Usage Rules
+- ✅ Use MUI components first before building custom
+- ✅ Use `sx` prop for component-specific styling
+- ✅ Use responsive breakpoints: `{ xs, sm, md, lg, xl }`
+- ✅ Extend via wrapper components when needed
+- 🚫 Don't use inline styles, use `sx` prop instead
 
-Invoke the `@agent-design-review` subagent for thorough design validation when:
-- Completing significant UI/UX features
-- Before finalizing PRs with visual changes
-- Needing comprehensive accessibility and responsiveness testing
+## 🧪 Testing Guidelines
+### Test Commands
+| Command | Purpose |
+|---------|---------|
+| `npm run eval:test` | Run evaluation system tests |
+| `npm run eval:seed` | Seed evaluation test data |
 
-### Material UI Components
+### Test Organization
+- **Backend tests**: Co-located in `server/` (e.g., `test-evaluation-queries.ts`)
+- **Evaluation tests**: `server/evaluation/test-evaluation.ts`
+- **No formal test framework**: Uses tsx for script execution
 
-- Enterprise-grade component library (MUI v7)
-- Components in `/components/*` (custom) and imported from `@mui/material`
-- Emotion CSS-in-JS for styling with theme system
-- MUI Icons Material for consistent iconography
-- MUI X DataGrid for advanced data tables
-- Theme configuration in `/theme/index.ts`
+### Coverage Priorities
+- **Focus on**: tRPC procedures, database queries, evaluation logic
+- **Don't test**: MUI components, framework internals
 
-## ⚠️ Critical Rules
+### ⚠️ Rules
+- ✅ Test critical business logic before commit
+- ✅ Add tests for bug fixes
+- ✅ Cover edge cases and error paths
+- 🚫 No formal Jest/Vitest setup yet - use tsx scripts
 
-**NEVER DO THESE**:
-1. ❌ Delete files without explicit permission
-2. ❌ Modify core configuration without discussion
-3. ❌ Commit sensitive data (passwords, API keys)
-4. ❌ Force push to main branch
-5. ❌ Ignore failing tests
-6. ❌ Use `any` type in TypeScript without comment explaining why
-7. ❌ Copy-paste code without understanding it
-8. ❌ Make assumptions about business logic
+## 📝 Git Commit & PR Guidelines
+### Commit Message Format
+```
+<type>(<scope>): <subject>
+Example: feat(auth): 添加JWT token刷新机制
+```
+**Types**: `feat` | `fix` | `docs` | `style` | `refactor` | `test` | `chore`
+### Standard Flow
+1. **Commit after every change** - Don't leave uncommitted files
+2. **Write clear message** - Present tense, reference issue IDs (e.g., `feat(api): add user endpoint #123`)
+3. **Create PR with**:
+   - Concise description of change
+   - Testing evidence (command output/screenshots)
+   - Notes on config/schema updates
+4. **Request reviews** - Both backend & frontend owners for shared contracts
+### Key Rules
+- ✅ Commit frequently, push often
+- ✅ Use conventional commit format
+- ✅ Include testing proof in PRs
+- 🚫 Mix unrelated changes in one commit
 
-**ALWAYS DO THESE**:
-1. ✅ Read error messages completely before fixing
-2. ✅ Test your changes locally
-3. ✅ Keep commits atomic and focused
-4. ✅ Update documentation when changing APIs
-5. ✅ Ask for clarification when unsure
-6. ✅ Report blockers immediately
-7. ✅ Follow existing patterns in codebase
-8. ✅ Consider edge cases and error states
+
+## 🔄 tRPC Type Flow (replaces OpenAPI)
+### Core Principle
+This project uses **tRPC** instead of OpenAPI for end-to-end type safety.
+```
+Server Router → Type Inference → Client Hooks
+(server/api/routers/*.ts) → (AppRouter type) → (lib/trpc/client.ts)
+```
+**Single Source of Truth**: tRPC router definitions with Zod schemas
+- 🚫 No code generation needed
+- ✅ Types automatically inferred at compile-time
+- ✅ Full type safety from backend to frontend
+
+### Key Files
+| File | Purpose |
+|------|---------|
+| `server/api/trpc.ts` | tRPC setup & context |
+| `server/api/root.ts` | Root router combining all routers |
+| `server/api/routers/*.ts` | Individual procedure definitions |
+| `lib/trpc/client.ts` | Client-side tRPC hooks |
+| `app/api/trpc/[trpc]/route.ts` | Next.js API handler |
+
+### Type Safety Flow
+1. Define Zod schema in router procedure input
+2. Types automatically inferred on client via `trpc.[router].[procedure]`
+3. No manual type definitions needed
+
+### Adding New Procedures
+1. Add procedure to appropriate router in `server/api/routers/`
+2. Define Zod input schema
+3. Return typed data
+4. Use on client: `trpc.[router].[procedure].useQuery()` or `.useMutation()`
+
+### ⚠️ Critical Rules
+- Never use `any` type with tRPC hooks
+- Always use Zod for input validation
+- Export AppRouter type from `server/api/root.ts`
+- Use React Query patterns for data fetching
