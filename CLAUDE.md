@@ -118,6 +118,9 @@ MonitorSysUA/
 │
 ├── docker-compose.yml                # PostgreSQL database
 ├── drizzle.config.ts                 # Drizzle Kit configuration
+├── atlas.hcl                         # Atlas migration configuration
+├── justfile                          # Just command runner recipes
+├── atlas/migrations/                 # Atlas-managed migrations
 ├── next.config.js                    # Next.js configuration
 ├── tsconfig.json                     # TypeScript (strict mode)
 ├── package.json                      # Dependencies & scripts
@@ -133,64 +136,80 @@ MonitorSysUA/
 - **Root files**: Only global configs
 
 ## 🛠️ Build, Test & Development
-### Common Commands
-| Task | Command | Purpose |
-|------|---------|---------|
-| **Install deps** | `npm install` | Sync dependencies |
-| **Dev server** | `npm run dev` | Start dev server (port 4000) |
-| **Build** | `npm run build` | Production build |
-| **Lint** | `npm run lint` | ESLint check |
-| **DB Generate** | `npm run db:generate` | Create Drizzle migration |
-| **DB Migrate** | `npm run db:migrate` | Apply pending migrations |
-| **DB Studio** | `npm run db:studio` | Open Drizzle Studio GUI |
-| **Docker Up** | `npm run docker:db:up` | Start PostgreSQL container |
-| **Docker Down** | `npm run docker:db:down` | Stop PostgreSQL container |
-| **Docker Logs** | `npm run docker:db:logs` | View database logs |
-| **Eval Seed** | `npm run eval:seed` | Seed evaluation test data |
-| **Eval Test** | `npm run eval:test` | Run evaluation tests |
+
+This project uses **Just** as the command runner and **Atlas** for database migrations.
+Run `just` to see all available commands.
+
+### Quick Start
+
+```bash
+# First time setup (installs deps, starts Docker, applies migrations)
+just setup
+
+# Daily development
+just dev              # Start dev server (http://localhost:4000)
+just docker-up        # Start database containers
+```
+
+### Command Reference
+
+| Category | Commands |
+|----------|----------|
+| **Development** | `just dev`, `just build`, `just start`, `just install` |
+| **Database** | `just db-status`, `just db-diff <name>`, `just db-apply`, `just db-studio` |
+| **Docker** | `just docker-up`, `just docker-down`, `just docker-logs`, `just docker-status` |
+| **Code Quality** | `just lint`, `just type-check`, `just check` |
+| **Utilities** | `just setup`, `just info`, `just clean`, `just db-seed`, `just db-reset` |
 
 ### Development Workflow
-**Daily**: `npm run docker:db:up` → `npm run dev` → Make changes
-**Pre-commit (REQUIRED)**: `npm run build` to verify compilation → `npm run lint`
+**Daily**: `just docker-up` → `just dev` → Make changes
+**Pre-commit (REQUIRED)**: `just check` (runs lint + type-check + build)
 
 ### Database Access
-**Drizzle Studio**: `npm run db:studio` - Visual database browser
-**Direct PostgreSQL**: `psql postgresql://postgres:postgres@localhost:5433/monitor_sys_ua`
+**Drizzle Studio**: `just db-studio` - Visual database browser
+**Direct PostgreSQL**: `just db-shell` or `psql postgresql://postgres:postgres@localhost:5433/monitor_sys_ua`
 
 ### ⚠️ Critical Rules
-1. **Build before PR** - Always verify `npm run build` passes
+1. **Build before PR** - Always verify `just build` passes
 2. **Soft delete pattern** - Use `isActive: false` instead of DELETE
-3. **Docker required** - PostgreSQL runs in Docker, start with `npm run docker:db:up`
+3. **Docker required** - PostgreSQL runs in Docker, start with `just docker-up`
 4. **Port 4000** - Dev server runs on http://localhost:4000
 
 
 ## 🗄️ Database Migration Workflow
+
 ### Core Principle
 ```
 Design Doc → Schema Definition → Migration → Database
-(context/trd.md)  (server/db/schema.ts)  (server/db/migrations/)
+(context/trd.md)  (server/db/schema.ts)  (atlas/migrations/)
 ```
 **Single source of truth**: `server/db/schema.ts` (Drizzle schema)
+- Atlas uses `drizzle-kit export` to read the schema
+- Atlas generates SQL migrations from schema changes
 - 🚫 Never edit migration files manually
-- ✅ All changes via schema.ts → generate → migrate
+- ✅ All changes via schema.ts → `just db-diff` → `just db-apply`
 - ✅ Types auto-inferred from schema
 
 ### Standard Flow (Do NOT skip steps)
 1. **Update design**: `context/trd.md` or `docs/prd_v*.md`
 2. **Update schema**: `server/db/schema.ts`
-3. **Generate migration**: `npm run db:generate`
-4. **Review SQL**: `server/db/migrations/*.sql`
-5. **Apply**: `npm run db:migrate`
-6. **Verify**: Open Drizzle Studio (`npm run db:studio`)
+3. **Generate migration**: `just db-diff descriptive_name`
+4. **Review SQL**: `atlas/migrations/*.sql`
+5. **Lint migration**: `just db-lint` (catches destructive changes)
+6. **Apply**: `just db-apply`
+7. **Verify**: `just db-studio` or `just db-status`
 
 ### Key Commands
-| Command | Use |
-|---------|-----|
-| `npm run db:generate` | Create migration from schema changes |
-| `npm run db:migrate` | Apply pending migrations |
-| `npm run db:studio` | Open Drizzle Studio GUI |
-| `npm run docker:db:up` | Start PostgreSQL container |
-| `npm run docker:db:logs` | View database logs |
+| Command | Purpose |
+|---------|---------|
+| `just db-status` | Show migration status |
+| `just db-diff <name>` | Create new migration from schema changes |
+| `just db-apply` | Apply pending migrations |
+| `just db-apply-dry` | Preview what would be applied |
+| `just db-lint` | Check for issues in latest migration |
+| `just db-studio` | Open Drizzle Studio GUI |
+| `just docker-up` | Start PostgreSQL container |
+| `just docker-logs` | View database logs |
 
 
 ## 💅 Coding Style & Naming
@@ -261,8 +280,8 @@ This verification ensures changes meet design standards and user requirements.
 ### Test Commands
 | Command | Purpose |
 |---------|---------|
-| `npm run eval:test` | Run evaluation system tests |
-| `npm run eval:seed` | Seed evaluation test data |
+| `just db-test` | Run evaluation system tests |
+| `just db-seed` | Seed evaluation test data |
 
 ### Test Organization
 - **Backend tests**: Co-located in `server/` (e.g., `test-evaluation-queries.ts`)

@@ -1,0 +1,208 @@
+# MonitorSysUA Development Commands
+# Usage: just <recipe> [args...]
+# Run `just` or `just --list` to see available commands
+
+# Default recipe - show available commands
+default:
+    @just --list --unsorted
+
+# ============================================
+# Development
+# ============================================
+
+# Start development server (port 4000)
+dev:
+    npm run dev
+
+# Build production bundle
+build:
+    npm run build
+
+# Start production server
+start:
+    npm run start
+
+# Install dependencies
+install:
+    npm install
+
+# ============================================
+# Database - Docker
+# ============================================
+
+# Start PostgreSQL container
+docker-up:
+    docker-compose up -d
+
+# Stop PostgreSQL container
+docker-down:
+    docker-compose down
+
+# View PostgreSQL logs
+docker-logs:
+    docker-compose logs -f postgres
+
+# Restart PostgreSQL container
+docker-restart:
+    docker-compose restart postgres
+
+# Check container status
+docker-status:
+    docker-compose ps
+
+# ============================================
+# Database - Atlas Migrations
+# ============================================
+
+# Show current migration status
+db-status:
+    atlas migrate status --env local
+
+# Create a new migration from Drizzle schema changes
+db-diff name:
+    atlas migrate diff {{name}} --env local
+
+# Apply pending migrations
+db-apply:
+    atlas migrate apply --env local
+
+# Dry run - show what migrations would be applied
+db-apply-dry:
+    atlas migrate apply --env local --dry-run
+
+# Validate migrations
+db-validate:
+    atlas migrate validate --env local
+
+# Lint migrations for issues (check latest migration)
+db-lint:
+    atlas migrate lint --env local --latest 1
+
+# Hash migrations (after manual edits)
+db-hash:
+    atlas migrate hash --env local
+
+# Show schema diff between Drizzle and database
+db-schema-diff:
+    atlas schema diff --env local
+
+# ============================================
+# Database - Drizzle (ORM tools only)
+# ============================================
+
+# Open Drizzle Studio (database GUI)
+db-studio:
+    npx drizzle-kit studio
+
+# Export Drizzle schema to SQL (for debugging)
+db-export:
+    npx drizzle-kit export
+
+# ============================================
+# Database - Utilities
+# ============================================
+
+# Seed evaluation test data
+db-seed:
+    npx tsx server/evaluation/mock-data/seed.ts
+
+# Run evaluation tests
+db-test:
+    npx tsx server/evaluation/test-evaluation.ts
+
+# Regenerate summaries (Python script)
+db-regenerate-summaries:
+    python3 server/google-ads/regenerate_summaries.py
+
+# Reset database (DANGER: drops all data)
+db-reset:
+    @echo "WARNING: This will drop all data!"
+    @read -p "Are you sure? (y/N) " confirm && [ "$$confirm" = "y" ] || exit 1
+    docker-compose down -v
+    docker-compose up -d
+    @sleep 3
+    just db-apply
+    @echo "Database reset complete. Run 'just db-seed' to add test data."
+
+# Connect to PostgreSQL shell
+db-shell:
+    docker exec -it monitorsysua-postgres psql -U postgres -d monitor_sys_ua
+
+# ============================================
+# Code Quality
+# ============================================
+
+# Run ESLint
+lint:
+    npm run lint
+
+# TypeScript type checking
+type-check:
+    npx tsc --noEmit
+
+# Run all code quality checks
+check: lint type-check build
+
+# ============================================
+# Setup & Utilities
+# ============================================
+
+# One-command project setup (for new developers)
+setup:
+    @echo "Setting up MonitorSysUA development environment..."
+    @echo "1. Installing dependencies..."
+    npm install
+    @echo "2. Starting Docker containers..."
+    docker-compose up -d
+    @echo "3. Waiting for database..."
+    @sleep 3
+    @echo "4. Applying database migrations..."
+    just db-apply
+    @echo ""
+    @echo "Setup complete! Run 'just dev' to start development server."
+    @echo "Optional: Run 'just db-seed' to add test data."
+
+# Clean build artifacts
+clean:
+    rm -rf .next
+    rm -rf node_modules/.cache
+
+# Deep clean (includes node_modules)
+clean-all:
+    rm -rf .next
+    rm -rf node_modules
+
+# Show project info
+info:
+    #!/usr/bin/env bash
+    echo "MonitorSysUA - Google Ads Monitoring System"
+    echo "============================================"
+    echo "Node:       $(node --version)"
+    echo "npm:        $(npm --version)"
+    echo "Just:       $(just --version)"
+    echo "Atlas:      $(atlas version 2>/dev/null | head -1 || echo 'not installed')"
+    echo ""
+    echo "Database:   postgresql://postgres:***@localhost:5433/monitor_sys_ua"
+    echo "Dev Server: http://localhost:4000"
+    echo ""
+    docker-compose ps 2>/dev/null || echo "Docker containers: Not running"
+
+# ============================================
+# Migration from Drizzle (One-time)
+# ============================================
+
+# Initialize Atlas from existing database (run once after setup)
+atlas-init:
+    @echo "Initializing Atlas migration directory..."
+    @mkdir -p atlas/migrations
+    @echo "Creating baseline migration from current database state..."
+    atlas migrate diff baseline --env local
+    @echo ""
+    @echo "Done! Atlas is now managing your migrations."
+    @echo ""
+    @echo "Next steps:"
+    @echo "1. Run: atlas migrate apply --env local --baseline <timestamp>"
+    @echo "   (Replace <timestamp> with the migration timestamp from atlas/migrations/)"
+    @echo "2. Verify with: just db-status"
+    @echo ""
+    @echo "NOTE: Keep server/db/migrations/ for reference, but it's no longer used."

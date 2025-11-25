@@ -1,0 +1,2 @@
+# This file ensures the atlas/migrations directory is tracked in git
+# Atlas will generate migration files here

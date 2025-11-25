@@ -10,18 +10,7 @@
     "dev": "next dev -p 4000",
     "build": "next build",
     "start": "next start -p 4000",
-    "lint": "next lint",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:migrate:regenerate-summaries": "python3 server/google-ads/regenerate_summaries.py",
-    "db:studio": "drizzle-kit studio",
-    "docker:db:up": "docker-compose up -d",
-    "docker:db:down": "docker-compose down",
-    "docker:db:logs": "docker-compose logs -f postgres",
-    "docker:db:restart": "docker-compose restart postgres",
-    "docker:db:reset": "docker-compose down -v && docker-compose up -d",
-    "eval:seed": "tsx server/evaluation/mock-data/seed.ts",
-    "eval:test": "tsx server/evaluation/test-evaluation.ts"
+    "lint": "next lint"
   },
   "repository": {
     "type": "git",
