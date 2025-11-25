@@ -1,1084 +1,963 @@
-# MonitorSysUA 开发任务清单
+# MonitorSysUA - AppsFlyer Integration TODO
 
-**最后更新**: 2025-11-21 (MUI Grid v7 全面迁移完成 + Evaluation System 类型安全修复)
-**项目**: Google Ads ChangeEvent 监控系统
-**当前阶段**: Phase 4 🚧 测试与优化进行中
-
-## 📝 最近更新记录
-
-### 2025-11-21 - MUI Grid v7 全面迁移 + 类型安全修复 ✅
-- [x] **MUI Grid v7 兼容性完全迁移**
-  - 问题: MUI v7 移除了 Grid 的 `item` 属性，导致编译错误
-  - 影响范围: 4 个评估系统对话框组件
-  - 解决方案: 完全迁移到 Box + CSS Grid 布局系统
-
-- [x] **修复的组件列表**
-  - `campaign-evaluation-dialog.tsx` - Campaign Information 和 Performance Metrics 两个 Grid 区域
-  - `creative-evaluation-dialog.tsx` - Creative Information 和 Performance Metrics (5个指标) 两个 Grid 区域
-  - `operation-score-dialog.tsx` - Score Breakdown (改用 Stack) 和 Action Summary (4列布局) 两个区域
-  - `optimizer-leaderboard.tsx` - Achievement Rates 3列布局 + 完整重构以匹配 Python API
-
-- [x] **Evaluation System 类型定义修复**
-  - 扩展 `OperationScore` 接口，新增可选字段支持对话框显示需求
-  - 新增 `OptimizerScore` 接口，完全匹配 Python 后端 API 响应结构
-  - 修复 `optimizer-leaderboard.tsx` 组件使用实际 API 字段（snake_case from Python）
-  - 更新渲染逻辑：ROAS7/RET7/Min Achievement + Excellent/Good/Failed Rates
-
-- [x] **测试文件修复**
-  - `server/db/test-evaluation-queries.ts` - 修复分页结果访问 (`.data.length`)
-  - `server/evaluation/test-evaluation.ts` - 修复 `calculateBaseline` 对象参数调用
-  - `server/evaluation/test-evaluation.ts` - 添加 null 安全检查
-  - `server/evaluation/test-evaluation.ts` - 移除非法 Drizzle findFirst limit 参数
-
-- [x] **主题配置更新**
-  - 注释掉 `theme/index.ts` 中的 `MuiDataGrid` theme override（MUI v7 core theme 不支持）
-  - DataGrid 样式现在通过 `sx` prop 或 global styles 自定义
-
-- [x] **Build 验证通过**
-  - ✅ TypeScript 编译完全通过 (`npm run build`)
-  - ✅ 零编译错误，零类型错误
-  - ✅ 8 个路由成功编译（Dashboard, Accounts, Events, Evaluation pages）
-  - ✅ 生产就绪构建完成
-
-**技术细节**:
-- CSS Grid 模式: `display: 'grid'`, `gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)' }`
-- 响应式布局: mobile (1-2列) → desktop (3-4列)
-- 完全替代 MUI Grid component 和 item prop
-- 保持相同的视觉效果和响应式行为
-
-**成果**:
-- ✅ MUI v7 完全兼容
-- ✅ 零 breaking changes 对用户
-- ✅ 类型安全的 Evaluation System
-- ✅ Production build 成功
-- ✅ Python API 集成完整
-
-## 📝 最近更新记录
-
-### 2025-11-18 - E2E 测试完成（Playwright MCP）✅
-- [x] **修复 AccountIcon 导入错误**
-  - 错误位置: `app/(dashboard)/accounts/page.tsx:264`
-  - 错误类型: ReferenceError: AccountIcon is not defined
-  - 解决方案: 添加 `AccountCircle as AccountIcon` 到 MUI icons 导入
-  - 验证: EmptyState 组件现在正确显示账户图标
-
-- [x] **Playwright MCP 端到端测试**
-  - 测试覆盖: Accounts、Dashboard、Events 三个主要页面
-  - 响应式测试: Desktop (1440x900) 和 Mobile (375x812)
-  - 导航测试: 侧边栏导航和移动 drawer 功能
-  - 交互测试: Add Account 按钮、对话框打开/关闭
-  - 截图生成: 5 张完整页面截图（桌面 + 移动）
-
-- [x] **测试结果**
-  - ✅ 所有页面加载无错误
-  - ✅ 响应式布局正常工作
-  - ✅ 导航功能完全正常
-  - ✅ 对话框交互正常
-  - ⚠️ 发现 2 个低优先级问题（favicon 404、aria-hidden 警告）
-
-- [x] **文档输出**
-  - 创建 `docs/E2E-TESTING-REPORT.md` 完整测试报告
-  - 更新 `docs/todo.md` 测试任务状态
-  - 所有测试截图保存到 `.playwright-mcp/`
-
-**成果**:
-- ✅ 应用功能完整且稳定
-- ✅ 无关键错误或阻塞性问题
-- ✅ 准备进入性能优化阶段
-
-### 2025-11-18 - React Hydration Warning 修复 🔧
-- [x] **问题描述**
-  - 浏览器扩展（ATM Extension v1.29.12）在 `<body>` 标签注入属性
-  - 导致 React hydration mismatch 警告（`data-atm-ext-installed="1.29.12"`）
-  - 错误位置: `app/layout.tsx:20:7`
-
-- [x] **解决方案**
-  - 添加 `suppressHydrationWarning` 到 `<html>` 和 `<body>` 标签
-  - 这是 React/Next.js 官方推荐方案，专门处理浏览器扩展 DOM 修改
-  - 符合 React 19 和 Next.js 16 文档指导
-
-- [x] **技术细节**
-  - 修改文件: `app/layout.tsx` (line 19-20)
-  - `<html lang="en" suppressHydrationWarning>`
-  - `<body suppressHydrationWarning>`
-  - 无功能影响，仅抑制不必要的 console 警告
-
-- [x] **成果**
-  - ✅ 消除 console 噪音，改善开发体验
-  - ✅ 遵循 Next.js 最佳实践
-  - ✅ 零风险解决方案（React 19 官方支持）
-  - ✅ 防止其他浏览器扩展（Grammarly, LastPass 等）引起类似警告
-
-**参考文档**: https://nextjs.org/docs/messages/react-hydration-error
-
-### 2025-11-18 - Google Material Design UI/UX 全面优化 ✨
-- [x] **核心布局修复**
-  - [x] 修复侧边栏遮挡主内容问题 (添加 `ml: { sm: '280px' }`)
-  - [x] 移除固定宽度计算，优化响应式布局 (依赖 flexGrow)
-  - [x] 添加 24px 主内容 padding (Material Design 8dp grid: 3 * 8 = 24)
-
-- [x] **Material Design 样式提升**
-  - [x] 实施 Material Design elevation 系统
-    - AppBar: elevation 1 (subtle shadow)
-    - Drawer: elevation 0 (border only)
-    - Dialogs: elevation 24 (highest)
-  - [x] 应用 8dp 网格间距系统 (所有间距为 8 的倍数)
-  - [x] 优化 Typography 层级 (6 heading levels + body variants)
-  - [x] 添加流畅的交互动画 (200ms cubic-bezier(0.4, 0, 0.2, 1))
-
-- [x] **侧边栏视觉优化**
-  - [x] 实现 Material Design 激活状态指示器 (3px 蓝色左边框)
-  - [x] 优化图标和文字间距 (40px min-width for icons, 16px gap)
-  - [x] 添加 hover 状态 (grey[100] background)
-  - [x] 选中状态字体加粗 (fontWeight: 600)
-  - [x] 品牌文字使用 primary color
-
-- [x] **响应式测试 (Playwright MCP)**
-  - [x] Desktop (1440px): 侧边栏永久显示，内容正确偏移
-  - [x] Tablet (768px): 布局保持完整性
-  - [x] Mobile (375px): 侧边栏转为 drawer，内容全宽
-
-- [x] **全面设计审查 (design-review agent)**
-  - [x] 7阶段系统性审查 (交互、响应式、视觉、可访问性、健壮性、代码、内容)
-  - [x] 评级: **A- (Excellent with minor improvements needed)**
-  - [x] 零 console errors
-  - [x] Material Design 3 完全合规
-  - [x] 发现 12 个改进项 (0 blockers, 2 high-priority, 5 medium-priority)
-
-- [x] **可访问性改进 (WCAG 2.1 AA)**
-  - [x] 添加 "Skip to main content" 链接 (WCAG 2.4.1 Level A)
-  - [x] 改善 secondary text 颜色对比度 (#717171 → #616161, 对比度 5.74:1)
-  - [x] 为 Accounts 页面添加一致的 EmptyState 组件
-
-- [x] **设计系统健康检查**
-  - [x] 200+ design tokens 已定义 (`theme/tokens.ts`)
-  - [x] 13 个 MUI 组件样式覆盖
-  - [x] 完整的 elevation, spacing, color, typography 系统
-  - [x] 无 magic numbers，所有值引用 tokens
-
-**技术细节**:
-- Material Design elevation: `shadowTokens.sm` (1px), `shadowTokens.md` (4-6px), `shadowTokens.2xl` (dialog)
-- 8dp grid: `p: 3` (24px), `mb: 0.5` (4px), `ml: 2` (16px)
-- Transitions: `200ms cubic-bezier(0.4, 0, 0.2, 1)` (Material motion spec)
-- Active indicator: `borderLeft: '3px solid ${colors.primary[500]}'` (Material Design pattern)
-- Color contrast: Secondary text 5.74:1 (超过 WCAG AA 4.5:1 标准)
-
-**成果**:
-- ✅ 专业的 Google Material Design 3 实现
-- ✅ 完全响应式 (mobile, tablet, desktop)
-- ✅ 优秀的可访问性 (WCAG 2.1 AA 合规)
-- ✅ 流畅的交互动画
-- ✅ 一致的视觉层级和间距
-- ✅ 零视觉 bugs，零 console errors
-
-### 2025-11-17 - 项目配置文档更新
-- [x] 更新根目录 `CLAUDE.md` 配置文档
-  - [x] 更新 Workspace Reference Table（基于实际项目结构）
-  - [x] 更新 Technology Stack（完整技术栈列表）
-  - [x] 更新 Project Structure（MonitorSysUA 实际目录树）
-  - [x] 更新 Key Architecture Patterns（8 个核心架构模式）
-  - [x] 更新 Setup Commands（包含数据库操作命令）
-  - [x] 添加 Environment Variables 说明
-  - [x] 更新 Material UI Components 说明（替换 shadcn/ui）
-  - [x] 删除所有 `<!-- Update this section per project -->` 占位符
-- [x] 文档完全基于 `context/prd.md`、`context/trd.md` 和实际代码结构
-- [x] 确保新开发人员可以快速理解项目架构和技术栈
+> **Project Goal**: Integrate AppsFlyer cohort data pipeline to replace mock data in evaluation system (A2-A7)
+>
+> **Total Tasks**: 182 tasks across 8 phases
+>
+> **Estimated Timeline**: ~4 weeks
+>
+> **Status**: 🟡 Planning Complete - Ready to Start Phase 1
 
 ---
 
-## 📌 总体进度
+## 📋 Quick Reference
 
-- [x] **Phase 1**: 项目基础设施 ✅ **已完成**
-- [x] **Phase 2**: 核心功能开发 ✅ **已完成** (含多账户支持)
-- [x] **Phase 3**: UI/UX 完善 ✅ **基本完成** (多账户UI已实现)
-- [ ] **Phase 4**: 测试与优化 🚧 **进行中** (预计 1 周)
-- [ ] **Phase 5**: 未来扩展 (Phase 2+ 产品功能)
-
-**总预计时间**: 5-8 周（Phase 1-4）
-**已用时间**: Phase 1 完成（1 天）+ Phase 2-3 完成（1 天）= **2 天**
-**进度**: 🎉 **超前完成！原计划 3-5 周的工作在 2 天内完成**
-
----
-
-## Phase 1: 项目基础设施 ✅ 已完成
-
-> **目标**: 搭建完整的开发环境，配置所有必要的工具和依赖
-> **实际用时**: 1 天
-> **关键交付物**: ✅ 可运行的 Next.js 项目 + 数据库连接 + Google Ads API 集成完成
-
-### 1.1 项目初始化 ✅
-
-使用了 context7 MCP 查询最新版本，确保所有工具都是最新版本
-
-- [x] 创建 Next.js 15.1.8 项目（使用 App Router）
-  - 使用 npm 初始化（由于命名限制手动创建）
-  - 项目名称: monitorsysua
-
-- [x] 配置 TypeScript
-  - [x] 设置 `tsconfig.json`（strict mode）
-  - [x] 配置路径别名 (`@/*`)
-  - [x] 测试类型检查通过 ✅
-
-- [x] 安装并配置 tRPC v11.7.1
-  - [x] 安装依赖 (`@trpc/server`, `@trpc/client`, `@trpc/react-query`, `@trpc/next`)
-  - [x] 安装 React Query 5.90.9
-  - [x] 安装 Zod 4.1.12
-  - [x] 创建 tRPC 初始化文件 (`server/api/trpc.ts`)
-  - [x] 创建 Provider 组件 (`app/providers.tsx`)
-  - [x] 创建 HTTP handler (`app/api/trpc/[trpc]/route.ts`)
-
-- [x] 安装并配置 Material UI v7.3.5
-  - [x] 安装核心包 (`@mui/material`, `@emotion/react`, `@emotion/styled`)
-  - [x] 安装扩展包 (`@mui/x-data-grid@8.18.0`, `@mui/icons-material`)
-  - [x] 创建主题配置 (`theme/index.ts`)
-  - [x] 配置 `app/layout.tsx`（ThemeProvider, CssBaseline）
-  - [x] 使用 CSS Grid 替代 Grid 组件（v7 兼容性）
-
-- [x] ESLint 配置
-  - [x] Next.js 内置 ESLint 已配置
-  - [x] TypeScript strict mode 启用
-
-### 1.2 数据库设置 ✅
-
-- [x] 安装 Drizzle ORM 0.44.7 和 PostgreSQL 客户端
-  - [x] `npm add drizzle-orm pg`
-  - [x] `npm add -D drizzle-kit @types/pg`
-
-- [x] 创建 PostgreSQL 16 数据库
-  - [x] ~~使用 Homebrew 安装 PostgreSQL 16~~ (已弃用)
-  - [x] **使用 Docker 部署 PostgreSQL 16** (当前方式)
-    - [x] 创建 `docker-compose.yml` (端口 5433)
-    - [x] 创建 `.dockerignore`
-    - [x] 添加 Docker npm 脚本
-    - [x] 更新环境变量配置为 Docker 端口
-  - [x] 创建数据库 `monitor_sys_ua`
-  - [x] 配置数据库用户和权限
-
-- [x] 编写 Drizzle schema
-  - [x] 创建 `server/db/schema.ts`
-  - [x] 定义 `changeEvents` 表（完整字段）
-  - [x] 添加索引定义（timestamp, userEmail, resourceType, operationType, campaign）
-  - [x] 添加唯一约束（timestamp + resourceName + userEmail）
-  - [x] 导出类型 (`ChangeEvent`, `NewChangeEvent`)
-
-- [x] 配置 Drizzle Kit
-  - [x] 创建 `drizzle.config.ts`
-  - [x] 配置数据库连接字符串
-  - [x] 配置迁移文件输出路径
-
-- [x] 生成并应用初始迁移
-  - [x] 运行 `npm run db:generate`
-  - [x] 检查生成的 SQL 文件
-  - [x] 运行迁移脚本 `server/db/migrate.ts`
-  - [x] 验证表已创建（所有索引和约束）
-
-- [x] 创建数据库连接模块
-  - [x] 创建 `server/db/index.ts`（Drizzle 实例）
-  - [x] 配置连接池
-  - [x] 成功连接测试
-
-### 1.3 Google Ads 集成基础 ✅
-
-- [x] 安装 google-ads-api v21.0.1（官方库）
-  - [x] 研究官方文档和示例
-  - [x] 安装依赖包
-  - [x] 配置 TypeScript 类型
-
-- [x] 配置 Service Account 认证
-  - [x] 配置 `.env.local` 文件
-    - `GOOGLE_ADS_CUSTOMER_ID`
-    - `GOOGLE_ADS_DEVELOPER_TOKEN`
-    - `GOOGLE_ADS_JSON_KEY_FILE_PATH`
-    - `GOOGLE_ADS_LOGIN_CUSTOMER_ID`
-  - [x] 使用 Service Account 替代 OAuth（生产就绪）
-
-- [x] 实现完整 API 客户端
-  - [x] 创建 `server/google-ads/client.ts`
-  - [x] 实现 GoogleAdsClient 初始化（Service Account）
-  - [x] 实现 `fetchAndParseChangeEvents()` 方法
-  - [x] 实现 `testConnection()` 辅助方法
-
-- [x] 实现 Deep Diff Engine
-  - [x] 创建 `server/google-ads/diff-engine.ts`
-  - [x] 完整移植 MVP Python 版本（googlemvptest.py:39-72）
-  - [x] 实现 `deepDiff()`, `deepEqual()`, `isObject()` 函数
-  - [x] 处理基础类型、嵌套对象、数组的 diff
-
-- [x] 实现 ChangeEvent Parser
-  - [x] 创建 `server/google-ads/parser.ts`
-  - [x] 实现 `parseChangeEvent()` 主函数
-  - [x] 实现 `extractResource()` 资源提取
-  - [x] 实现 `generateSummary()` 摘要生成
-
-### 1.4 tRPC API 层 ✅
-
-- [x] 创建完整的 tRPC API
-  - [x] Events Router (`server/api/routers/events.ts`)
-    - [x] `list` - 分页查询事件（支持筛选）
-    - [x] `sync` - 从 Google Ads 同步数据
-    - [x] `getById` - 获取单个事件详情
-  - [x] Stats Router (`server/api/routers/stats.ts`)
-    - [x] `overview` - 统计概览
-  - [x] Root Router (`server/api/root.ts`)
-
-- [x] 数据库查询函数 (`server/db/queries.ts`)
-  - [x] `insertEvents()` - 批量插入（自动去重）
-  - [x] `getEvents()` - 查询事件（分页+筛选）
-  - [x] `getEventById()` - 单个事件查询
-  - [x] `getUserEmails()` - 获取用户列表
-  - [x] `getStats()` - 统计查询
-
-### 1.5 UI 组件开发 ✅
-
-- [x] Dashboard 布局
-  - [x] 创建 `app/(dashboard)/layout.tsx`
-  - [x] 实现 Sidebar 导航
-  - [x] 实现 AppBar 头部
-  - [x] 响应式设计（移动端支持）
-
-- [x] 事件列表页面 (`app/(dashboard)/events/page.tsx`)
-  - [x] EventTable 组件（MUI DataGrid）
-  - [x] EventFilters 组件（筛选器）
-  - [x] EventDetailDialog 组件（详情对话框）
-  - [x] 同步按钮（Sync Button）
-  - [x] 服务端分页
-  - [x] 完整的筛选功能（user, resource type, operation type, search）
-
-- [x] 统计仪表板 (`app/(dashboard)/page.tsx`)
-  - [x] 总览卡片（总事件、用户数、资源类型、操作类型）
-  - [x] 资源类型分布
-  - [x] 操作类型分布
-  - [x] 响应式设计
-
-### 1.6 构建与测试 ✅
-
-- [x] TypeScript 编译
-  - [x] 修复所有类型错误
-  - [x] 修复 MUI Grid v7 兼容性问题（使用 CSS Grid）
-  - [x] 修复 Google Ads API 类型定义问题
-  - [x] 修复日期计算错误
-  - [x] 构建成功 ✅
-
-**Phase 1 完成总结**:
-- ✅ 完整的全栈 Next.js 15 应用
-- ✅ 类型安全的 tRPC API
-- ✅ PostgreSQL 数据库 + Drizzle ORM
-- ✅ Google Ads API 集成（Service Account）
-- ✅ Deep Diff 引擎（完整移植 MVP）
-- ✅ 完整的 UI（Dashboard + Events List）
-- ✅ 生产就绪的构建
+| Phase | Tasks | Est. Days | Status | Priority |
+|-------|-------|-----------|--------|----------|
+| [Phase 1: Database Foundation](#phase-1-database-foundation) | 25 | 3 | ⬜ Not Started | 🔴 CRITICAL |
+| [Phase 2: Data Pipeline Setup](#phase-2-data-pipeline-setup) | 42 | 5 | ⬜ Not Started | 🔴 CRITICAL |
+| [Phase 3: TypeScript Query Layer](#phase-3-typescript-query-layer) | 18 | 3 | ⬜ Not Started | 🟡 High |
+| [Phase 4: tRPC Router](#phase-4-trpc-router) | 15 | 2 | ⬜ Not Started | 🟡 High |
+| [Phase 5: Evaluation Integration](#phase-5-evaluation-integration) | 28 | 5 | ⬜ Not Started | 🟡 High |
+| [Phase 6: Automation & Scheduling](#phase-6-automation--scheduling) | 12 | 3 | ⬜ Not Started | 🟢 Medium |
+| [Phase 7: Testing & Validation](#phase-7-testing--validation) | 24 | 4 | ⬜ Not Started | 🟡 High |
+| [Phase 8: Documentation & Cleanup](#phase-8-documentation--cleanup) | 18 | 2 | ⬜ Not Started | 🟢 Medium |
 
 ---
 
-## Phase 2: 核心功能开发 ✅ 已完成
+## User Decisions Confirmed
 
-> **目标**: 实现完整的数据采集、解析和存储流程 + **多账户支持**
-> **预计时间**: 2-3 周 → **实际用时: 1 天**
-> **关键交付物**: ✅ 能够从 Google Ads API 拉取数据并存储到数据库，支持多账户
-
-### 2.1 多账户数据库架构 ✅ 新增
-
-> **重大升级**: 提前实现多账户支持，原计划在 Phase 5
-
-- [x] 设计多账户数据库模型
-  - [x] 创建 `accounts` 表
-    - `id`, `customer_id`, `name`, `currency`, `time_zone`
-    - `is_active`, `created_at`, `last_synced_at`
-  - [x] 添加唯一约束 `customer_id`（10位数字，无破折号）
-
-- [x] 更新 `change_events` 表
-  - [x] 添加 `account_id` 外键（级联删除）
-  - [x] 更新唯一约束包含 `account_id`
-  - [x] 添加 `account_id` 索引
-
-- [x] 创建数据库迁移脚本
-  - [x] `server/db/migrations/0001_fresh_start_multi_account.sql`
-  - [x] 新架构（Fresh Start - 清除旧数据）
-  - [x] 支持未来账户扩展（4-10 账户）
-
-### 2.2 多账户 CRUD 操作 ✅ 新增
-
-- [x] 实现账户管理函数 (`server/db/queries.ts`)
-  - [x] `getAccounts()` - 获取所有账户（支持 isActive 筛选）
-  - [x] `getAccountById()` - 根据 ID 获取单个账户
-  - [x] `getAccountByCustomerId()` - 根据 Customer ID 获取账户
-  - [x] `createAccount()` - 创建新账户
-  - [x] `updateAccount()` - 更新账户信息
-  - [x] `deleteAccount()` - 软删除账户（设置 isActive=false）
-
-- [x] 实现多账户统计函数
-  - [x] `getStats(accountId)` - 单账户统计
-  - [x] `getMultiAccountStats()` - 跨账户统计
-
-### 2.3 MCC (Manager) Account 集成 ✅ 新增
-
-- [x] 重构 Google Ads 客户端支持 MCC
-  - [x] 更新 `server/google-ads/client.ts`
-  - [x] 实现动态 `customerId` 参数
-  - [x] 配置 `login_customer_id`（MCC ID: 7537581501）
-  - [x] 单一 Service Account JSON Key 认证所有账户
-
-- [x] 更新环境变量配置
-  - [x] 创建 `.env.example` 模板
-  - [x] `GOOGLE_ADS_LOGIN_CUSTOMER_ID` - MCC 账户 ID
-  - [x] `GOOGLE_ADS_DEFAULT_CUSTOMER_ID` - 默认客户账户
-  - [x] `GOOGLE_ADS_JSON_KEY_FILE_PATH` - Service Account 路径
-
-### 2.4 Deep Diff Engine ✅ 已完成
-
-> **核心算法**: 完全复刻 MVP Python 实现
-
-- [x] 实现 `deepDiff()` 主函数
-  - [x] 创建 `server/google-ads/diff-engine.ts`
-  - [x] 实现递归 diff 算法
-  - [x] 定义 `DiffResult` 接口
-  - [x] 参考 MVP 的 `googlemvptest.py:39-72`
-
-- [x] 实现 `deepEqual()` 辅助函数
-  - [x] 深度相等比较（基础类型、对象、数组）
-  - [x] 处理 null 和 undefined
-
-- [x] 实现 `isObject()` 类型判断
-  - [x] 判断是否为普通对象
-  - [x] 排除 null 和数组
-
-- [x] 处理所有 diff 场景
-  - [x] 基础类型 diff
-  - [x] 嵌套对象 diff
-  - [x] 数组 diff
-
-### 2.5 数据解析器 ✅ 已完成
-
-- [x] 实现 `parseChangeEvent()` 主函数
-  - [x] 创建 `server/google-ads/parser.ts`
-  - [x] 接收 rawEvent（Google Ads API 原始返回）
-  - [x] 返回 `Omit<NewChangeEvent, 'accountId'>` 对象
-
-- [x] 提取基础信息
-  - [x] timestamp, userEmail, resourceType, operationType
-  - [x] resourceName, clientType, campaign, adGroup
-
-- [x] 实现 `extractResource()` 函数
-  - [x] 处理 oneof 结构解包
-  - [x] 支持 CAMPAIGN_BUDGET, CAMPAIGN, AD_GROUP, AD_GROUP_AD
-
-- [x] 实现 `generateSummary()` 函数
-  - [x] Budget 变更: "Budget changed from $X to $Y"
-  - [x] Campaign 状态: "Campaign status changed from X to Y"
-  - [x] Campaign 重命名: "Campaign renamed from X to Y"
-  - [x] 通用情况: "Created/Updated/Removed {resourceType}"
-
-### 2.6 数据库操作层 ✅ 已完成
-
-- [x] 实现事件操作函数
-  - [x] `insertEvent()` - 单条插入（自动去重）
-  - [x] `insertEvents()` - 批量插入（带 accountId）
-  - [x] `getEvents()` - **支持 accountId 必填参数**
-  - [x] `getEventById()` - 获取单个事件
-  - [x] `getUserEmails(accountId)` - 获取账户用户列表
-
-- [x] 实现统计函数
-  - [x] `getStats(accountId)` - 单账户统计
-  - [x] `getMultiAccountStats()` - 跨账户概览
-
-### 2.7 tRPC API 层 ✅ 已完成（多账户）
-
-- [x] 创建 Accounts Router (**新增**)
-  - [x] `server/api/routers/accounts.ts`
-  - [x] `list` - 获取账户列表（支持 isActive 筛选）
-  - [x] `getById` - 获取单个账户
-  - [x] `create` - 创建账户（含 Customer ID 验证）
-  - [x] `update` - 更新账户
-  - [x] `delete` - 软删除账户
-
-- [x] 更新 Events Router（支持 accountId）
-  - [x] `list` - **accountId 必填参数**
-  - [x] `sync` - **accountId 必填**，更新 lastSyncedAt
-  - [x] `getById` - 获取事件详情
-
-- [x] 更新 Stats Router（支持 accountId）
-  - [x] `overview` - **accountId 必填**
-  - [x] `multiAccountOverview` - 跨账户统计
-
-- [x] 更新 Root Router
-  - [x] 添加 `accounts` 路由
-  - [x] 组合所有 sub-routers
-
-**Phase 2 完成总结**:
-- ✅ 完整的多账户数据库架构
-- ✅ MCC Manager Account 集成
-- ✅ Deep Diff Engine（完美移植 MVP）
-- ✅ ChangeEvent Parser（支持多账户）
-- ✅ 完整的账户 CRUD API
-- ✅ 多账户统计功能
-- ✅ 类型安全的 tRPC API（端到端类型推导）
+✅ **AppsFlyer Credentials**: Have API token for `solitaire.patience.card.games.klondike.free`
+✅ **Data Backfill Scope**: Last 180 days (full baseline window)
+✅ **Sync Strategy**: Both manual (Just commands) + automated (cron at 2 AM UTC)
+✅ **Mock Data**: Deprecate immediately after real data flows
+✅ **Table Naming**: Keep `af_` prefix for clarity
 
 ---
 
-## Phase 3: UI/UX 开发 ✅ 基本完成
+## Phase 1: Database Foundation
 
-> **目标**: 构建完整的用户界面，使用 Material UI 组件 + **多账户UI**
-> **预计时间**: 1-2 周 → **实际用时: 1 天**
-> **关键交付物**: ✅ 响应式、美观的 Web 应用 + 多账户管理界面
+**Goal**: Create AppsFlyer database tables and views
+**Duration**: 3 days
+**Status**: ⬜ Not Started
+**Blockers**: None - can start immediately
 
-### 3.1 Material UI 主题配置 ✅ 已完成
+### 1.1 Schema Definition (Day 1)
 
-- [x] 创建主题配置
-  - [x] 完善 `theme/index.ts`
-  - [x] 配置 palette（primary, secondary, error 等）
-  - [x] 配置 typography（字体、字号）
-  - [x] 配置 breakpoints（响应式断点）
-  - [x] 配置 components 默认样式
+- [ ] **Task 1.1.1**: Read current `server/db/schema.ts` structure
+- [ ] **Task 1.1.2**: Add `af_events` table to schema.ts
+  - [ ] 23 fields: event_id (PK), app_id, appsflyer_id, event_name, event_time, event_date, install_time, install_date, days_since_install, event_revenue_usd, country_code, media_source, campaign, campaign_id, adset, adset_id, ad, is_primary_attribution, raw_payload (jsonb), imported_at
+  - [ ] Primary key: event_id (TEXT)
+  - [ ] NOT NULL constraints: app_id, event_name, event_time, event_date, install_time, install_date, days_since_install
+  - [ ] Indexes: install_date, event_date, cohort (app_id + country_code + media_source + campaign + adset + install_date), event_name
+- [ ] **Task 1.1.3**: Add `af_cohort_kpi_daily` table to schema.ts
+  - [ ] 10 fields: app_id, media_source, campaign, geo, install_date, days_since_install, installs, cost_usd, retention_rate, last_refreshed_at
+  - [ ] Composite primary key: (app_id, media_source, campaign, geo, install_date, days_since_install)
+  - [ ] NOT NULL constraints: app_id, media_source, campaign, geo, install_date, days_since_install
+  - [ ] Indexes: install_date, cohort (app_id + geo + media_source + campaign + install_date)
+- [ ] **Task 1.1.4**: Add `af_sync_log` table to schema.ts
+  - [ ] 9 fields: id (PK), sync_type (enum: 'events'/'cohort_kpi'/'baseline'), date_range_start, date_range_end, status (enum: 'running'/'success'/'failed'), records_processed, error_message, started_at, completed_at
+  - [ ] Primary key: id (serial)
+  - [ ] Indexes: sync_type, status, started_at
+- [ ] **Task 1.1.5**: Run TypeScript type check: `just type-check`
 
-- [x] 在根布局中应用主题
-  - [x] 更新 `app/layout.tsx`
-  - [x] 包裹 ThemeProvider
-  - [x] 添加 CssBaseline
-  - [x] 测试主题生效
+### 1.2 Migration Generation (Day 1-2)
 
-### 3.2 多账户全局状态管理 ✅ 新增
+- [ ] **Task 1.2.1**: Ensure PostgreSQL Docker container is running: `just docker-up`
+- [ ] **Task 1.2.2**: Generate migration for AppsFlyer tables: `just db-diff add_appsflyer_tables`
+- [ ] **Task 1.2.3**: Review generated SQL in `atlas/migrations/`
+- [ ] **Task 1.2.4**: Verify migration includes all 3 tables with correct constraints
+- [ ] **Task 1.2.5**: Run migration lint check: `just db-lint`
+- [ ] **Task 1.2.6**: Apply migration: `just db-apply`
+- [ ] **Task 1.2.7**: Verify tables created: `just db-studio` (check af_events, af_cohort_kpi_daily, af_sync_log)
 
-> **关键新功能**: 实现全局账户选择状态
+### 1.3 Database Views (Day 2)
 
-- [x] 创建 AccountContext
-  - [x] 创建 `lib/contexts/account-context.tsx`
-  - [x] 实现 React Context API
-  - [x] `selectedAccountId` 状态管理
-  - [x] localStorage 持久化（跨刷新保持）
-  - [x] 自定义 `useAccount()` hook
+- [ ] **Task 1.3.1**: Create SQL file for views: `atlas/migrations/YYYYMMDDHHMMSS_add_appsflyer_views.sql`
+- [ ] **Task 1.3.2**: Add `af_revenue_cohort_daily` view
+  ```sql
+  CREATE VIEW af_revenue_cohort_daily AS
+  SELECT
+    app_id,
+    country_code AS geo,
+    media_source,
+    campaign,
+    adset,
+    install_date,
+    days_since_install,
+    SUM(CASE WHEN event_name = 'iap_purchase' THEN event_revenue_usd ELSE 0 END) AS iap_revenue_usd,
+    SUM(CASE WHEN event_name = 'af_ad_revenue' THEN event_revenue_usd ELSE 0 END) AS ad_revenue_usd,
+    SUM(event_revenue_usd) AS total_revenue_usd
+  FROM af_events
+  GROUP BY app_id, geo, media_source, campaign, adset, install_date, days_since_install;
+  ```
+- [ ] **Task 1.3.3**: Add `af_cohort_metrics_daily` view (joins revenue + KPI)
+  ```sql
+  CREATE VIEW af_cohort_metrics_daily AS
+  SELECT
+    r.app_id, r.geo, r.media_source, r.campaign, r.adset,
+    r.install_date, r.days_since_install,
+    r.iap_revenue_usd, r.ad_revenue_usd, r.total_revenue_usd,
+    k.installs, k.cost_usd, k.retention_rate
+  FROM af_revenue_cohort_daily r
+  LEFT JOIN af_cohort_kpi_daily k
+    ON r.app_id = k.app_id
+   AND r.geo = k.geo
+   AND r.media_source = k.media_source
+   AND r.campaign = k.campaign
+   AND r.install_date = k.install_date
+   AND r.days_since_install = k.days_since_install;
+  ```
+- [ ] **Task 1.3.4**: Apply views migration: `just db-apply`
+- [ ] **Task 1.3.5**: Verify views in Drizzle Studio: `just db-studio`
 
-- [x] 集成到应用根部
-  - [x] 更新 `app/providers.tsx`
-  - [x] 包裹 `AccountProvider`
-  - [x] 所有页面可访问账户上下文
+### 1.4 Type Generation & Validation (Day 3)
 
-### 3.3 多账户 UI 组件 ✅ 新增
+- [ ] **Task 1.4.1**: Export TypeScript types from schema.ts
+  - [ ] Add `export type AfEvent = typeof afEvents.$inferSelect`
+  - [ ] Add `export type NewAfEvent = typeof afEvents.$inferInsert`
+  - [ ] Add `export type AfCohortKpiDaily = typeof afCohortKpiDaily.$inferSelect`
+  - [ ] Add `export type NewAfCohortKpiDaily = typeof afCohortKpiDaily.$inferInsert`
+  - [ ] Add `export type AfSyncLog = typeof afSyncLog.$inferSelect`
+  - [ ] Add `export type NewAfSyncLog = typeof afSyncLog.$inferInsert`
+- [ ] **Task 1.4.2**: Run full type check: `just type-check`
+- [ ] **Task 1.4.3**: Test database connection with new tables
+- [ ] **Task 1.4.4**: Git commit: `git commit -m "feat(db): Add AppsFlyer tables (af_events, af_cohort_kpi_daily, af_sync_log) and views"`
 
-> **核心组件**: 支持多账户切换的 UI
-
-- [x] AccountSelector 组件
-  - [x] 创建 `components/layout/account-selector.tsx`
-  - [x] MUI Select 下拉选择器
-  - [x] 显示账户名 + Customer ID + 最后同步时间
-  - [x] 自动选择第一个活跃账户
-  - [x] 加载骨架屏（Loading Skeleton）
-  - [x] 错误处理和空状态提示
-  - [x] 集成到侧边栏
-
-- [x] AccountDialog 组件
-  - [x] 创建 `components/accounts/account-dialog.tsx`
-  - [x] MUI Dialog 添加/编辑账户
-  - [x] Customer ID 验证（10 位数字，无破折号）
-  - [x] 字段: name, currency, timeZone, isActive
-  - [x] 创建和编辑模式
-  - [x] 表单验证和错误处理
-
-- [x] Account Management 页面
-  - [x] 创建 `app/(dashboard)/accounts/page.tsx`
-  - [x] MUI DataGrid 展示所有账户
-  - [x] Add/Edit/Delete 操作
-  - [x] 状态标识（Active/Inactive Chips）
-  - [x] Last Synced 时间显示
-  - [x] MCC Account 信息提示
-
-### 3.4 布局组件 ✅ 已完成
-
-- [x] 实现 Dashboard Layout
-  - [x] 创建 `app/(dashboard)/layout.tsx`
-  - [x] 使用 MUI Drawer + AppBar
-  - [x] 添加 **AccountSelector** 到侧边栏
-  - [x] 添加导航菜单项：
-    - Dashboard
-    - Events
-    - **Accounts（新增）**
-  - [x] 响应式设计（移动端临时抽屉）
-  - [x] 增加侧边栏宽度至 280px（容纳 AccountSelector）
-
-### 3.5 事件列表页 ✅ 已完成（多账户）
-
-> **关键升级**: 完全支持多账户筛选
-
-- [x] 更新事件列表页面
-  - [x] 更新 `app/(dashboard)/events/page.tsx`
-  - [x] 使用 `useAccount()` hook 获取选定账户
-  - [x] **accountId 作为必填参数** 传递给 tRPC
-  - [x] 无账户选择时显示提示信息
-  - [x] 集成 MUI DataGrid（服务端分页）
-
-- [x] 实现内联筛选器
-  - [x] 搜索框（MUI TextField）
-  - [x] 操作类型筛选（MUI Select）
-  - [x] 资源类型筛选（MUI Select）
-  - [x] 用户邮箱筛选（MUI TextField）
-  - [x] 筛选器水平布局（Stack）
-
-- [x] 实现 DataGrid 表格
-  - [x] 列配置：timestamp, userEmail, operationType, resourceType, summary, clientType
-  - [x] 服务端分页（`paginationMode="server"`）
-  - [x] 行点击打开详情对话框
-  - [x] 加载状态和错误处理
-  - [x] 自定义样式（hover, focus）
-
-- [x] 同步功能
-  - [x] "Sync Events" 按钮（顶部）
-  - [x] "Refresh" 按钮（手动刷新）
-  - [x] 同步状态显示（isPending）
-  - [x] 同步成功后自动刷新列表
-
-### 3.6 事件详情对话框 ✅ 已完成
-
-- [x] EventDetailDialog 组件
-  - [x] 保留原有 `components/events/event-detail.tsx`
-  - [x] MUI Dialog 完整实现
-  - [x] 显示所有事件字段
-  - [x] Field Changes 展示（old vs new）
-  - [x] Changed Fields Paths chips
-  - [x] 响应式设计
-
-### 3.7 统计仪表板 ✅ 已完成（多账户）
-
-> **关键升级**: 支持账户切换，统计数据实时更新
-
-- [x] 更新仪表板页面
-  - [x] 更新 `app/(dashboard)/page.tsx`
-  - [x] 使用 `useAccount()` hook
-  - [x] **accountId 作为必填参数** 传递给 `stats.overview`
-  - [x] 无账户选择时显示提示
-
-- [x] Overview Cards（统计卡片）
-  - [x] 总事件数（Total Events）
-  - [x] 活跃用户数（Active Users）
-  - [x] 资源类型数量（Resource Types）
-  - [x] 操作类型数量（Operation Types）
-  - [x] 使用 MUI Card + Icons
-  - [x] 响应式网格布局
-
-- [x] 分布展示
-  - [x] 资源类型分布（Resource Type Distribution）
-  - [x] 操作类型分布（Operation Type Distribution）
-  - [x] 百分比计算
-  - [x] 颜色编码（CREATE=绿, UPDATE=蓝, REMOVE=红）
-
-**Phase 3 完成总结**:
-- ✅ 完整的多账户 UI 组件
-- ✅ AccountSelector（侧边栏下拉选择）
-- ✅ Account Management 页面（DataGrid）
-- ✅ 账户上下文（全局状态 + localStorage）
-- ✅ Events 页面（多账户筛选）
-- ✅ Dashboard 页面（多账户统计）
-- ✅ EventDetailDialog（完整详情展示）
-- ✅ 加载状态、错误处理、空状态提示
-- ✅ 响应式设计（移动端友好）
-- ✅ 专业、简洁、美观的 Material Design 3 UI
+**Phase 1 Completion Criteria**:
+- ✅ 3 new tables exist in database
+- ✅ 2 new views created and queryable
+- ✅ All migrations applied successfully
+- ✅ TypeScript types generated and passing type checks
+- ✅ Changes committed to git
 
 ---
 
-## Phase 4: 测试与优化 🚧 进行中
+## Phase 2: Data Pipeline Setup
 
-> **目标**: 确保系统质量和性能达标
-> **预计时间**: 1 周
-> **当前状态**: TypeScript 编译通过，开发服务器运行，等待手动测试
-> **关键交付物**: 稳定、高性能的生产就绪应用
+**Goal**: Integrate Python ETL script for AppsFlyer data ingestion
+**Duration**: 5 days
+**Status**: ⬜ Not Started
+**Blockers**: Phase 1 must be complete
 
-### 4.0 编译与开发环境测试 ✅ 已完成
+### 2.1 Python Environment Setup (Day 1)
 
-- [x] TypeScript 编译测试
-  - [x] 修复所有类型错误
-  - [x] 修复 Events 页面数据访问错误
-  - [x] 修复 SQL 类型安全问题
-  - [x] 删除未使用的组件
-  - [x] `npx tsc --noEmit` 通过 ✅
+- [ ] **Task 2.1.1**: Create directory: `server/appsflyer/`
+- [ ] **Task 2.1.2**: Move `docs/sync_af_data.py` to `server/appsflyer/sync_af_data.py`
+- [ ] **Task 2.1.3**: Create `server/appsflyer/requirements.txt`
+  ```
+  requests==2.31.0
+  pandas==2.1.4
+  psycopg2-binary==2.9.9
+  python-dotenv==1.0.0
+  ```
+- [ ] **Task 2.1.4**: Create `server/appsflyer/__init__.py` (empty file for package)
+- [ ] **Task 2.1.5**: Create Python virtual environment: `python3 -m venv server/appsflyer/.venv`
+- [ ] **Task 2.1.6**: Install dependencies: `server/appsflyer/.venv/bin/pip install -r server/appsflyer/requirements.txt`
+- [ ] **Task 2.1.7**: Add `.venv` to `.gitignore`
 
-- [x] 开发服务器测试
-  - [x] 创建 `.env` 文件
-  - [x] `npm run dev` 成功启动
-  - [x] 服务器运行在 http://localhost:4000
-  - [x] Next.js 16.0.3 (Turbopack) ✅
-  - [x] 无编译错误
+### 2.2 Environment Configuration (Day 1)
 
-- [x] 创建测试文档
-  - [x] `docs/TESTING-SUMMARY.md`
-  - [x] 详细的手动测试指南
-  - [x] 测试场景和检查清单
-  - [x] 调试技巧和故障排查
+- [ ] **Task 2.2.1**: Update `.env.example` with AppsFlyer variables
+  ```
+  # AppsFlyer API
+  AF_API_TOKEN=your_appsflyer_bearer_token
+  AF_APP_ID=solitaire.patience.card.games.klondike.free
+  AF_DEFAULT_MEDIA_SOURCE=googleadwords_int
+  AF_DEFAULT_GEO=US
+  ```
+- [ ] **Task 2.2.2**: Add real credentials to `.env` (not committed)
+- [ ] **Task 2.2.3**: Verify database connection variables in `.env`
+  ```
+  PG_HOST=localhost
+  PG_PORT=5433
+  PG_USER=postgres
+  PG_PASSWORD=postgres
+  PG_DATABASE=monitor_sys_ua
+  ```
+- [ ] **Task 2.2.4**: Test environment loading in Python script
 
-### 4.1 单元测试（2-3 天）⏳ 待执行
+### 2.3 Script Adaptation (Day 2)
 
-- [ ] 安装测试框架
-  - [ ] `pnpm add -D vitest @testing-library/react @testing-library/jest-dom`
-  - [ ] 配置 `vitest.config.ts`
+- [ ] **Task 2.3.1**: Update database connection to use MonitorSysUA credentials
+- [ ] **Task 2.3.2**: Verify table names match schema.ts (af_events, af_cohort_kpi_daily)
+- [ ] **Task 2.3.3**: Add sync logging to `af_sync_log` table
+  - [ ] Log sync start with `status='running'`
+  - [ ] Log sync completion with `status='success'` and `records_processed`
+  - [ ] Log errors with `status='failed'` and `error_message`
+- [ ] **Task 2.3.4**: Add error handling for API rate limits
+- [ ] **Task 2.3.5**: Add retry logic (3 attempts with exponential backoff)
+- [ ] **Task 2.3.6**: Add progress logging for long-running syncs
 
-- [ ] Deep Diff Engine 测试
-  - [ ] 创建 `server/google-ads/__tests__/diff-engine.test.ts`
-  - [ ] 测试基础类型 diff
-  - [ ] 测试嵌套对象 diff
-  - [ ] 测试数组 diff
-  - [ ] 测试 null 处理
-  - [ ] 测试边界情况
-  - [ ] 确保测试覆盖率 > 90%
+### 2.4 Initial Data Backfill (Day 3)
 
-- [ ] Parser 函数测试
-  - [ ] 创建 `server/google-ads/__tests__/parser.test.ts`
-  - [ ] 测试 `parseChangeEvent()` 完整流程
-  - [ ] 测试 `generateSummary()` 各种场景
-  - [ ] 测试错误处理
-  - [ ] 使用 Mock 数据
+- [ ] **Task 2.4.1**: Calculate date range: last 180 days from today
+- [ ] **Task 2.4.2**: Create backfill script wrapper: `server/appsflyer/backfill.py`
+  ```python
+  # Backfill last 180 days in 30-day chunks to avoid API timeouts
+  from datetime import date, timedelta
+  from sync_af_data import sync_events, sync_cohort_kpi
 
-- [ ] Protobuf 工具测试
-  - [ ] 测试 `unwrapChangedResource()`
-  - [ ] 测试 Enum 转换
-  - [ ] 测试各种资源类型
+  end_date = date.today()
+  start_date = end_date - timedelta(days=180)
 
-- [ ] 数据库查询测试
-  - [ ] 测试 `insertEvent()` 和 `insertEvents()`
-  - [ ] 测试 `getEvents()` 筛选逻辑
-  - [ ] 测试 `getEventById()`
-  - [ ] 测试 `getStats()`
+  # Split into 6 chunks of 30 days each
+  for i in range(6):
+      chunk_start = start_date + timedelta(days=i*30)
+      chunk_end = min(chunk_start + timedelta(days=29), end_date)
 
-### 4.2 集成测试（2-3 天）
+      print(f"Backfilling chunk {i+1}/6: {chunk_start} to {chunk_end}")
+      sync_events(chunk_start.strftime("%Y-%m-%d"), chunk_end.strftime("%Y-%m-%d"))
+      sync_cohort_kpi(chunk_start.strftime("%Y-%m-%d"), chunk_end.strftime("%Y-%m-%d"))
+  ```
+- [ ] **Task 2.4.3**: Run backfill script: `server/appsflyer/.venv/bin/python server/appsflyer/backfill.py`
+- [ ] **Task 2.4.4**: Monitor progress and error logs
+- [ ] **Task 2.4.5**: Verify data in Drizzle Studio: `just db-studio`
+  - [ ] Check af_events row count
+  - [ ] Check af_cohort_kpi_daily row count
+  - [ ] Verify date range coverage
+  - [ ] Check for NULL values in critical fields
 
-- [ ] tRPC API 端到端测试
-  - [ ] 测试 `events.list` procedure
-  - [ ] 测试 `events.sync` mutation
-  - [ ] 测试 `events.getById` procedure
-  - [ ] 测试 `stats.overview` procedure
-  - [ ] 验证输入验证（Zod errors）
-  - [ ] 验证错误处理
+### 2.5 Incremental Sync Testing (Day 4)
 
-- [ ] 数据库集成测试
-  - [ ] 使用测试数据库
-  - [ ] 测试完整的 CRUD 流程
-  - [ ] 测试并发插入
-  - [ ] 测试唯一约束
-  - [ ] 清理测试数据
+- [ ] **Task 2.5.1**: Test daily sync for yesterday's data
+  ```bash
+  server/appsflyer/.venv/bin/python -c "
+  from sync_af_data import sync_events, sync_cohort_kpi
+  from datetime import date, timedelta
+  yesterday = (date.today() - timedelta(days=1)).strftime('%Y-%m-%d')
+  sync_events(yesterday, yesterday)
+  sync_cohort_kpi(yesterday, yesterday)
+  "
+  ```
+- [ ] **Task 2.5.2**: Verify idempotency - run same sync twice, check no duplicates
+- [ ] **Task 2.5.3**: Test date range sync (last 7 days)
+- [ ] **Task 2.5.4**: Verify af_sync_log entries created correctly
 
-- [ ] Google Ads API 集成测试（可选）
-  - [ ] 测试真实 API 调用
-  - [ ] 验证数据解析正确
-  - [ ] 处理 API 限流
-  - [ ] 处理网络错误
+### 2.6 Just Command Integration (Day 5)
 
-### 4.3 E2E 测试（使用 Playwright MCP）✅ 已完成
+- [ ] **Task 2.6.1**: Add Python sync commands to `justfile`
+  ```justfile
+  # Sync yesterday's AppsFlyer data
+  af-sync-yesterday:
+      server/appsflyer/.venv/bin/python -c "from sync_af_data import sync_events, sync_cohort_kpi; from datetime import date, timedelta; yesterday = (date.today() - timedelta(days=1)).strftime('%Y-%m-%d'); sync_events(yesterday, yesterday); sync_cohort_kpi(yesterday, yesterday)"
 
-- [x] **使用 Playwright MCP 进行端到端测试**
-  - [x] 修复 AccountIcon 导入错误（`app/(dashboard)/accounts/page.tsx:264`）
-  - [x] 添加 `AccountCircle as AccountIcon` 到 MUI icons 导入
-  - [x] 验证开发服务器运行（http://localhost:4000）
+  # Sync specific date range
+  af-sync-range FROM TO:
+      server/appsflyer/.venv/bin/python -c "from sync_af_data import sync_events, sync_cohort_kpi; sync_events('{{FROM}}', '{{TO}}'); sync_cohort_kpi('{{FROM}}', '{{TO}}')"
 
-- [x] **测试 Accounts 页面 (`/accounts`)**
-  - [x] 页面加载无错误
-  - [x] DataGrid 渲染所有列头
-  - [x] EmptyState 正确显示 AccountIcon（已修复）
-  - [x] MCC 账户信息提示显示
-  - [x] Add Account 按钮打开对话框
-  - [x] 对话框表单字段渲染正确
-  - [x] 对话框 Cancel 按钮关闭对话框
+  # Backfill last 180 days
+  af-backfill:
+      server/appsflyer/.venv/bin/python server/appsflyer/backfill.py
+  ```
+- [ ] **Task 2.6.2**: Test `just af-sync-yesterday`
+- [ ] **Task 2.6.3**: Test `just af-sync-range 2025-01-01 2025-01-07`
+- [ ] **Task 2.6.4**: Update `justfile` help text with new commands
+- [ ] **Task 2.6.5**: Git commit: `git commit -m "feat(pipeline): Add AppsFlyer Python ETL with Just commands"`
 
-- [x] **测试 Dashboard 页面 (`/`)**
-  - [x] 页面加载无错误
-  - [x] 无账户选择时显示提示信息
-  - [x] 导航工作正常
+### 2.7 Data Quality Validation (Day 5)
 
-- [x] **测试 Events 页面 (`/events`)**
-  - [x] 页面加载无错误
-  - [x] 无账户选择时显示提示信息
-  - [x] 导航工作正常
+- [ ] **Task 2.7.1**: Write validation query: count events by event_name
+  ```sql
+  SELECT event_name, COUNT(*) as count
+  FROM af_events
+  GROUP BY event_name;
+  ```
+- [ ] **Task 2.7.2**: Write validation query: check for orphaned events (no cohort KPI)
+  ```sql
+  SELECT COUNT(DISTINCT install_date)
+  FROM af_events e
+  WHERE NOT EXISTS (
+    SELECT 1 FROM af_cohort_kpi_daily k
+    WHERE k.install_date = e.install_date
+      AND k.days_since_install = 0
+  );
+  ```
+- [ ] **Task 2.7.3**: Write validation query: verify revenue totals match
+  ```sql
+  SELECT
+    SUM(event_revenue_usd) as direct_sum,
+    (SELECT SUM(total_revenue_usd) FROM af_revenue_cohort_daily) as view_sum;
+  ```
+- [ ] **Task 2.7.4**: Document validation queries in `docs/appsflyer-validation.md`
 
-- [x] **测试响应式设计与导航**
-  - [x] Desktop (1440x900): 侧边栏永久显示
-  - [x] Mobile (375x812): 侧边栏转为 drawer
-  - [x] 移动 drawer 打开/关闭功能
-  - [x] 移动导航测试（Accounts 页面）
-  - [x] 侧边栏导航在所有页面工作
-
-- [x] **生成测试截图**
-  - [x] `accounts-page-desktop.png` - 桌面布局
-  - [x] `accounts-page-mobile.png` - 移动布局
-  - [x] `dashboard-page-no-account.png` - Dashboard 无账户选择
-  - [x] `events-page-no-account.png` - Events 无账户选择
-  - [x] `mobile-drawer-open.png` - 移动抽屉打开
-
-- [x] **创建测试报告**
-  - [x] 创建 `docs/E2E-TESTING-REPORT.md`
-  - [x] 记录所有测试结果
-  - [x] 记录控制台消息和错误
-  - [x] 列出发现的问题（2个低优先级问题）
-  - [x] 提供改进建议
-
-**发现的问题**:
-- ⚠️ 低优先级: Missing favicon (404 错误) - 仅影响浏览器图标显示
-- ⚠️ 低优先级: aria-hidden 可访问性警告 - 对话框关闭时的焦点管理
-
-**测试结果**: ✅ 所有关键功能通过，应用可用且稳定
-
-### 4.4 性能优化（2-3 天）
-
-- [ ] 数据库查询优化
-  - [ ] 验证所有索引都已创建
-  - [ ] 使用 `EXPLAIN ANALYZE` 分析查询计划
-  - [ ] 优化慢查询（如有）
-  - [ ] 测试大数据量性能（插入 10000+ 条记录）
-
-- [ ] React Query 缓存配置
-  - [ ] 配置 `staleTime`（数据新鲜度）
-  - [ ] 配置 `cacheTime`（缓存时间）
-  - [ ] 实现查询预取（prefetch）
-  - [ ] 测试缓存效果
-
-- [ ] 前端性能优化
-  - [ ] 使用 React.memo 优化组件
-  - [ ] 使用 useMemo 和 useCallback
-  - [ ] 虚拟滚动（如果 DataGrid 数据量大）
-  - [ ] 图片懒加载（如有）
-  - [ ] 代码分割（dynamic import）
-
-- [ ] DataGrid 优化
-  - [ ] 配置虚拟滚动
-  - [ ] 优化列渲染
-  - [ ] 测试 1000+ 行数据的性能
-
-- [ ] 性能测试
-  - [ ] 使用 Lighthouse 测试首屏加载
-  - [ ] 使用 Chrome DevTools 分析性能
-  - [ ] 确保首屏加载 < 1.5s
-  - [ ] 确保 TTI < 2s
-
-### 4.5 文档完善（1-2 天）
-
-- [ ] API 文档
-  - [ ] tRPC 类型即文档（无需额外编写）
-  - [ ] 添加 JSDoc 注释（关键函数）
-  - [ ] 创建 API 使用示例
-
-- [ ] 部署文档
-  - [ ] 创建 `docs/deployment.md`
-  - [ ] Vercel 部署步骤
-  - [ ] 环境变量配置
-  - [ ] 数据库迁移步骤
-  - [ ] 故障排查指南
-
-- [ ] 用户手册（可选）
-  - [ ] 创建 `docs/user-guide.md`
-  - [ ] 如何使用筛选器
-  - [ ] 如何同步数据
-  - [ ] 如何查看事件详情
-
-- [ ] 开发者文档
-  - [ ] 更新 README.md
-  - [ ] 添加开发环境设置说明
-  - [ ] 添加常用命令列表
-  - [ ] 添加贡献指南（如开源）
-
-### 4.6 部署准备（1-2 天）
-
-- [ ] 配置 Vercel 部署
-  - [ ] 创建 Vercel 项目
-  - [ ] 连接 Git 仓库
-  - [ ] 配置构建命令：`pnpm build`
-  - [ ] 配置输出目录：`.next`
-
-- [ ] 配置生产环境数据库
-  - [ ] 创建 PostgreSQL 实例（Supabase/Neon/Railway）
-  - [ ] 获取连接字符串
-  - [ ] 配置 Vercel 环境变量：`DATABASE_URL`
-
-- [ ] 配置环境变量
-  - [ ] 在 Vercel Dashboard 添加所有环境变量：
-    - `DATABASE_URL`
-    - `GOOGLE_ADS_CUSTOMER_ID`
-    - `GOOGLE_ADS_CLIENT_ID`
-    - `GOOGLE_ADS_CLIENT_SECRET`
-    - `GOOGLE_ADS_DEVELOPER_TOKEN`
-    - `GOOGLE_ADS_REFRESH_TOKEN`
-
-- [ ] 运行数据库迁移
-  - [ ] 在本地指向生产数据库
-  - [ ] 运行 `DATABASE_URL=<production_url> pnpm drizzle-kit migrate`
-  - [ ] 验证表已创建
-
-- [ ] 首次部署测试
-  - [ ] 推送代码触发自动部署
-  - [ ] 访问部署的 URL
-  - [ ] 测试核心功能：
-    - 事件列表加载
-    - 数据同步
-    - 详情对话框
-    - 统计仪表板
-  - [ ] 检查日志（Vercel Logs）
-  - [ ] 修复部署问题（如有）
+**Phase 2 Completion Criteria**:
+- ✅ Python ETL script operational
+- ✅ 180 days of historical data loaded
+- ✅ Just commands working for manual sync
+- ✅ Data quality validation passed
+- ✅ Sync logging to af_sync_log working
+- ✅ Changes committed to git
 
 ---
 
-## Phase 5: 未来扩展（Phase 2+ 产品功能）
+## Phase 3: TypeScript Query Layer
 
-> **说明**: 这些功能在 Phase 1-4 完成后实施，属于产品 Phase 2-4 规划
-> **预计时间**: 待定
-> **优先级**: 低（Phase 1 完成后再考虑）
+**Goal**: Create TypeScript query functions for AppsFlyer data
+**Duration**: 3 days
+**Status**: ⬜ Not Started
+**Blockers**: Phase 2 must be complete
 
-### 5.1 定时自动同步
+### 3.1 Query Module Setup (Day 1)
 
-- [ ] 选择定时任务方案
-  - [ ] 研究 Vercel Cron（推荐）
-  - [ ] 或使用 Node-cron
-  - [ ] 或使用外部 Cron 服务
+- [ ] **Task 3.1.1**: Create `server/db/queries-appsflyer.ts`
+- [ ] **Task 3.1.2**: Import Drizzle types and database client
+  ```typescript
+  import { db } from './index';
+  import { afEvents, afCohortKpiDaily, afSyncLog } from './schema';
+  import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
+  import type { AfEvent, AfCohortKpiDaily, AfSyncLog } from './schema';
+  ```
+- [ ] **Task 3.1.3**: Add JSDoc comments for module purpose
 
-- [ ] 实现定时同步
-  - [ ] 创建 `app/api/cron/sync/route.ts`
-  - [ ] 配置 `vercel.json`（Vercel Cron）
-  - [ ] 设置同步频率（5-15 分钟）
-  - [ ] 实现错误通知
+### 3.2 Event Queries (Day 1)
 
-- [ ] 监控和日志
-  - [ ] 记录每次同步结果
-  - [ ] 错误告警（邮件/Slack）
-  - [ ] 同步历史记录
+- [ ] **Task 3.2.1**: Implement `getEventsByDateRange(startDate: Date, endDate: Date): Promise<AfEvent[]>`
+  - Query af_events where event_date between dates
+  - Order by event_date DESC, event_time DESC
+  - Include pagination support (limit/offset parameters)
+- [ ] **Task 3.2.2**: Implement `getEventsByInstallDate(installDate: Date): Promise<AfEvent[]>`
+  - Query af_events where install_date = date
+  - Group by days_since_install
+- [ ] **Task 3.2.3**: Implement `getRevenueByCohort(installDate: Date, daysSinceInstall: number): Promise<{iap: number, ad: number, total: number}>`
+  - Sum event_revenue_usd from af_events
+  - Filter by install_date and days_since_install
+  - Separate IAP vs ad revenue
 
-### 5.2 多账户支持
+### 3.3 Cohort KPI Queries (Day 2)
 
-- [ ] 数据库 Schema 扩展
-  - [ ] 新增 `accounts` 表
-  - [ ] `change_events` 表添加 `account_id` 外键
-  - [ ] 数据库迁移
+- [ ] **Task 3.3.1**: Implement `getCohortKpi(filters: {appId?: string, geo?: string, mediaSource?: string, campaign?: string, installDate?: Date, daysSinceInstall?: number}): Promise<AfCohortKpiDaily[]>`
+  - Dynamic WHERE clause based on provided filters
+  - Return matching records
+- [ ] **Task 3.3.2**: Implement `getCohortMetrics(installDate: Date, daysSinceInstall: number): Promise<CohortMetrics[]>`
+  - Query af_cohort_metrics_daily view
+  - Return all campaigns for given install_date and day
+  - Include revenue + KPI data
+- [ ] **Task 3.3.3**: Implement `getLatestCohortData(daysBack: number = 30): Promise<AfCohortKpiDaily[]>`
+  - Get most recent cohorts within daysBack window
+  - Useful for dashboard "recent performance" widgets
 
-- [ ] 后端 API 扩展
-  - [ ] 账户管理 API（CRUD）
-  - [ ] 修改查询逻辑（按账户筛选）
-  - [ ] 修改同步逻辑（支持多账户）
+### 3.4 Baseline Calculation Queries (Day 2)
 
-- [ ] 前端 UI 扩展
-  - [ ] 账户选择器（Sidebar）
-  - [ ] 账户管理页面
-  - [ ] 筛选器添加账户选项
+- [ ] **Task 3.4.1**: Implement `calculateBaselineRoas(dimensions: {appId: string, geo: string, mediaSource: string, campaign?: string}, baselineDays: number = 180): Promise<number | null>`
+  - Query cohorts from (today - baselineDays - 30) to (today - baselineDays)
+  - Calculate P50 (median) of D7 ROAS
+  - Return null if insufficient data
+- [ ] **Task 3.4.2**: Implement `calculateBaselineRetention(dimensions: {...}, daysSinceInstall: number, baselineDays: number = 180): Promise<number | null>`
+  - Same date range logic as ROAS
+  - Calculate P50 of retention_rate for specified day
+- [ ] **Task 3.4.3**: Add helper function `getBaselineWindow(baselineDays: number = 180): {start: Date, end: Date}`
+  - Return start = today - baselineDays - 30
+  - Return end = today - baselineDays
 
-### 5.3 用户认证与权限
+### 3.5 Sync Management Queries (Day 3)
 
-- [ ] 安装 NextAuth.js
-  - [ ] `pnpm add next-auth`
-  - [ ] 配置 `app/api/auth/[...nextauth]/route.ts`
+- [ ] **Task 3.5.1**: Implement `getLatestSyncLog(syncType: 'events' | 'cohort_kpi' | 'baseline'): Promise<AfSyncLog | null>`
+  - Query af_sync_log for most recent entry of type
+  - Order by started_at DESC
+- [ ] **Task 3.5.2**: Implement `createSyncLog(data: NewAfSyncLog): Promise<AfSyncLog>`
+  - Insert new sync log entry
+  - Return created record
+- [ ] **Task 3.5.3**: Implement `updateSyncLog(id: number, updates: Partial<AfSyncLog>): Promise<void>`
+  - Update existing sync log (for status changes)
 
-- [ ] 实现登录/登出
-  - [ ] 选择认证方式（Google OAuth/邮箱）
-  - [ ] 实现登录页面
-  - [ ] 实现 session 管理
+### 3.6 Testing & Validation (Day 3)
 
-- [ ] 权限管理（RBAC）
-  - [ ] 定义角色（Admin, User, Viewer）
-  - [ ] 数据库添加用户和角色表
-  - [ ] 实现权限检查中间件
-  - [ ] 前端根据权限显示/隐藏功能
+- [ ] **Task 3.6.1**: Create test file: `server/db/test-queries-appsflyer.ts`
+- [ ] **Task 3.6.2**: Test event queries with sample data
+- [ ] **Task 3.6.3**: Test cohort KPI queries
+- [ ] **Task 3.6.4**: Test baseline calculations (verify P50 logic)
+- [ ] **Task 3.6.5**: Test sync log CRUD operations
+- [ ] **Task 3.6.6**: Run: `tsx server/db/test-queries-appsflyer.ts`
+- [ ] **Task 3.6.7**: Git commit: `git commit -m "feat(db): Add AppsFlyer query layer with 10+ functions"`
 
-### 5.4 操作效果分析（核心 Phase 2 功能）
-
-- [ ] 采集广告表现数据
-  - [ ] 调用 Google Ads Performance API
-  - [ ] 获取 Campaign 的 ROAS、花费、转化等指标
-  - [ ] 存储到 `campaign_performance` 表
-
-- [ ] 关联操作与效果
-  - [ ] 匹配操作时间与性能数据
-  - [ ] 计算操作前后的指标变化
-  - [ ] 存储到 `performance_analysis` 表
-
-- [ ] 生成操作效果评分
-  - [ ] 实现评分算法
-  - [ ] 正面影响：+0.5 ~ +1.0
-  - [ ] 负面影响：-1.0 ~ -0.5
-  - [ ] 无明显影响：0
-
-- [ ] 前端展示
-  - [ ] 操作效果排行榜
-  - [ ] 操作效果趋势图
-  - [ ] 优化师绩效评分
-
-### 5.5 智能建议与预警
-
-- [ ] 基于历史数据的建议
-  - [ ] 分析高效操作模式
-  - [ ] 推荐最佳实践
-  - [ ] 显示建议操作
-
-- [ ] 风险操作识别
-  - [ ] 识别异常操作（如频繁修改 budget）
-  - [ ] 实时预警
-  - [ ] 发送通知
+**Phase 3 Completion Criteria**:
+- ✅ 10+ query functions implemented
+- ✅ All queries tested with real data
+- ✅ TypeScript types properly inferred
+- ✅ JSDoc documentation complete
+- ✅ Changes committed to git
 
 ---
 
-## 📊 任务统计
+## Phase 4: tRPC Router
 
-### Phase 1: 项目基础设施 ✅ 已完成
-- **总任务数**: ~50 个（全部完成）
-- **预计时间**: 已包含在初始设置中
-- **实际用时**: 1 天
-- **关键里程碑**: ✅ 项目初始化 + 数据库连接 + Google Ads API 集成 + UI 基础组件
+**Goal**: Expose AppsFlyer data via tRPC API
+**Duration**: 2 days
+**Status**: ⬜ Not Started
+**Blockers**: Phase 3 must be complete
 
-### Phase 2: 核心功能开发 ✅ 已完成
-- **总任务数**: ~70 个（全部完成 + 多账户支持新增 20 个任务）
-- **预计时间**: 2-3 周
-- **实际用时**: 1 天 🎉
-- **关键里程碑**: ✅ Deep Diff Engine + 多账户架构 + MCC集成 + tRPC API + 账户CRUD
-- **超额完成**: 🌟 提前实现了 Phase 5 的多账户功能
+### 4.1 Router Setup (Day 1)
 
-### Phase 3: UI/UX 开发 ✅ 基本完成
-- **总任务数**: ~50 个（全部完成 + 多账户 UI 新增 15 个任务）
-- **预计时间**: 1-2 周
-- **实际用时**: 1 天 🎉
-- **关键里程碑**: ✅ 多账户 UI + AccountSelector + Account Management + Events页面 + Dashboard
-- **超额完成**: 🌟 完整的多账户用户界面
+- [ ] **Task 4.1.1**: Create `server/api/routers/appsflyer.ts`
+- [ ] **Task 4.1.2**: Import tRPC setup and query functions
+  ```typescript
+  import { createTRPCRouter, publicProcedure } from '../trpc';
+  import { z } from 'zod';
+  import * as appsflyerQueries from '../../db/queries-appsflyer';
+  ```
+- [ ] **Task 4.1.3**: Export router: `export const appsflyerRouter = createTRPCRouter({...})`
+- [ ] **Task 4.1.4**: Add router to root router in `server/api/root.ts`
+  ```typescript
+  import { appsflyerRouter } from './routers/appsflyer';
 
-### Phase 4: 测试与优化 🚧 进行中
-- **总任务数**: ~35 个
-- **预计时间**: 1 周
-- **已完成**: TypeScript编译测试 ✅ + 开发服务器测试 ✅ + E2E测试 ✅ (Playwright MCP) + 测试文档创建 ✅
-- **待完成**: 数据库迁移验证 + 性能优化 + 单元测试（可选）
-- **关键里程碑**: 编译通过 ✅ + 服务器运行 ✅ + E2E测试通过 ✅ + AccountIcon错误修复 ✅
+  export const appRouter = createTRPCRouter({
+    accounts: accountsRouter,
+    events: eventsRouter,
+    stats: statsRouter,
+    evaluation: evaluationRouter,
+    appsflyer: appsflyerRouter, // NEW
+  });
+  ```
 
-### Phase 5: 未来扩展 ⏸️ 暂缓
-- **多账户支持**: ✅ **已提前在 Phase 2-3 完成！**
-- **剩余任务**: 定时同步 + 用户认证 + 操作效果分析
-- **总任务数**: ~15 个（多账户已完成，减少了一半）
-- **预计时间**: 待 Phase 4 完成后规划
+### 4.2 Event Procedures (Day 1)
+
+- [ ] **Task 4.2.1**: Add `getEventsByDateRange` procedure
+  ```typescript
+  getEventsByDateRange: publicProcedure
+    .input(z.object({
+      startDate: z.string().datetime(),
+      endDate: z.string().datetime(),
+      limit: z.number().optional(),
+      offset: z.number().optional(),
+    }))
+    .query(async ({ input }) => {
+      return await appsflyerQueries.getEventsByDateRange(
+        new Date(input.startDate),
+        new Date(input.endDate)
+      );
+    }),
+  ```
+- [ ] **Task 4.2.2**: Add `getRevenueByCohort` procedure
+  - Input: installDate (string), daysSinceInstall (number)
+  - Output: {iap: number, ad: number, total: number}
+
+### 4.3 Cohort KPI Procedures (Day 1)
+
+- [ ] **Task 4.3.1**: Add `getCohortKpi` procedure
+  - Input: filters (appId?, geo?, mediaSource?, campaign?, installDate?, daysSinceInstall?)
+  - All fields optional for flexible filtering
+- [ ] **Task 4.3.2**: Add `getCohortMetrics` procedure
+  - Input: installDate (string), daysSinceInstall (number)
+  - Returns full metrics from view (revenue + KPI)
+- [ ] **Task 4.3.3**: Add `getLatestCohortData` procedure
+  - Input: daysBack (number, default 30)
+  - Returns recent cohorts for dashboards
+
+### 4.4 Baseline Procedures (Day 2)
+
+- [ ] **Task 4.4.1**: Add `calculateBaselineRoas` procedure
+  - Input: dimensions (appId, geo, mediaSource, campaign?), baselineDays (number, default 180)
+  - Output: baseline ROAS (P50) or null
+- [ ] **Task 4.4.2**: Add `calculateBaselineRetention` procedure
+  - Input: dimensions + daysSinceInstall + baselineDays
+  - Output: baseline retention rate (P50) or null
+
+### 4.5 Sync Management Procedures (Day 2)
+
+- [ ] **Task 4.5.1**: Add `getLatestSyncLog` procedure
+  - Input: syncType ('events' | 'cohort_kpi' | 'baseline')
+  - Output: latest sync log record
+- [ ] **Task 4.5.2**: Add `triggerManualSync` procedure (mutation)
+  - Input: dateRange (from, to)
+  - Spawns Python script via child_process
+  - Returns sync_log id for tracking
+
+### 4.6 Testing & Type Safety (Day 2)
+
+- [ ] **Task 4.6.1**: Run type check: `just type-check`
+- [ ] **Task 4.6.2**: Test procedures via tRPC client in browser console
+- [ ] **Task 4.6.3**: Verify Zod validation works for invalid inputs
+- [ ] **Task 4.6.4**: Test error handling (e.g., invalid date formats)
+- [ ] **Task 4.6.5**: Git commit: `git commit -m "feat(api): Add AppsFlyer tRPC router with 8 procedures"`
+
+**Phase 4 Completion Criteria**:
+- ✅ Router added to root router
+- ✅ 8+ procedures implemented
+- ✅ Zod validation on all inputs
+- ✅ Type safety verified end-to-end
+- ✅ Changes committed to git
 
 ---
 
-## 🎉 里程碑达成情况
+## Phase 5: Evaluation Integration
 
-| Phase | 原计划时间 | 实际用时 | 状态 | 进度 |
-|-------|-----------|---------|------|------|
-| Phase 1 | 已包含 | 1 天 | ✅ 完成 | 100% |
-| Phase 2 | 2-3 周 | 1 天 | ✅ 完成 | 100% + 多账户 |
-| Phase 3 | 1-2 周 | 1 天 | ✅ 完成 | 100% + 多账户UI |
-| Phase 4 | 1 周 | 进行中 | 🚧 测试中 | 30% |
-| **总计** | **4-6 周** | **2 天 + 测试中** | 🎯 **超前完成** | **~85%** |
+**Goal**: Replace mock data with real AppsFlyer cohort data in A2-A7 evaluation system
+**Duration**: 5 days
+**Status**: ⬜ Not Started
+**Blockers**: Phase 4 must be complete
 
-**实际进度**: 🚀 **在 2 天内完成了原计划 4-6 周的工作！**
+### 5.1 Analysis of Current Evaluation System (Day 1)
 
-**关键成就**:
-1. ✅ 完整的端到端类型安全（TypeScript + tRPC + Drizzle）
-2. ✅ 多账户架构（原计划 Phase 5，提前实现）
-3. ✅ MCC Manager Account 集成
-4. ✅ 完整的多账户 UI（侧边栏选择器 + 管理页面）
-5. ✅ Deep Diff Engine（完美移植 MVP）
-6. ✅ 专业的 Material UI 界面
-7. ✅ 服务端分页、筛选、排序
-8. ✅ 响应式设计（移动端友好）
+- [ ] **Task 5.1.1**: Read `server/db/queries-evaluation.ts` thoroughly
+- [ ] **Task 5.1.2**: Identify all 4 wrappers that query mock_campaign_performance:
+  - [ ] A2 wrapper: ROAS calculation
+  - [ ] A3 wrapper: Retention rate calculation
+  - [ ] A4 wrapper: Baseline comparison
+  - [ ] A7 wrapper: Operation scoring
+- [ ] **Task 5.1.3**: Document current data flow: mock_campaign_performance → wrapper → evaluation component
+- [ ] **Task 5.1.4**: Document target data flow: af_cohort_metrics_daily view → wrapper → evaluation component
+- [ ] **Task 5.1.5**: Identify breaking changes (if any) in data structure
+
+### 5.2 Wrapper Refactoring - A2 ROAS (Day 1-2)
+
+- [ ] **Task 5.2.1**: Locate A2 ROAS calculation wrapper function
+- [ ] **Task 5.2.2**: Replace mock_campaign_performance query with:
+  ```typescript
+  // Old: SELECT ... FROM mock_campaign_performance
+  // New: SELECT ... FROM af_cohort_metrics_daily
+  const cohortData = await db
+    .select()
+    .from(afCohortMetricsDaily)
+    .where(eq(afCohortMetricsDaily.daysSinceInstall, 7))
+    .where(gte(afCohortMetricsDaily.installDate, startDate))
+    .where(lte(afCohortMetricsDaily.installDate, endDate));
+  ```
+- [ ] **Task 5.2.3**: Update ROAS calculation to use real fields:
+  - revenue_d7 → total_revenue_usd (from view)
+  - cost → cost_usd (from view)
+- [ ] **Task 5.2.4**: Add NULL handling for campaigns without revenue/cost data
+- [ ] **Task 5.2.5**: Test A2 with real data via tRPC procedure
+
+### 5.3 Wrapper Refactoring - A3 Retention (Day 2)
+
+- [ ] **Task 5.3.1**: Locate A3 retention rate calculation wrapper
+- [ ] **Task 5.3.2**: Replace query with af_cohort_kpi_daily for D1/D3/D5/D7 retention
+  ```typescript
+  const retentionData = await db
+    .select()
+    .from(afCohortKpiDaily)
+    .where(eq(afCohortKpiDaily.installDate, cohortDate))
+    .where(inArray(afCohortKpiDaily.daysSinceInstall, [1, 3, 5, 7]));
+  ```
+- [ ] **Task 5.3.3**: Update return structure to match A3 expectations
+- [ ] **Task 5.3.4**: Handle missing retention data (not all days may be available yet)
+- [ ] **Task 5.3.5**: Test A3 with real data
+
+### 5.4 Wrapper Refactoring - A4 Baseline (Day 3)
+
+- [ ] **Task 5.4.1**: Locate A4 baseline comparison wrapper
+- [ ] **Task 5.4.2**: Integrate baseline calculation functions from Phase 3:
+  - Use `calculateBaselineRoas()` from queries-appsflyer.ts
+  - Use `calculateBaselineRetention()` for retention baseline
+- [ ] **Task 5.4.3**: Update achievement rate calculation:
+  ```typescript
+  const achievementRate = (actualRoas / baselineRoas) * 100;
+  ```
+- [ ] **Task 5.4.4**: Add logic for campaigns without sufficient baseline data
+  - Return "insufficient_data" status
+  - Don't show risk level until baseline is available
+- [ ] **Task 5.4.5**: Test A4 with real data
+
+### 5.5 Wrapper Refactoring - A7 Operation Scoring (Day 3-4)
+
+- [ ] **Task 5.5.1**: Locate A7 operation scoring wrapper
+- [ ] **Task 5.5.2**: Update to query real cohort data for T+7 evaluation
+  ```typescript
+  // Get campaign performance at T+7 (7 days after optimizer action)
+  const performanceAtT7 = await db
+    .select()
+    .from(afCohortMetricsDaily)
+    .where(eq(afCohortMetricsDaily.campaign, campaignName))
+    .where(eq(afCohortMetricsDaily.installDate, actionDate))
+    .where(eq(afCohortMetricsDaily.daysSinceInstall, 7));
+  ```
+- [ ] **Task 5.5.3**: Update scoring logic to use real ROAS and retention
+- [ ] **Task 5.5.4**: Add "data_incomplete" flag for T+7 not yet reached
+- [ ] **Task 5.5.5**: Test A7 with real data
+
+### 5.6 Type Updates (Day 4)
+
+- [ ] **Task 5.6.1**: Update `lib/types/evaluation.types.ts` if needed
+- [ ] **Task 5.6.2**: Remove references to mock_campaign_performance types
+- [ ] **Task 5.6.3**: Add AppsFlyer-specific types (re-export from schema.ts)
+- [ ] **Task 5.6.4**: Run type check: `just type-check`
+
+### 5.7 Component Updates (Day 5)
+
+- [ ] **Task 5.7.1**: Review evaluation UI components in `components/evaluation/`
+- [ ] **Task 5.7.2**: Update A2/A3/A4/A7 components to handle new data structure
+- [ ] **Task 5.7.3**: Add loading states for real-time data fetching
+- [ ] **Task 5.7.4**: Add error boundaries for data fetch failures
+- [ ] **Task 5.7.5**: Add "insufficient data" UI states
+
+### 5.8 Mock Data Deprecation (Day 5)
+
+- [ ] **Task 5.8.1**: Add deprecation warning to mock data generators
+- [ ] **Task 5.8.2**: Update docs to indicate mock tables are deprecated
+- [ ] **Task 5.8.3**: DO NOT DROP mock tables yet (keep for comparison during testing)
+- [ ] **Task 5.8.4**: Git commit: `git commit -m "feat(evaluation): Replace mock data with real AppsFlyer cohort data in A2-A7"`
+
+**Phase 5 Completion Criteria**:
+- ✅ All 4 wrappers refactored to use real data
+- ✅ Type safety maintained
+- ✅ UI components updated
+- ✅ Mock data deprecated but not dropped
+- ✅ Changes committed to git
 
 ---
 
-## ✅ 使用建议
+## Phase 6: Automation & Scheduling
 
-1. **按 Phase 顺序执行**：不要跳过 Phase，确保基础扎实
-2. **勤勾选完成状态**：每完成一个任务立即勾选，保持进度可见
-3. **遇到阻塞及时记录**：在任务旁添加注释，说明阻塞原因
-4. **定期回顾进度**：每周回顾一次，调整计划
-5. **优先核心功能**：Phase 1-2 是最重要的，确保质量
-6. **UI 可快速迭代**：Phase 3 的 UI 可以后期优化，先实现基本功能
+**Goal**: Set up automated daily data sync
+**Duration**: 3 days
+**Status**: ⬜ Not Started
+**Blockers**: Phase 2 must be complete
+
+### 6.1 Cron Job Setup (Day 1)
+
+- [ ] **Task 6.1.1**: Choose cron implementation:
+  - Option A: System cron (recommended for simplicity)
+  - Option B: Node.js cron library (if system cron unavailable)
+- [ ] **Task 6.1.2**: Create cron script: `server/appsflyer/cron-daily-sync.sh`
+  ```bash
+  #!/bin/bash
+  cd /path/to/MonitorSysUA
+  source server/appsflyer/.venv/bin/activate
+  python server/appsflyer/sync_af_data.py --yesterday
+  ```
+- [ ] **Task 6.1.3**: Make script executable: `chmod +x server/appsflyer/cron-daily-sync.sh`
+- [ ] **Task 6.1.4**: Add to system crontab: `crontab -e`
+  ```
+  # Daily AppsFlyer sync at 2 AM UTC
+  0 2 * * * /path/to/MonitorSysUA/server/appsflyer/cron-daily-sync.sh >> /var/log/appsflyer-sync.log 2>&1
+  ```
+
+### 6.2 Script Arguments & Logging (Day 1)
+
+- [ ] **Task 6.2.1**: Add CLI argument parsing to sync_af_data.py
+  ```python
+  import argparse
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--yesterday', action='store_true', help='Sync yesterday only')
+  parser.add_argument('--from', dest='from_date', help='Start date YYYY-MM-DD')
+  parser.add_argument('--to', dest='to_date', help='End date YYYY-MM-DD')
+  args = parser.parse_args()
+  ```
+- [ ] **Task 6.2.2**: Update main() to use arguments
+- [ ] **Task 6.2.3**: Add detailed logging to console and file
+- [ ] **Task 6.2.4**: Test manual run: `python server/appsflyer/sync_af_data.py --yesterday`
+
+### 6.3 Baseline Auto-Update (Day 2)
+
+- [ ] **Task 6.3.1**: Create baseline calculation script: `server/appsflyer/update-baseline.py`
+  ```python
+  # Recalculate all baselines (P50 of last 180 days)
+  # Store in new table: af_baseline_cache
+  ```
+- [ ] **Task 6.3.2**: Add af_baseline_cache table to schema.ts
+  - Fields: app_id, geo, media_source, campaign, metric_type ('roas7'/'ret1'/'ret3'/'ret5'/'ret7'), baseline_value, calculated_at
+  - Primary key: (app_id, geo, media_source, campaign, metric_type)
+- [ ] **Task 6.3.3**: Generate and apply migration: `just db-diff add_baseline_cache`
+- [ ] **Task 6.3.4**: Add monthly cron for baseline update (1st of month, 3 AM UTC)
+  ```
+  0 3 1 * * /path/to/MonitorSysUA/server/appsflyer/update-baseline.sh
+  ```
+
+### 6.4 Error Notification (Day 3)
+
+- [ ] **Task 6.4.1**: Add email notification on sync failure (optional)
+- [ ] **Task 6.4.2**: Add Slack webhook notification on sync failure (optional)
+- [ ] **Task 6.4.3**: Test cron job failure scenario
+- [ ] **Task 6.4.4**: Document cron setup in `docs/appsflyer-automation.md`
+
+### 6.5 Monitoring & Alerts (Day 3)
+
+- [ ] **Task 6.5.1**: Add tRPC procedure to check last sync status
+  ```typescript
+  getLastSyncStatus: publicProcedure.query(async () => {
+    const lastSync = await appsflyerQueries.getLatestSyncLog('events');
+    return {
+      status: lastSync?.status,
+      lastRun: lastSync?.started_at,
+      recordsProcessed: lastSync?.records_processed,
+    };
+  })
+  ```
+- [ ] **Task 6.5.2**: Add UI indicator in dashboard for sync status
+- [ ] **Task 6.5.3**: Add alert if last sync was >36 hours ago
+- [ ] **Task 6.5.4**: Git commit: `git commit -m "feat(automation): Add daily AppsFlyer sync cron + monitoring"`
+
+**Phase 6 Completion Criteria**:
+- ✅ Daily cron job running at 2 AM UTC
+- ✅ Monthly baseline update cron working
+- ✅ Sync status visible in UI
+- ✅ Error notifications configured
+- ✅ Changes committed to git
 
 ---
 
-**文档结束**
+## Phase 7: Testing & Validation
 
-相关文档请参考：
-- 产品需求：`docs/prd.md`
-- 技术设计：`docs/tech-design.md`
-- 实施笔记：`CLAUDE.md`
+**Goal**: Comprehensive testing of entire AppsFlyer integration
+**Duration**: 4 days
+**Status**: ⬜ Not Started
+**Blockers**: Phase 5 must be complete
+
+### 7.1 Data Quality Tests (Day 1)
+
+- [ ] **Task 7.1.1**: Create test file: `server/appsflyer/test-data-quality.ts`
+- [ ] **Task 7.1.2**: Test: Verify no NULL values in critical fields
+  ```sql
+  SELECT COUNT(*) FROM af_events WHERE app_id IS NULL OR event_name IS NULL;
+  ```
+- [ ] **Task 7.1.3**: Test: Verify days_since_install is always >= 0
+- [ ] **Task 7.1.4**: Test: Verify event_time >= install_time for all events
+- [ ] **Task 7.1.5**: Test: Check for reasonable revenue ranges (no negative, no extreme outliers)
+- [ ] **Task 7.1.6**: Test: Verify cohort KPI totals match aggregated event revenue
+- [ ] **Task 7.1.7**: Run tests: `tsx server/appsflyer/test-data-quality.ts`
+
+### 7.2 Query Function Tests (Day 1)
+
+- [ ] **Task 7.2.1**: Test getEventsByDateRange with various date ranges
+- [ ] **Task 7.2.2**: Test getRevenueByCohort for known cohort
+- [ ] **Task 7.2.3**: Test getCohortKpi with all filter combinations
+- [ ] **Task 7.2.4**: Test baseline calculation functions
+- [ ] **Task 7.2.5**: Test edge cases: empty results, invalid dates, NULL values
+- [ ] **Task 7.2.6**: Verify query performance (<1s for typical queries)
+
+### 7.3 tRPC Procedure Tests (Day 2)
+
+- [ ] **Task 7.3.1**: Create test file: `server/api/routers/test-appsflyer.ts`
+- [ ] **Task 7.3.2**: Test all procedures with valid inputs
+- [ ] **Task 7.3.3**: Test Zod validation with invalid inputs
+- [ ] **Task 7.3.4**: Test error handling (database errors, missing data)
+- [ ] **Task 7.3.5**: Test type safety (ensure return types match expectations)
+- [ ] **Task 7.3.6**: Run: `tsx server/api/routers/test-appsflyer.ts`
+
+### 7.4 Evaluation System Integration Tests (Day 2-3)
+
+- [ ] **Task 7.4.1**: Test A2 ROAS calculation with real data
+  - [ ] Verify ROAS = revenue / cost
+  - [ ] Test multiple campaigns
+  - [ ] Test edge case: zero cost (should handle gracefully)
+- [ ] **Task 7.4.2**: Test A3 retention calculation
+  - [ ] Verify retention rates for D1/D3/D5/D7
+  - [ ] Test campaigns with partial retention data
+- [ ] **Task 7.4.3**: Test A4 baseline comparison
+  - [ ] Verify baseline calculation (P50 logic)
+  - [ ] Test achievement rate = actual / baseline × 100
+  - [ ] Test risk level mapping
+- [ ] **Task 7.4.4**: Test A7 operation scoring
+  - [ ] Verify T+7 evaluation logic
+  - [ ] Test scoring algorithm with real data
+- [ ] **Task 7.4.5**: Compare results with mock data (sanity check)
+  - [ ] Run same campaign through both systems
+  - [ ] Verify similar trends (not exact match expected)
+
+### 7.5 End-to-End UI Tests (Day 3)
+
+- [ ] **Task 7.5.1**: Test evaluation page loads with real data
+- [ ] **Task 7.5.2**: Test filtering by date range
+- [ ] **Task 7.5.3**: Test filtering by campaign
+- [ ] **Task 7.5.4**: Test data grid sorting and pagination
+- [ ] **Task 7.5.5**: Test loading states during data fetch
+- [ ] **Task 7.5.6**: Test error states (network failure, no data)
+
+### 7.6 Performance & Load Tests (Day 4)
+
+- [ ] **Task 7.6.1**: Test query performance with 180 days of data
+- [ ] **Task 7.6.2**: Test tRPC procedure latency (should be <2s)
+- [ ] **Task 7.6.3**: Test UI responsiveness with large datasets
+- [ ] **Task 7.6.4**: Test database index usage (EXPLAIN ANALYZE queries)
+- [ ] **Task 7.6.5**: Optimize slow queries if needed (add indexes, refactor)
+
+### 7.7 Documentation Tests (Day 4)
+
+- [ ] **Task 7.7.1**: Verify all Just commands work as documented
+- [ ] **Task 7.7.2**: Test installation instructions (fresh setup)
+- [ ] **Task 7.7.3**: Verify environment variable setup
+- [ ] **Task 7.7.4**: Test backup and restore procedures
+- [ ] **Task 7.7.5**: Git commit: `git commit -m "test: Add comprehensive test suite for AppsFlyer integration"`
+
+**Phase 7 Completion Criteria**:
+- ✅ All data quality tests passing
+- ✅ All query function tests passing
+- ✅ All tRPC procedure tests passing
+- ✅ Evaluation system working with real data
+- ✅ UI tests passing
+- ✅ Performance acceptable (<2s response times)
+- ✅ Changes committed to git
+
+---
+
+## Phase 8: Documentation & Cleanup
+
+**Goal**: Complete documentation and remove deprecated code
+**Duration**: 2 days
+**Status**: ⬜ Not Started
+**Blockers**: Phase 7 must be complete
+
+### 8.1 User Documentation (Day 1)
+
+- [ ] **Task 8.1.1**: Create `docs/appsflyer-integration.md`
+  - [ ] Overview of AppsFlyer data pipeline
+  - [ ] Architecture diagram (Python ETL → PostgreSQL → Drizzle → tRPC → React)
+  - [ ] Data flow explanation
+- [ ] **Task 8.1.2**: Document manual sync commands
+  - [ ] `just af-sync-yesterday`
+  - [ ] `just af-sync-range FROM TO`
+  - [ ] `just af-backfill`
+- [ ] **Task 8.1.3**: Document automated sync setup
+  - [ ] Cron job configuration
+  - [ ] Log file locations
+  - [ ] Troubleshooting common issues
+- [ ] **Task 8.1.4**: Document baseline calculation logic
+  - [ ] P50 methodology
+  - [ ] 180-day window rationale
+  - [ ] Monthly update schedule
+
+### 8.2 Developer Documentation (Day 1)
+
+- [ ] **Task 8.2.1**: Update `context/trd.md` with AppsFlyer architecture
+- [ ] **Task 8.2.2**: Document database schema changes
+  - [ ] 3 new tables (af_events, af_cohort_kpi_daily, af_sync_log)
+  - [ ] 2 new views (af_revenue_cohort_daily, af_cohort_metrics_daily)
+  - [ ] 1 new table for baseline cache
+- [ ] **Task 8.2.3**: Document query functions in `server/db/queries-appsflyer.ts`
+  - [ ] Add JSDoc comments for all exported functions
+  - [ ] Include usage examples
+- [ ] **Task 8.2.4**: Document tRPC procedures in `server/api/routers/appsflyer.ts`
+  - [ ] Add JSDoc comments
+  - [ ] Document input/output schemas
+
+### 8.3 API Documentation (Day 1)
+
+- [ ] **Task 8.3.1**: Create `docs/appsflyer-api.md`
+- [ ] **Task 8.3.2**: Document all 8+ tRPC procedures
+  - [ ] Input parameters (Zod schemas)
+  - [ ] Output types
+  - [ ] Usage examples
+  - [ ] Error cases
+- [ ] **Task 8.3.3**: Add curl examples for REST API (if applicable)
+
+### 8.4 Migration Guide (Day 2)
+
+- [ ] **Task 8.4.1**: Create `docs/migration-mock-to-real.md`
+- [ ] **Task 8.4.2**: Document breaking changes from mock to real data
+- [ ] **Task 8.4.3**: Provide comparison tables (mock fields → real fields)
+- [ ] **Task 8.4.4**: Add troubleshooting section for common migration issues
+
+### 8.5 Mock Data Cleanup (Day 2)
+
+- [ ] **Task 8.5.1**: WAIT for user approval before dropping tables
+- [ ] **Task 8.5.2**: Create backup of mock data (just in case)
+  ```sql
+  CREATE TABLE mock_campaign_performance_backup AS
+  SELECT * FROM mock_campaign_performance;
+  ```
+- [ ] **Task 8.5.3**: Drop mock_campaign_performance table (after approval)
+- [ ] **Task 8.5.4**: Remove mock data generator scripts
+- [ ] **Task 8.5.5**: Remove unused imports in evaluation wrappers
+- [ ] **Task 8.5.6**: Generate migration: `just db-diff remove_mock_tables`
+
+### 8.6 Code Cleanup (Day 2)
+
+- [ ] **Task 8.6.1**: Remove TODO comments related to mock data
+- [ ] **Task 8.6.2**: Remove console.log debugging statements
+- [ ] **Task 8.6.3**: Format all new files: `just format`
+- [ ] **Task 8.6.4**: Run linter: `just lint`
+- [ ] **Task 8.6.5**: Fix any linting issues
+- [ ] **Task 8.6.6**: Run type check: `just type-check`
+
+### 8.7 Final Validation (Day 2)
+
+- [ ] **Task 8.7.1**: Run full build: `just build`
+- [ ] **Task 8.7.2**: Test production build locally: `just start`
+- [ ] **Task 8.7.3**: Verify all evaluation pages work in production
+- [ ] **Task 8.7.4**: Check browser console for errors
+- [ ] **Task 8.7.5**: Run pre-commit checks: `just check`
+
+### 8.8 Git & Release (Day 2)
+
+- [ ] **Task 8.8.1**: Review all commits from Phases 1-8
+- [ ] **Task 8.8.2**: Squash commits if needed (keep logical grouping)
+- [ ] **Task 8.8.3**: Create release notes in `docs/release-notes-appsflyer.md`
+  - [ ] New features (AppsFlyer integration)
+  - [ ] Breaking changes (mock data removed)
+  - [ ] Migration guide reference
+  - [ ] Known issues (if any)
+- [ ] **Task 8.8.4**: Tag release: `git tag v1.1.0-appsflyer`
+- [ ] **Task 8.8.5**: Push to remote: `git push origin main --tags`
+- [ ] **Task 8.8.6**: Update this TODO file status to COMPLETE
+
+**Phase 8 Completion Criteria**:
+- ✅ All documentation complete
+- ✅ Mock data removed (with backups)
+- ✅ Code cleaned and formatted
+- ✅ Production build successful
+- ✅ Release tagged and pushed
+- ✅ Project ready for production use
+
+---
+
+## 🎯 Project Completion Checklist
+
+### Pre-Launch Verification
+
+- [ ] All 182 tasks completed
+- [ ] All 8 phases marked as complete
+- [ ] Production build passing
+- [ ] All tests passing
+- [ ] Documentation complete
+- [ ] User acceptance testing done
+- [ ] Performance benchmarks met
+
+### Deployment Readiness
+
+- [ ] Environment variables configured in production
+- [ ] Database migrations applied in production
+- [ ] Cron jobs configured on production server
+- [ ] Monitoring and alerts set up
+- [ ] Backup strategy in place
+- [ ] Rollback plan documented
+
+### Post-Launch Monitoring
+
+- [ ] Monitor first daily sync (2 AM UTC)
+- [ ] Verify evaluation pages with real data
+- [ ] Check for errors in logs
+- [ ] User feedback collection
+- [ ] Performance monitoring (first week)
+
+---
+
+## 📝 Notes & Decisions
+
+### Key Architectural Decisions
+
+1. **Table Naming**: Kept `af_` prefix for AppsFlyer tables (approved)
+2. **Sync Strategy**: Both manual + automated (approved)
+3. **Baseline Window**: 180 days (approved)
+4. **Mock Data**: Deprecated immediately, dropped after validation (approved)
+
+### Risk Mitigation
+
+1. **Data Loss**: Backup mock data before dropping tables
+2. **API Rate Limits**: Implemented retry logic with exponential backoff
+3. **Data Quality**: Comprehensive validation queries in Phase 7
+4. **Performance**: Indexed all frequently queried columns
+
+### Known Limitations
+
+1. AppsFlyer API rate limits (handled with chunked backfill)
+2. Retention data not available until D1/D3/D5/D7 after install
+3. Baseline requires 180 days of historical data (initial period may show "insufficient data")
+
+---
+
+## 🔗 Reference Links
+
+- [PRD for Schema & API](./prd_for_schema_and_api.md)
+- [Source Schema & ETL](./src.md)
+- [Python ETL Script](./sync_af_data.py)
+- [Project CLAUDE.md](../CLAUDE.md)
+- [Technical Reference](../context/trd.md)
+
+---
+
+**Last Updated**: 2025-01-25
+**Total Tasks**: 182
+**Estimated Completion**: ~4 weeks from start
+**Current Phase**: Phase 1 - Database Foundation
