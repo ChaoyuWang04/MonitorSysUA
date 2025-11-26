@@ -522,3 +522,145 @@ export const mockCreativePerformance = pgTable(
 
 export type MockCreativePerformance = typeof mockCreativePerformance.$inferSelect
 export type NewMockCreativePerformance = typeof mockCreativePerformance.$inferInsert
+
+// ============================================
+// APPSFLYER TABLES - AppsFlyer Cohort Data Pipeline
+// ============================================
+
+// AppsFlyer Sync Log Table - 同步日志表
+export const afSyncLog = pgTable(
+  'af_sync_log',
+  {
+    id: serial('id').primaryKey(),
+
+    // Sync metadata
+    syncType: varchar('sync_type', { length: 20 }).notNull(), // 'events' | 'cohort_kpi' | 'baseline'
+    dateRangeStart: date('date_range_start'),
+    dateRangeEnd: date('date_range_end'),
+    status: varchar('status', { length: 20 }).notNull().default('running'), // 'running' | 'success' | 'failed'
+
+    // Processing info
+    recordsProcessed: integer('records_processed'),
+    errorMessage: text('error_message'),
+
+    // Timestamps
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+  },
+  (table) => ({
+    syncTypeIdx: index('idx_af_sync_log_sync_type').on(table.syncType),
+    statusIdx: index('idx_af_sync_log_status').on(table.status),
+    startedAtIdx: index('idx_af_sync_log_started_at').on(table.startedAt),
+  })
+)
+
+export type AfSyncLog = typeof afSyncLog.$inferSelect
+export type NewAfSyncLog = typeof afSyncLog.$inferInsert
+
+// AppsFlyer Events Table - 事件明细表 (IAP + Ad Revenue)
+export const afEvents = pgTable(
+  'af_events',
+  {
+    eventId: text('event_id').primaryKey(), // MD5 hash
+
+    importedAt: timestamp('imported_at', { withTimezone: true }).notNull().defaultNow(),
+
+    // App info
+    appId: text('app_id').notNull(),
+    appName: text('app_name'),
+    bundleId: text('bundle_id'),
+
+    // User & Event info
+    appsflyerId: text('appsflyer_id'),
+    eventName: text('event_name').notNull(), // 'iap_purchase' | 'af_ad_revenue'
+    eventTime: timestamp('event_time', { withTimezone: true }).notNull(),
+    eventDate: date('event_date').notNull(),
+
+    // Install info
+    installTime: timestamp('install_time', { withTimezone: true }).notNull(),
+    installDate: date('install_date').notNull(),
+    daysSinceInstall: integer('days_since_install').notNull(),
+
+    // Revenue info
+    eventRevenue: decimal('event_revenue', { precision: 18, scale: 6 }),
+    eventRevenueUsd: decimal('event_revenue_usd', { precision: 18, scale: 6 }),
+    eventRevenueCurrency: text('event_revenue_currency'),
+
+    // Attribution dimensions
+    geo: text('geo'), // Country code - using 'geo' for consistency
+    mediaSource: text('media_source'),
+    channel: text('channel'),
+    campaign: text('campaign'),
+    campaignId: text('campaign_id'),
+    adset: text('adset'),
+    adsetId: text('adset_id'),
+    ad: text('ad'),
+
+    isPrimaryAttribution: boolean('is_primary_attribution'),
+    rawPayload: jsonb('raw_payload'),
+  },
+  (table) => ({
+    installDateIdx: index('idx_af_events_install_date').on(table.installDate),
+    eventDateIdx: index('idx_af_events_event_date').on(table.eventDate),
+    cohortIdx: index('idx_af_events_cohort').on(
+      table.appId,
+      table.geo,
+      table.mediaSource,
+      table.campaign,
+      table.adset,
+      table.installDate
+    ),
+    eventNameIdx: index('idx_af_events_event_name').on(table.eventName),
+  })
+)
+
+export type AfEvent = typeof afEvents.$inferSelect
+export type NewAfEvent = typeof afEvents.$inferInsert
+
+// AppsFlyer Cohort KPI Daily Table - Cohort指标表
+export const afCohortKpiDaily = pgTable(
+  'af_cohort_kpi_daily',
+  {
+    id: serial('id').primaryKey(),
+
+    // Cohort dimensions
+    appId: text('app_id').notNull(),
+    mediaSource: text('media_source').notNull(),
+    campaign: text('campaign').notNull(),
+    geo: text('geo').notNull(),
+
+    // Time dimensions
+    installDate: date('install_date').notNull(),
+    daysSinceInstall: integer('days_since_install').notNull(), // 0, 1, 3, 5, 7
+
+    // KPI metrics
+    installs: integer('installs'),
+    costUsd: decimal('cost_usd', { precision: 18, scale: 6 }),
+    retentionRate: decimal('retention_rate', { precision: 8, scale: 4 }),
+
+    // Tracking
+    lastRefreshedAt: timestamp('last_refreshed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    // Unique constraint on cohort dimensions (acts as logical primary key)
+    uniqueCohortDay: uniqueIndex('unique_af_cohort_kpi').on(
+      table.appId,
+      table.mediaSource,
+      table.campaign,
+      table.geo,
+      table.installDate,
+      table.daysSinceInstall
+    ),
+    installDateIdx: index('idx_af_cohort_kpi_install_date').on(table.installDate),
+    cohortIdx: index('idx_af_cohort_kpi_cohort').on(
+      table.appId,
+      table.geo,
+      table.mediaSource,
+      table.campaign,
+      table.installDate
+    ),
+  })
+)
+
+export type AfCohortKpiDaily = typeof afCohortKpiDaily.$inferSelect
+export type NewAfCohortKpiDaily = typeof afCohortKpiDaily.$inferInsert

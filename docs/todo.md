@@ -6,7 +6,11 @@
 >
 > **Estimated Timeline**: ~4 weeks
 >
-> **Status**: 🟡 Planning Complete - Ready to Start Phase 1
+> **Status**: 🟢 Phase 1 Complete - Ready to Start Phase 2
+>
+> **Python ETL Script Location**: `server/appsflyer/sync_af_data.py`
+>
+> **Field Naming Convention**: Use `geo` (NOT `country_code`) for consistency across all tables
 
 ---
 
@@ -14,7 +18,7 @@
 
 | Phase | Tasks | Est. Days | Status | Priority |
 |-------|-------|-----------|--------|----------|
-| [Phase 1: Database Foundation](#phase-1-database-foundation) | 25 | 3 | ⬜ Not Started | 🔴 CRITICAL |
+| [Phase 1: Database Foundation](#phase-1-database-foundation) | 25 | 3 | ✅ Complete | 🔴 CRITICAL |
 | [Phase 2: Data Pipeline Setup](#phase-2-data-pipeline-setup) | 42 | 5 | ⬜ Not Started | 🔴 CRITICAL |
 | [Phase 3: TypeScript Query Layer](#phase-3-typescript-query-layer) | 18 | 3 | ⬜ Not Started | 🟡 High |
 | [Phase 4: tRPC Router](#phase-4-trpc-router) | 15 | 2 | ⬜ Not Started | 🟡 High |
@@ -39,47 +43,53 @@
 
 **Goal**: Create AppsFlyer database tables and views
 **Duration**: 3 days
-**Status**: ⬜ Not Started
-**Blockers**: None - can start immediately
+**Status**: ✅ Complete (2025-11-26)
+**Blockers**: None
+
+**Implementation Notes**:
+- Tables created: `af_events`, `af_cohort_kpi_daily`, `af_sync_log`
+- Views created: `af_revenue_cohort_daily`, `af_cohort_metrics_daily`
+- Python ETL script moved to: `server/appsflyer/sync_af_data.py`
+- Field naming: Using `geo` (not `country_code`) for consistency
 
 ### 1.1 Schema Definition (Day 1)
 
-- [ ] **Task 1.1.1**: Read current `server/db/schema.ts` structure
-- [ ] **Task 1.1.2**: Add `af_events` table to schema.ts
-  - [ ] 23 fields: event_id (PK), app_id, appsflyer_id, event_name, event_time, event_date, install_time, install_date, days_since_install, event_revenue_usd, country_code, media_source, campaign, campaign_id, adset, adset_id, ad, is_primary_attribution, raw_payload (jsonb), imported_at
-  - [ ] Primary key: event_id (TEXT)
-  - [ ] NOT NULL constraints: app_id, event_name, event_time, event_date, install_time, install_date, days_since_install
-  - [ ] Indexes: install_date, event_date, cohort (app_id + country_code + media_source + campaign + adset + install_date), event_name
-- [ ] **Task 1.1.3**: Add `af_cohort_kpi_daily` table to schema.ts
-  - [ ] 10 fields: app_id, media_source, campaign, geo, install_date, days_since_install, installs, cost_usd, retention_rate, last_refreshed_at
-  - [ ] Composite primary key: (app_id, media_source, campaign, geo, install_date, days_since_install)
-  - [ ] NOT NULL constraints: app_id, media_source, campaign, geo, install_date, days_since_install
-  - [ ] Indexes: install_date, cohort (app_id + geo + media_source + campaign + install_date)
-- [ ] **Task 1.1.4**: Add `af_sync_log` table to schema.ts
-  - [ ] 9 fields: id (PK), sync_type (enum: 'events'/'cohort_kpi'/'baseline'), date_range_start, date_range_end, status (enum: 'running'/'success'/'failed'), records_processed, error_message, started_at, completed_at
-  - [ ] Primary key: id (serial)
-  - [ ] Indexes: sync_type, status, started_at
-- [ ] **Task 1.1.5**: Run TypeScript type check: `just type-check`
+- [x] **Task 1.1.1**: Read current `server/db/schema.ts` structure
+- [x] **Task 1.1.2**: Add `af_events` table to schema.ts
+  - [x] 23 fields: event_id (PK), app_id, appsflyer_id, event_name, event_time, event_date, install_time, install_date, days_since_install, event_revenue_usd, geo, media_source, campaign, campaign_id, adset, adset_id, ad, is_primary_attribution, raw_payload (jsonb), imported_at
+  - [x] Primary key: event_id (TEXT)
+  - [x] NOT NULL constraints: app_id, event_name, event_time, event_date, install_time, install_date, days_since_install
+  - [x] Indexes: install_date, event_date, cohort (app_id + geo + media_source + campaign + adset + install_date), event_name
+- [x] **Task 1.1.3**: Add `af_cohort_kpi_daily` table to schema.ts
+  - [x] 10 fields: app_id, media_source, campaign, geo, install_date, days_since_install, installs, cost_usd, retention_rate, last_refreshed_at
+  - [x] Unique index on: (app_id, media_source, campaign, geo, install_date, days_since_install) - using serial PK + uniqueIndex pattern
+  - [x] NOT NULL constraints: app_id, media_source, campaign, geo, install_date, days_since_install
+  - [x] Indexes: install_date, cohort (app_id + geo + media_source + campaign + install_date)
+- [x] **Task 1.1.4**: Add `af_sync_log` table to schema.ts
+  - [x] 9 fields: id (PK), sync_type (varchar), date_range_start, date_range_end, status (varchar), records_processed, error_message, started_at, completed_at
+  - [x] Primary key: id (serial)
+  - [x] Indexes: sync_type, status, started_at
+- [x] **Task 1.1.5**: Run TypeScript type check: `just type-check`
 
 ### 1.2 Migration Generation (Day 1-2)
 
-- [ ] **Task 1.2.1**: Ensure PostgreSQL Docker container is running: `just docker-up`
-- [ ] **Task 1.2.2**: Generate migration for AppsFlyer tables: `just db-diff add_appsflyer_tables`
-- [ ] **Task 1.2.3**: Review generated SQL in `atlas/migrations/`
-- [ ] **Task 1.2.4**: Verify migration includes all 3 tables with correct constraints
-- [ ] **Task 1.2.5**: Run migration lint check: `just db-lint`
-- [ ] **Task 1.2.6**: Apply migration: `just db-apply`
-- [ ] **Task 1.2.7**: Verify tables created: `just db-studio` (check af_events, af_cohort_kpi_daily, af_sync_log)
+- [x] **Task 1.2.1**: Ensure PostgreSQL Docker container is running: `just docker-up`
+- [x] **Task 1.2.2**: Generate migration for AppsFlyer tables: `just db-diff add_appsflyer_tables`
+- [x] **Task 1.2.3**: Review generated SQL in `atlas/migrations/`
+- [x] **Task 1.2.4**: Verify migration includes all 3 tables with correct constraints
+- [x] **Task 1.2.5**: Run migration lint check: `just db-lint` (Atlas Pro required, skipped)
+- [x] **Task 1.2.6**: Apply migration: `just db-apply`
+- [x] **Task 1.2.7**: Verify tables created: `just db-studio` (check af_events, af_cohort_kpi_daily, af_sync_log)
 
 ### 1.3 Database Views (Day 2)
 
-- [ ] **Task 1.3.1**: Create SQL file for views: `atlas/migrations/YYYYMMDDHHMMSS_add_appsflyer_views.sql`
-- [ ] **Task 1.3.2**: Add `af_revenue_cohort_daily` view
+- [x] **Task 1.3.1**: Create SQL file for views: `atlas/migrations/20251126102717_add_appsflyer_views.sql`
+- [x] **Task 1.3.2**: Add `af_revenue_cohort_daily` view
   ```sql
   CREATE VIEW af_revenue_cohort_daily AS
   SELECT
     app_id,
-    country_code AS geo,
+    geo,
     media_source,
     campaign,
     adset,
@@ -91,7 +101,7 @@
   FROM af_events
   GROUP BY app_id, geo, media_source, campaign, adset, install_date, days_since_install;
   ```
-- [ ] **Task 1.3.3**: Add `af_cohort_metrics_daily` view (joins revenue + KPI)
+- [x] **Task 1.3.3**: Add `af_cohort_metrics_daily` view (joins revenue + KPI)
   ```sql
   CREATE VIEW af_cohort_metrics_daily AS
   SELECT
@@ -108,21 +118,21 @@
    AND r.install_date = k.install_date
    AND r.days_since_install = k.days_since_install;
   ```
-- [ ] **Task 1.3.4**: Apply views migration: `just db-apply`
-- [ ] **Task 1.3.5**: Verify views in Drizzle Studio: `just db-studio`
+- [x] **Task 1.3.4**: Apply views migration: `just db-apply`
+- [x] **Task 1.3.5**: Verify views in Drizzle Studio: `just db-studio`
 
 ### 1.4 Type Generation & Validation (Day 3)
 
-- [ ] **Task 1.4.1**: Export TypeScript types from schema.ts
-  - [ ] Add `export type AfEvent = typeof afEvents.$inferSelect`
-  - [ ] Add `export type NewAfEvent = typeof afEvents.$inferInsert`
-  - [ ] Add `export type AfCohortKpiDaily = typeof afCohortKpiDaily.$inferSelect`
-  - [ ] Add `export type NewAfCohortKpiDaily = typeof afCohortKpiDaily.$inferInsert`
-  - [ ] Add `export type AfSyncLog = typeof afSyncLog.$inferSelect`
-  - [ ] Add `export type NewAfSyncLog = typeof afSyncLog.$inferInsert`
-- [ ] **Task 1.4.2**: Run full type check: `just type-check`
-- [ ] **Task 1.4.3**: Test database connection with new tables
-- [ ] **Task 1.4.4**: Git commit: `git commit -m "feat(db): Add AppsFlyer tables (af_events, af_cohort_kpi_daily, af_sync_log) and views"`
+- [x] **Task 1.4.1**: Export TypeScript types from schema.ts
+  - [x] Add `export type AfEvent = typeof afEvents.$inferSelect`
+  - [x] Add `export type NewAfEvent = typeof afEvents.$inferInsert`
+  - [x] Add `export type AfCohortKpiDaily = typeof afCohortKpiDaily.$inferSelect`
+  - [x] Add `export type NewAfCohortKpiDaily = typeof afCohortKpiDaily.$inferInsert`
+  - [x] Add `export type AfSyncLog = typeof afSyncLog.$inferSelect`
+  - [x] Add `export type NewAfSyncLog = typeof afSyncLog.$inferInsert`
+- [x] **Task 1.4.2**: Run full type check: `just type-check`
+- [x] **Task 1.4.3**: Test database connection with new tables
+- [x] **Task 1.4.4**: Git commit: `git commit -m "feat(db): Add AppsFlyer tables (af_events, af_cohort_kpi_daily, af_sync_log) and views"`
 
 **Phase 1 Completion Criteria**:
 - ✅ 3 new tables exist in database
@@ -142,16 +152,16 @@
 
 ### 2.1 Python Environment Setup (Day 1)
 
-- [ ] **Task 2.1.1**: Create directory: `server/appsflyer/`
-- [ ] **Task 2.1.2**: Move `docs/sync_af_data.py` to `server/appsflyer/sync_af_data.py`
-- [ ] **Task 2.1.3**: Create `server/appsflyer/requirements.txt`
+- [x] **Task 2.1.1**: Create directory: `server/appsflyer/` (Done in Phase 1)
+- [x] **Task 2.1.2**: Move `docs/sync_af_data.py` to `server/appsflyer/sync_af_data.py` (Done in Phase 1)
+- [x] **Task 2.1.3**: Create `server/appsflyer/requirements.txt` (Done in Phase 1)
   ```
   requests==2.31.0
   pandas==2.1.4
   psycopg2-binary==2.9.9
   python-dotenv==1.0.0
   ```
-- [ ] **Task 2.1.4**: Create `server/appsflyer/__init__.py` (empty file for package)
+- [x] **Task 2.1.4**: Create `server/appsflyer/__init__.py` (Done in Phase 1)
 - [ ] **Task 2.1.5**: Create Python virtual environment: `python3 -m venv server/appsflyer/.venv`
 - [ ] **Task 2.1.6**: Install dependencies: `server/appsflyer/.venv/bin/pip install -r server/appsflyer/requirements.txt`
 - [ ] **Task 2.1.7**: Add `.venv` to `.gitignore`
