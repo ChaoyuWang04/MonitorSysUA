@@ -1,244 +1,140 @@
-The most important thing that u need to keep in your mind:
-**Remember**: Always think ultra hard and use proper mcp tools and sub-agents when needed, also remember to plan reading docs wisely, some are way too long with your limited context window. For requirements, always think proactively first and always articulate the reasoning process step by step—identify which parts of the existing system this new change will affect. For implementation, always analyze how we can ensure the new feature implementation integrates perfectly with the existing system and ensure the new system is robust and complete. Meanwhile, please ask me questions at any time to ensure our expectations for the system are aligned. We not only need to implement this new feature but also ensure its interaction with other system components is perfect. After implementation, please update todo.md in the root directory.
-
-## 🎯 Core Directives
-
-When working here:
-1. **Follow instructions literally** - don't assume or improvise unless explicitly told
-2. **Ask for clarification** when requirements are ambiguous
-3. **Report what you're doing** before executing complex operations
-4. **Always analyze and plan before acting.**
-## 📍 Workspace Routing System
-
-### Core Principle (must follow step by step, do not skip!!!)
-**CRITICAL**:  User Input → Analyze Requirements → Assess Current State → Plan → Execute in Target Workspace - git commit
-### Standard Flow (Do NOT skip phases)
+## Core Directives
+Think ultra hard. Plan doc reading wisely (context limits). Always articulate reasoning step-by-step, identify affected system parts. Ask questions to align expectations. After changes: update docs in `docs/` (specify which: api.md/backend.md/database.md/frontend.md/prd.md/structure.md/trd.md) + git commit.
+### Standard Flow
 **Phase 1: Requirement Analysis**
-1. Identify core requirement - What does user actually want?
-2. Determine scope - Which parts affected?
-3. Define success criteria - How to verify completion?
+1. Identify core requirement 2. Determine scope (which parts affected) 3. Define success criteria
 **Phase 2: Current State Assessment**
-1. Create search plan - List relevant files/directories
-2. Execute search and read files
-3. Document current implementation - What exists? What patterns? What's reusable?
-**Phase 3: Implementation Planning**
-1. Identify target workspace(s)
-2. Load relevant CLAUDE.md files
-3. Create ordered task list + root `todo.md`
-4. **Confirm plan with user before proceeding**
+1. Create search plan (including reading relevant docs in `docs/` first) 2. Execute search and read files 3. Document current implementation (patterns, reusable parts)
+**Phase 3: Planning**
+1. Identify target workspace(s) 2. Create ordered task list 3. Identify which docs to update (API changes→api.md, DB changes→database.md, FE changes→frontend.md, BE logic→backend.md, new features→prd.md, structure changes→structure.md, tech decisions→trd.md) 4. **Confirm plan with user before proceeding**
 **Phase 4: Execution**
-1. Announce plan - "Based on analysis, I'll modify X files..."
-2. Execute step by step - Follow workspace-specific rules
-3. Validate each step - Run tests, check errors
-4. Git commit with proper comment.
+1. Announce plan ("Will modify X files...") 2. Execute step-by-step per workspace rules 3. Validate each step 4. Update identified docs in `docs/` (keep concise but include necessary details) 5. Git commit with proper message
 
 ### Technology Stack
-- **Framework**: Next.js 16.0.3 with App Router
-- **Language**: TypeScript 5.7.2 (strict mode enabled)
-- **Runtime**: React 19.2.0
-- **Database**: PostgreSQL 16-alpine (Docker) + Drizzle ORM 0.44.7
-- **API Layer**: tRPC 11.7.1 (end-to-end type-safe RPC)
-- **UI Library**: Material-UI (MUI) 7.3.5 with Emotion CSS-in-JS
-- **State Management**: React Query 5.90.9 (@tanstack/react-query) + React Context
-- **Validation**: Zod 4.1.12
-- **Testing**: tsx for script execution (no formal test framework configured)
-- **External APIs**: Google Ads API (google-ads-api 21.0.1)
-
-### Key Architecture Patterns
-- **Component Structure**: Feature-based organization (accounts/, evaluation/, events/, stats/)
-- **State Management**: tRPC + React Query for server state, React Context for UI state
-- **API Communication**: tRPC with end-to-end type safety (no REST/GraphQL)
-- **Styling Strategy**: MUI sx prop with Emotion CSS-in-JS
-- **Error Handling**: tRPC error formatting + toast notifications + form validation
-- **Performance**: Server Components by default, 'use client' only for interactivity
-- **Type Safety**: TypeScript strict mode + Zod validation + Drizzle type inference
-
-### Project Structure
-```
-MonitorSysUA/
-├── app/                              # Next.js App Router
-│   ├── (dashboard)/                  # Dashboard route group
-│   │   ├── page.tsx                  # Main dashboard
-│   │   ├── layout.tsx                # Shared layout
-│   │   ├── accounts/                 # Account management page
-│   │   ├── evaluation/               # Evaluation system pages (A2-A7)
-│   │   └── events/                   # Event management page
-│   ├── api/trpc/[trpc]/              # tRPC API handler
-│   ├── layout.tsx                    # Root layout (MUI theme setup)
-│   └── providers.tsx                 # Root providers (tRPC, React Query)
-│
-├── server/                           # Backend business logic
-│   ├── api/                          # tRPC API layer
-│   │   ├── trpc.ts                   # tRPC setup & context
-│   │   ├── root.ts                   # Root router (accounts, events, stats, evaluation)
-│   │   └── routers/                  # Individual routers
-│   │       ├── accounts.ts           # Account CRUD procedures
-│   │       ├── events.ts             # Event queries/mutations
-│   │       ├── stats.ts              # Statistics procedures
-│   │       └── evaluation.ts         # Evaluation system procedures
-│   │
-│   ├── db/                           # Database layer (Drizzle ORM)
-│   │   ├── schema.ts                 # Drizzle schema definition
-│   │   ├── queries.ts                # Common query helpers
-│   │   ├── queries-evaluation.ts     # Evaluation-specific queries
-│   │   ├── index.ts                  # DB client export
-│   │   └── migrations/               # Drizzle-generated SQL migrations
-│   │
-│   ├── evaluation/                   # Evaluation system (Phase 4-5)
-│   │   ├── mock-data/                # Test data generators
-│   │   └── python/                   # Python evaluation scripts
-│   │
-│   └── google-ads/                   # Google Ads API integration
-│
-├── components/                       # React components
-│   ├── common/                       # Shared (confirm-dialog, toast-provider)
-│   ├── accounts/                     # Account management UI
-│   ├── evaluation/                   # Evaluation system UI
-│   ├── events/                       # Event display components
-│   ├── stats/                        # Statistics components
-│   └── layout/                       # Layout components (account-selector)
-│
-├── lib/                              # Frontend utilities
-│   ├── contexts/                     # React Context (account-context)
-│   ├── services/                     # API service layer
-│   ├── types/                        # TypeScript type definitions
-│   ├── trpc/                         # tRPC client setup
-│   └── utils/                        # Utility functions
-│
-├── context/                          # Design & documentation context
-│   ├── design-principles.md          # S-Tier SaaS Design Checklist
-│   ├── trd.md                        # Technical Reference Document
-│   └── prd.md                        # Product Requirements
-│
-├── docs/                             # Project documentation
-│   ├── prd_v1.md, prd_v2.md, prd_v3.md  # PRD versions
-│   └── TODO-AUTHENTICATION.md        # Auth implementation plan
-│
-├── mvp/                              # Legacy MVP (Python Flask) - Reference only
-│
-├── docker-compose.yml                # PostgreSQL database
-├── drizzle.config.ts                 # Drizzle Kit configuration
-├── atlas.hcl                         # Atlas migration configuration
-├── justfile                          # Just command runner recipes
-├── atlas/migrations/                 # Atlas-managed migrations
-├── next.config.js                    # Next.js configuration
-├── tsconfig.json                     # TypeScript (strict mode)
-├── package.json                      # Dependencies & scripts
-├── .env.example                      # Environment template
-└── CLAUDE.md                         # This file
-```
-**Key Principles:**
-- **app/**: Next.js App Router with route groups for dashboard
-- **server/**: All backend logic (tRPC routers, DB queries, external APIs)
-- **components/**: Feature-based React components
-- **lib/**: Frontend utilities, contexts, types
-- **context/**: Design docs and PRD (for Claude reference)
-- **Root files**: Only global configs
+| Category | Technology | Version |
+|----------|-----------|---------|
+| **Framework** | Next.js (App Router) | 16.0.3 |
+| **Language** | TypeScript | 5.7.2 |
+| **Runtime** | React | 19.2.0 |
+| **Database** | PostgreSQL (Docker) | 16-alpine |
+| **ORM** | Drizzle ORM | 0.44.7 |
+| **Migration Tool** | Atlas | latest |
+| **API** | tRPC | 11.7.1 |
+| **State Management** | TanStack React Query | 5.90.9 |
+| **UI Library** | Material-UI (MUI) | 7.3.5 |
+| **Styling** | Emotion CSS-in-JS | 11.14.0 |
+| **Validation** | Zod | 4.1.12 |
+| **External APIs** | Google Ads API, AppsFlyer | 21.0.1 |
 
 ## 🛠️ Build, Test & Development
+### Common Commands
+| Task | Command | Purpose |
+|------|---------|---------|
+| **Install deps** | `just install` / `npm install` | Sync dependencies |
+| **Dev server** | `just dev` | Start dev server (http://localhost:4000) |
+| **Build** | `just build` | Build production bundle |
+| **Lint** | `just lint` | Run ESLint |
+| **Type check** | `just type-check` | TypeScript type checking |
+| **All checks** | `just check` | lint + type-check + build |
+| **Setup** | `just setup` | One-command project setup (new devs) |
+| **Info** | `just info` | Show project info and versions |
 
-This project uses **Just** as the command runner and **Atlas** for database migrations.
-Run `just` to see all available commands.
-
-### Quick Start
-
-```bash
-# First time setup (installs deps, starts Docker, applies migrations)
-just setup
-
-# Daily development
-just dev              # Start dev server (http://localhost:4000)
-just docker-up        # Start database containers
-```
-
-### Command Reference
-
-| Category | Commands |
-|----------|----------|
-| **Development** | `just dev`, `just build`, `just start`, `just install` |
-| **Database** | `just db-status`, `just db-diff <name>`, `just db-apply`, `just db-studio` |
-| **Docker** | `just docker-up`, `just docker-down`, `just docker-logs`, `just docker-status` |
-| **Code Quality** | `just lint`, `just type-check`, `just check` |
-| **Utilities** | `just setup`, `just info`, `just clean`, `just db-seed`, `just db-reset` |
+### Docker Commands
+| Task | Command | Purpose |
+|------|---------|---------|
+| **Start DB** | `just docker-up` | Start PostgreSQL container |
+| **Stop DB** | `just docker-down` | Stop PostgreSQL container |
+| **Logs** | `just docker-logs` | View PostgreSQL logs |
+| **Status** | `just docker-status` | Check container status |
+| **DB Shell** | `just db-shell` | Connect to PostgreSQL shell |
 
 ### Development Workflow
-**Daily**: `just docker-up` → `just dev` → Make changes
-**Pre-commit (REQUIRED)**: `just check` (runs lint + type-check + build)
+**Daily**: `just docker-up` → `just dev` → Make changes → `just check`
+**Pre-commit (REQUIRED)**: Run `just check` to verify lint + type-check + build passes
 
-### Database Access
-**Drizzle Studio**: `just db-studio` - Visual database browser
-**Direct PostgreSQL**: `just db-shell` or `psql postgresql://postgres:postgres@localhost:5433/monitor_sys_ua`
+### Database Query Script
+**Read-only verification**: `just db-shell` then run SELECT queries
+- ✅ Only SELECT queries
+- 🚫 Never UPDATE/DELETE/INSERT/TRUNCATE, use migrations for schema changes
 
 ### ⚠️ Critical Rules
-1. **Build before PR** - Always verify `just build` passes
-2. **Soft delete pattern** - Use `isActive: false` instead of DELETE
-3. **Docker required** - PostgreSQL runs in Docker, start with `just docker-up`
-4. **Port 4000** - Dev server runs on http://localhost:4000
+1. **Build before PR** - Always run `just check` 2. **No writes in query script** - Use Atlas migrations 3. **Dev servers optional** - Only run when actively testing
 
 
-## 🗄️ Database Migration Workflow
-
+## Database Migration Workflow
 ### Core Principle
-```
-Design Doc → Schema Definition → Migration → Database
-(context/trd.md)  (server/db/schema.ts)  (atlas/migrations/)
-```
-**Single source of truth**: `server/db/schema.ts` (Drizzle schema)
-- Atlas uses `drizzle-kit export` to read the schema
-- Atlas generates SQL migrations from schema changes
-- 🚫 Never edit migration files manually
-- ✅ All changes via schema.ts → `just db-diff` → `just db-apply`
-- ✅ Types auto-inferred from schema
+Design Doc → Schema Definition (Drizzle) → Migration (Atlas) → Database → ORM Types. Single source of truth: `server/db/schema.ts`. Never run migrations in app code.
+### Absolute Rules
+**NEVER execute without confirmation:**
+- DROP DATABASE/SCHEMA, TRUNCATE, DELETE WHERE 1=1
+- Any write to production database
+- `just db-reset` (drops all data)
+- Direct SQL bypassing migration system
+- Any schema changes, migrations, bulk import/export
+**Safe operations (no confirmation needed):** SELECT queries, `just db-status`, `just db-diff` (generate only), review SQL files
+**Before any DB operation:** Check DATABASE_URL port (5433=dev), print environment info, wait for confirmation
 
-### Standard Flow (Do NOT skip steps)
-1. **Update design**: `context/trd.md` or `docs/prd_v*.md`
-2. **Update schema**: `server/db/schema.ts`
-3. **Generate migration**: `just db-diff descriptive_name`
-4. **Review SQL**: `atlas/migrations/*.sql`
-5. **Lint migration**: `just db-lint` (catches destructive changes)
-6. **Apply**: `just db-apply`
-7. **Verify**: `just db-studio` or `just db-status`
+### Standard Flow
+1. Update design: `docs/database.md`
+2. Update schema: `server/db/schema.ts` (Drizzle)
+3. Generate migration: `just db-diff descriptive_name`
+4. **STOP: Show me the SQL file**
+5. Review SQL: `atlas/migrations/*.sql`
+6. **STOP: Wait for approval**
+7. Apply: `just db-apply`
+8. Verify: `just db-status`
 
-### Key Commands
-| Command | Purpose |
-|---------|---------|
-| `just db-status` | Show migration status |
-| `just db-diff <name>` | Create new migration from schema changes |
-| `just db-apply` | Apply pending migrations |
-| `just db-apply-dry` | Preview what would be applied |
-| `just db-lint` | Check for issues in latest migration |
-| `just db-studio` | Open Drizzle Studio GUI |
-| `just docker-up` | Start PostgreSQL container |
-| `just docker-logs` | View database logs |
+### Database Commands
+| Task | Command | Purpose |
+|------|---------|---------|
+| **Status** | `just db-status` | Show migration status |
+| **Diff** | `just db-diff name` | Create new migration |
+| **Apply** | `just db-apply` | Apply pending migrations |
+| **Dry run** | `just db-apply-dry` | Preview what would be applied |
+| **Validate** | `just db-validate` | Validate migrations |
+| **Lint** | `just db-lint` | Check for issues |
+| **Studio** | `just db-studio` | Open Drizzle Studio GUI |
+| **Seed** | `just db-seed` | Seed evaluation test data |
+| **Reset** | `just db-reset` | DANGER: Drop all data |
+
+### Database Tables (17 total)
+| Table | Purpose |
+|-------|---------|
+| `accounts` | Google Ads accounts (multi-account support) |
+| `change_events` | Change event tracking |
+| `safety_baseline` | Safety baseline metrics (180 days) |
+| `creative_test_baseline` | Creative test thresholds |
+| `campaign_evaluation` | Campaign evaluation records |
+| `creative_evaluation` | Creative evaluation records |
+| `operation_score` | Operation scoring |
+| `optimizer_leaderboard` | Optimizer rankings |
+| `action_recommendation` | Recommended actions |
+| `mock_campaign_performance` | Mock data for testing |
+| `mock_creative_performance` | Mock data for testing |
+| `af_sync_log` | AppsFlyer sync logs |
+| `af_events` | AppsFlyer event data |
+| `af_cohort_kpi_daily` | AppsFlyer cohort KPI |
 
 
 ## 💅 Coding Style & Naming
 ### Format & Lint
-- **Linter**: ESLint with Next.js config (`npm run lint`)
+- **Auto-format**: Prettier (via ESLint)
+- **Linter**: ESLint 9 (flat config)
 - **Indentation**: 2 spaces
-- **No Prettier**: Use ESLint for formatting
-
 ### Naming Conventions
 | Element | Convention | Example |
 |---------|-----------|---------|
-| **Variables/Functions** | camelCase | `selectedAccountId`, `getAccounts()` |
-| **Components** | PascalCase | `AccountDialog`, `StatusChip` |
-| **Component Files** | kebab-case.tsx | `account-dialog.tsx`, `status-chip.tsx` |
-| **Database Columns** | snake_case | `customer_id`, `is_active`, `created_at` |
-| **Constants** | UPPER_SNAKE_CASE | `TIME_ZONES`, `CURRENCIES` |
-| **Interfaces** | PascalCase + Props | `AccountDialogProps`, `StatusChipProps` |
-| **Types** | PascalCase | `Account`, `NewAccount` |
-
+| **Variables/Functions** | camelCase | `getUserData`, `handleClick` |
+| **React Components** | PascalCase | `AccountSelector`, `EventDetail` |
+| **Files/Directories** | kebab-case | `account-dialog.tsx`, `mock-data/` |
+| **Constants** | UPPER_SNAKE_CASE | `API_ENDPOINT`, `MAX_RETRIES` |
+| **Types/Interfaces** | PascalCase | `Account`, `ChangeEvent`, `NewAccount` |
+| **tRPC Routers** | camelCase | `accounts`, `events`, `evaluation` |
 ### Code Organization
-- **Path alias**: `@/*` maps to root directory
-- **Import ordering**: React → MUI → @/ internal imports → types
-- **Feature co-location**: Keep related components in feature folders
-
-### Project-Specific Rules
-- **'use client'**: Add directive for interactive components
-- **Soft delete**: Use `isActive: false` instead of DELETE
-- **Zod validation**: All tRPC inputs validated with Zod schemas
-- **Type inference**: Use Drizzle's `$inferSelect` / `$inferInsert` for DB types
+- **Components**: `components/[feature]/` - Organized by feature (accounts, evaluation, events)
+- **Server**: `server/api/routers/` - tRPC routers, `server/db/` - Database layer
+- **Types**: Drizzle infers types from schema (`$inferSelect`, `$inferInsert`)
+- **Import ordering**: React → 3rd party → Internal (`@/` alias)
 
 
 ## UI/UX design
@@ -260,50 +156,37 @@ This verification ensures changes meet design standards and user requirements.
 | Config | Value |
 |--------|-------|
 | **Library** | Material-UI (MUI) 7.3.5 |
-| **Base** | Material Design |
-| **Components Path** | `/components/` (feature-based) |
-| **Styling** | Emotion CSS-in-JS with `sx` prop |
+| **Base** | Material Design, Emotion |
+| **Components Path** | `/components/` |
+| **Extended** | @mui/x-data-grid, @mui/x-charts, @mui/x-date-pickers |
 | **Icons** | @mui/icons-material |
-| **Theme** | MUI ThemeProvider in `app/layout.tsx` |
-| **Data Grid** | @mui/x-data-grid |
-| **Charts** | @mui/x-charts |
-| **Date Pickers** | @mui/x-date-pickers with date-fns |
-
+| **Theme** | MUI ThemeProvider (root layout) |
 ### Usage Rules
 - ✅ Use MUI components first before building custom
-- ✅ Use `sx` prop for component-specific styling
-- ✅ Use responsive breakpoints: `{ xs, sm, md, lg, xl }`
+- ✅ Follow MUI's composition patterns
 - ✅ Extend via wrapper components when needed
-- 🚫 Don't use inline styles, use `sx` prop instead
+- ✅ Use MUI X components for data grids, charts, date pickers
+- 🚫 Don't modify MUI source files directly
 
 ## 🧪 Testing Guidelines
 ### Test Commands
-| Command | Purpose |
-|---------|---------|
-| `just db-test` | Run evaluation system tests |
-| `just db-seed` | Seed evaluation test data |
-
+| Task | Command | Purpose |
+|------|---------|---------|
+| **Seed data** | `just db-seed` | Seed evaluation test data |
+| **Run tests** | `just db-test` | Run evaluation tests |
 ### Test Organization
-- **Backend tests**: Co-located in `server/` (e.g., `test-evaluation-queries.ts`)
-- **Evaluation tests**: `server/evaluation/test-evaluation.ts`
-- **No formal test framework**: Uses tsx for script execution
-
+**Current**: Manual test files using `tsx` runner
+- `server/evaluation/test-evaluation.ts` - Evaluation query tests
+- `server/db/test-queries-appsflyer.ts` - AppsFlyer query tests
+**Future**: Jest/Vitest for unit tests, Playwright for E2E
 ### Coverage Priorities
-- **Focus on**: tRPC procedures, database queries, evaluation logic
-- **Don't test**: MUI components, framework internals
-
+Focus on: Edge cases, business logic (evaluation rules), tRPC contracts, data transformations
+Don't test: MUI internals, simple getters/setters
 ### ⚠️ Rules
-- ✅ Test critical business logic before commit
-- ✅ Add tests for bug fixes
-- ✅ Cover edge cases and error paths
-- 🚫 No formal Jest/Vitest setup yet - use tsx scripts
+✅ Test before commit - ✅ Add tests for bug fixes - ✅ Cover edge cases and error paths
 
 ## 📝 Git Commit & PR Guidelines
 ### Commit Message Format
-```
-<type>(<scope>): <subject>
-Example: feat(auth): 添加JWT token刷新机制
-```
 **Types**: `feat` | `fix` | `docs` | `style` | `refactor` | `test` | `chore`
 ### Standard Flow
 1. **Commit after every change** - Don't leave uncommitted files
@@ -312,48 +195,46 @@ Example: feat(auth): 添加JWT token刷新机制
    - Concise description of change
    - Testing evidence (command output/screenshots)
    - Notes on config/schema updates
-4. **Request reviews** - Both backend & frontend owners for shared contracts
-### Key Rules
-- ✅ Commit frequently, push often
-- ✅ Use conventional commit format
-- ✅ Include testing proof in PRs
-- 🚫 Mix unrelated changes in one commit
 
-
-## 🔄 tRPC Type Flow (replaces OpenAPI)
+## 🔄 tRPC API Architecture
 ### Core Principle
-This project uses **tRPC** instead of OpenAPI for end-to-end type safety.
+This project uses **tRPC** (not OpenAPI) for end-to-end type safety. Schema changes flow: Drizzle Schema → tRPC Router → React Query Client.
+
+### Router Structure
 ```
-Server Router → Type Inference → Client Hooks
-(server/api/routers/*.ts) → (AppRouter type) → (lib/trpc/client.ts)
+appRouter (server/api/root.ts)
+├── accounts   // Account CRUD, list active accounts
+├── events     // Change event queries, filtering, pagination
+├── stats      // Statistics and aggregations
+└── evaluation // Creatives, campaigns, operations, recommendations
 ```
-**Single Source of Truth**: tRPC router definitions with Zod schemas
-- 🚫 No code generation needed
-- ✅ Types automatically inferred at compile-time
-- ✅ Full type safety from backend to frontend
 
-### Key Files
-| File | Purpose |
-|------|---------|
-| `server/api/trpc.ts` | tRPC setup & context |
-| `server/api/root.ts` | Root router combining all routers |
-| `server/api/routers/*.ts` | Individual procedure definitions |
-| `lib/trpc/client.ts` | Client-side tRPC hooks |
-| `app/api/trpc/[trpc]/route.ts` | Next.js API handler |
+### tRPC Client Setup
+- **Server**: `server/api/root.ts` exports `appRouter`
+- **Client**: `lib/trpc/client.ts` creates React client
+- **Endpoint**: `/api/trpc` (HTTP batch link)
+- **Query config**: `staleTime: 5000ms`, no auto-refetch
 
-### Type Safety Flow
-1. Define Zod schema in router procedure input
-2. Types automatically inferred on client via `trpc.[router].[procedure]`
-3. No manual type definitions needed
+### Adding New Endpoints
+1. Create/update router in `server/api/routers/`
+2. Add to `appRouter` in `server/api/root.ts`
+3. Use in components via `trpc.routerName.procedureName.useQuery()`
+4. Types are automatically inferred - no manual type definitions needed
 
-### Adding New Procedures
-1. Add procedure to appropriate router in `server/api/routers/`
-2. Define Zod input schema
-3. Return typed data
-4. Use on client: `trpc.[router].[procedure].useQuery()` or `.useMutation()`
+## 🔗 AppsFlyer Integration
+### Commands
+| Task | Command | Purpose |
+|------|---------|---------|
+| **Setup** | `just af-setup` | Set up Python venv |
+| **Sync yesterday** | `just af-sync-yesterday` | Sync yesterday's data |
+| **Sync range** | `just af-sync-range 2024-01-01 2024-01-31` | Sync date range |
+| **Backfill 30d** | `just af-backfill-30` | Backfill 30 days |
+| **Backfill 180d** | `just af-backfill-180` | Backfill 180 days |
+| **Status** | `just af-status` | Show recent sync logs |
+| **Count** | `just af-count` | Count records in tables |
 
-### ⚠️ Critical Rules
-- Never use `any` type with tRPC hooks
-- Always use Zod for input validation
-- Export AppRouter type from `server/api/root.ts`
-- Use React Query patterns for data fetching
+### ETL Pipeline
+- **Location**: `server/appsflyer/`
+- **Scripts**: `sync_af_data.py` (main ETL), `backfill.py` (historical)
+- **Tables**: `af_events`, `af_cohort_kpi_daily`, `af_sync_log`
+- **Env vars**: `AF_API_TOKEN`, `AF_APP_ID`, `AF_DEFAULT_MEDIA_SOURCE`, `AF_DEFAULT_GEO`
