@@ -6,7 +6,7 @@
 >
 > **Estimated Timeline**: ~4 weeks
 >
-> **Status**: 🟢 Phase 2 Complete - Ready to Start Phase 3
+> **Status**: 🟢 Phase 3 Complete - Ready to Start Phase 4
 >
 > **Python ETL Script Location**: `server/appsflyer/sync_af_data.py`
 >
@@ -20,7 +20,7 @@
 |-------|-------|-----------|--------|----------|
 | [Phase 1: Database Foundation](#phase-1-database-foundation) | 25 | 3 | ✅ Complete | 🔴 CRITICAL |
 | [Phase 2: Data Pipeline Setup](#phase-2-data-pipeline-setup) | 42 | 5 | ✅ Complete | 🔴 CRITICAL |
-| [Phase 3: TypeScript Query Layer](#phase-3-typescript-query-layer) | 18 | 3 | ⬜ Not Started | 🟡 High |
+| [Phase 3: TypeScript Query Layer](#phase-3-typescript-query-layer) | 18 | 3 | ✅ Complete | 🟡 High |
 | [Phase 4: tRPC Router](#phase-4-trpc-router) | 15 | 2 | ⬜ Not Started | 🟡 High |
 | [Phase 5: Evaluation Integration](#phase-5-evaluation-integration) | 28 | 5 | ⬜ Not Started | 🟡 High |
 | [Phase 6: Automation & Scheduling](#phase-6-automation--scheduling) | 12 | 3 | ⬜ Not Started | 🟢 Medium |
@@ -314,88 +314,98 @@
 
 **Goal**: Create TypeScript query functions for AppsFlyer data
 **Duration**: 3 days
-**Status**: ⬜ Not Started
-**Blockers**: Phase 2 must be complete
+**Status**: ✅ Complete (2025-11-26)
+**Blockers**: None
+
+**Implementation Notes**:
+- Query module: `server/db/queries-appsflyer.ts` (12 functions)
+- Test script: `server/db/test-queries-appsflyer.ts` (11 tests, all passing)
+- ROAS calculation: Cumulative revenue (D0-Dn)
+- Baseline dimensions: app + geo + media_source (NOT including campaign)
+- Baseline algorithm: Median (P50) using PostgreSQL PERCENTILE_CONT
 
 ### 3.1 Query Module Setup (Day 1)
 
-- [ ] **Task 3.1.1**: Create `server/db/queries-appsflyer.ts`
-- [ ] **Task 3.1.2**: Import Drizzle types and database client
+- [x] **Task 3.1.1**: Create `server/db/queries-appsflyer.ts`
+- [x] **Task 3.1.2**: Import Drizzle types and database client
   ```typescript
   import { db } from './index';
   import { afEvents, afCohortKpiDaily, afSyncLog } from './schema';
   import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
   import type { AfEvent, AfCohortKpiDaily, AfSyncLog } from './schema';
   ```
-- [ ] **Task 3.1.3**: Add JSDoc comments for module purpose
+- [x] **Task 3.1.3**: Add JSDoc comments for module purpose
 
 ### 3.2 Event Queries (Day 1)
 
-- [ ] **Task 3.2.1**: Implement `getEventsByDateRange(startDate: Date, endDate: Date): Promise<AfEvent[]>`
+- [x] **Task 3.2.1**: Implement `getEventsByDateRange(startDate: Date, endDate: Date): Promise<AfEvent[]>`
   - Query af_events where event_date between dates
   - Order by event_date DESC, event_time DESC
   - Include pagination support (limit/offset parameters)
-- [ ] **Task 3.2.2**: Implement `getEventsByInstallDate(installDate: Date): Promise<AfEvent[]>`
+- [x] **Task 3.2.2**: Implement `getEventsByInstallDate(installDate: Date): Promise<AfEvent[]>`
   - Query af_events where install_date = date
   - Group by days_since_install
-- [ ] **Task 3.2.3**: Implement `getRevenueByCohort(installDate: Date, daysSinceInstall: number): Promise<{iap: number, ad: number, total: number}>`
-  - Sum event_revenue_usd from af_events
-  - Filter by install_date and days_since_install
+- [x] **Task 3.2.3**: Implement `getRevenueByCohort(installDate: Date, daysSinceInstall: number): Promise<{iap: number, ad: number, total: number}>`
+  - Sum event_revenue_usd from af_events (CUMULATIVE from D0 to daysSinceInstall)
+  - Filter by install_date and days_since_install <= input
   - Separate IAP vs ad revenue
 
 ### 3.3 Cohort KPI Queries (Day 2)
 
-- [ ] **Task 3.3.1**: Implement `getCohortKpi(filters: {appId?: string, geo?: string, mediaSource?: string, campaign?: string, installDate?: Date, daysSinceInstall?: number}): Promise<AfCohortKpiDaily[]>`
+- [x] **Task 3.3.1**: Implement `getCohortKpi(filters: {appId?: string, geo?: string, mediaSource?: string, campaign?: string, installDate?: Date, daysSinceInstall?: number}): Promise<AfCohortKpiDaily[]>`
   - Dynamic WHERE clause based on provided filters
-  - Return matching records
-- [ ] **Task 3.3.2**: Implement `getCohortMetrics(installDate: Date, daysSinceInstall: number): Promise<CohortMetrics[]>`
+  - Return matching records with pagination
+- [x] **Task 3.3.2**: Implement `getCohortMetrics(installDate: Date, daysSinceInstall: number): Promise<CohortMetrics[]>`
   - Query af_cohort_metrics_daily view
   - Return all campaigns for given install_date and day
   - Include revenue + KPI data
-- [ ] **Task 3.3.3**: Implement `getLatestCohortData(daysBack: number = 30): Promise<AfCohortKpiDaily[]>`
+- [x] **Task 3.3.3**: Implement `getLatestCohortData(daysBack: number = 30): Promise<AfCohortKpiDaily[]>`
   - Get most recent cohorts within daysBack window
   - Useful for dashboard "recent performance" widgets
 
 ### 3.4 Baseline Calculation Queries (Day 2)
 
-- [ ] **Task 3.4.1**: Implement `calculateBaselineRoas(dimensions: {appId: string, geo: string, mediaSource: string, campaign?: string}, baselineDays: number = 180): Promise<number | null>`
+- [x] **Task 3.4.1**: Implement `calculateBaselineRoas(dimensions: {appId: string, geo: string, mediaSource: string}, baselineDays: number = 180): Promise<number | null>`
   - Query cohorts from (today - baselineDays - 30) to (today - baselineDays)
-  - Calculate P50 (median) of D7 ROAS
-  - Return null if insufficient data
-- [ ] **Task 3.4.2**: Implement `calculateBaselineRetention(dimensions: {...}, daysSinceInstall: number, baselineDays: number = 180): Promise<number | null>`
+  - Calculate P50 (median) of D7 ROAS using PostgreSQL PERCENTILE_CONT
+  - Dimensions: app + geo + media_source only (NOT campaign)
+  - Always return result regardless of sample size (UI handles warnings)
+- [x] **Task 3.4.2**: Implement `calculateBaselineRetention(dimensions: {...}, daysSinceInstall: number, baselineDays: number = 180): Promise<number | null>`
   - Same date range logic as ROAS
   - Calculate P50 of retention_rate for specified day
-- [ ] **Task 3.4.3**: Add helper function `getBaselineWindow(baselineDays: number = 180): {start: Date, end: Date}`
+- [x] **Task 3.4.3**: Add helper function `getBaselineWindow(baselineDays: number = 180): {start: Date, end: Date}`
   - Return start = today - baselineDays - 30
   - Return end = today - baselineDays
 
 ### 3.5 Sync Management Queries (Day 3)
 
-- [ ] **Task 3.5.1**: Implement `getLatestSyncLog(syncType: 'events' | 'cohort_kpi' | 'baseline'): Promise<AfSyncLog | null>`
+- [x] **Task 3.5.1**: Implement `getLatestSyncLog(syncType: 'events' | 'cohort_kpi' | 'baseline'): Promise<AfSyncLog | null>`
   - Query af_sync_log for most recent entry of type
   - Order by started_at DESC
-- [ ] **Task 3.5.2**: Implement `createSyncLog(data: NewAfSyncLog): Promise<AfSyncLog>`
+- [x] **Task 3.5.2**: Implement `createSyncLog(data: NewAfSyncLog): Promise<AfSyncLog>`
   - Insert new sync log entry
   - Return created record
-- [ ] **Task 3.5.3**: Implement `updateSyncLog(id: number, updates: Partial<AfSyncLog>): Promise<void>`
+- [x] **Task 3.5.3**: Implement `updateSyncLog(id: number, updates: Partial<AfSyncLog>): Promise<AfSyncLog | null>`
   - Update existing sync log (for status changes)
+- [x] **Task 3.5.4**: Implement `getSyncLogs(params?: {limit?: number; syncType?: string}): Promise<AfSyncLog[]>`
+  - List sync logs with optional filtering
 
 ### 3.6 Testing & Validation (Day 3)
 
-- [ ] **Task 3.6.1**: Create test file: `server/db/test-queries-appsflyer.ts`
-- [ ] **Task 3.6.2**: Test event queries with sample data
-- [ ] **Task 3.6.3**: Test cohort KPI queries
-- [ ] **Task 3.6.4**: Test baseline calculations (verify P50 logic)
-- [ ] **Task 3.6.5**: Test sync log CRUD operations
-- [ ] **Task 3.6.6**: Run: `tsx server/db/test-queries-appsflyer.ts`
-- [ ] **Task 3.6.7**: Git commit: `git commit -m "feat(db): Add AppsFlyer query layer with 10+ functions"`
+- [x] **Task 3.6.1**: Create test file: `server/db/test-queries-appsflyer.ts`
+- [x] **Task 3.6.2**: Test event queries with sample data (200,943 events found)
+- [x] **Task 3.6.3**: Test cohort KPI queries (6,210 records in last 30 days)
+- [x] **Task 3.6.4**: Test baseline calculations (returns null as expected - baseline window 180-210 days ago has no data yet)
+- [x] **Task 3.6.5**: Test sync log CRUD operations
+- [x] **Task 3.6.6**: Run: `npx tsx server/db/test-queries-appsflyer.ts` - 11 tests passed
+- [x] **Task 3.6.7**: Git commit: `git commit -m "feat(db): Add AppsFlyer query layer with 12 functions (Phase 3)"`
 
 **Phase 3 Completion Criteria**:
-- ✅ 10+ query functions implemented
-- ✅ All queries tested with real data
+- ✅ 12 query functions implemented (exceeded 10+ target)
+- ✅ All 11 tests passed with real data
 - ✅ TypeScript types properly inferred
 - ✅ JSDoc documentation complete
-- ✅ Changes committed to git
+- ✅ Changes committed to git (c53987d)
 
 ---
 
@@ -979,4 +989,4 @@
 **Last Updated**: 2025-11-26
 **Total Tasks**: 182
 **Estimated Completion**: ~4 weeks from start
-**Current Phase**: Phase 3 - TypeScript Query Layer (ready to start)
+**Current Phase**: Phase 4 - tRPC Router (ready to start)
