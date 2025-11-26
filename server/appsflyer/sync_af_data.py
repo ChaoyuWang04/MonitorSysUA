@@ -1,8 +1,23 @@
 # sync_af_data.py
+"""
+AppsFlyer Data Sync Script
+
+Synchronizes IAP events, Ad Revenue events, and Cohort KPIs from AppsFlyer API
+to PostgreSQL database for the MonitorSysUA evaluation system.
+
+Usage:
+    python sync_af_data.py --yesterday           # Sync yesterday's data
+    python sync_af_data.py --from-date 2025-01-01 --to-date 2025-01-31
+    python sync_af_data.py --events-only         # Only sync events
+    python sync_af_data.py --kpi-only            # Only sync cohort KPIs
+"""
 
 import os
 import io
 import hashlib
+import argparse
+import time
+import logging
 from datetime import datetime, timedelta, date
 from typing import List, Dict, Any, Optional, Iterable
 
@@ -11,6 +26,17 @@ import pandas as pd
 import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
+
+# -----------------------------------------------------------------------------
+# Logging Configuration
+# -----------------------------------------------------------------------------
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
 # -----------------------------------------------------------------------------
 # 环境与配置
@@ -41,6 +67,74 @@ def get_pg_connection():
 COMMON_HEADERS = {
     "authorization": f"Bearer {AF_API_TOKEN}",
 }
+
+
+# -----------------------------------------------------------------------------
+# Sync Log Functions (writes to af_sync_log table)
+# -----------------------------------------------------------------------------
+
+def create_sync_log(sync_type: str, date_start: date, date_end: date) -> int:
+    """
+    Create a sync log entry with status='running'.
+    Returns the log_id for tracking.
+    """
+    conn = get_pg_connection()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO af_sync_log (sync_type, date_range_start, date_range_end, status, started_at)
+                    VALUES (%s, %s, %s, 'running', NOW())
+                    RETURNING id
+                """, (sync_type, date_start, date_end))
+                log_id = cur.fetchone()[0]
+                logger.info(f"Created sync log #{log_id} for {sync_type}: {date_start} to {date_end}")
+                return log_id
+    finally:
+        conn.close()
+
+
+def update_sync_log(log_id: int, status: str, records_processed: int = None, error_message: str = None):
+    """
+    Update sync log entry with final status.
+    """
+    conn = get_pg_connection()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE af_sync_log
+                    SET status = %s, records_processed = %s, error_message = %s, completed_at = NOW()
+                    WHERE id = %s
+                """, (status, records_processed, error_message, log_id))
+                logger.info(f"Updated sync log #{log_id}: status={status}, records={records_processed}")
+    finally:
+        conn.close()
+
+
+# -----------------------------------------------------------------------------
+# Retry Logic with Exponential Backoff
+# -----------------------------------------------------------------------------
+
+def fetch_with_retry(fetch_func, *args, max_retries: int = 3, **kwargs):
+    """
+    Wrapper for API calls with exponential backoff retry.
+    Waits 5s, 10s, 20s between retries.
+    """
+    last_exception = None
+    for attempt in range(max_retries):
+        try:
+            return fetch_func(*args, **kwargs)
+        except requests.exceptions.RequestException as e:
+            last_exception = e
+            if attempt == max_retries - 1:
+                logger.error(f"Request failed after {max_retries} attempts: {e}")
+                raise
+            wait_time = (2 ** attempt) * 5  # 5s, 10s, 20s
+            logger.warning(f"Request failed (attempt {attempt + 1}/{max_retries}): {e}")
+            logger.info(f"Retrying in {wait_time} seconds...")
+            time.sleep(wait_time)
+    raise last_exception
 
 
 # -----------------------------------------------------------------------------
@@ -228,8 +322,8 @@ def upsert_events(df: pd.DataFrame):
     使用 ON CONFLICT(event_id) DO NOTHING 保持幂等。
     """
     if df.empty:
-        print("No events to upsert.")
-        return
+        logger.info("No events to upsert.")
+        return 0
 
     cols = [
         "event_id",
@@ -281,7 +375,8 @@ def upsert_events(df: pd.DataFrame):
                     rows,
                     template=placeholders,
                 )
-        print(f"Upserted {len(rows)} rows into af_events.")
+        logger.info(f"Upserted {len(rows)} rows into af_events.")
+        return len(rows)
     finally:
         conn.close()
 
@@ -299,44 +394,85 @@ def fetch_master_agg_for_install_date(
     调用 master-agg-data/v4，每次只拉某一天的 cohort：
     from=to=install_date
 
-    假设返回 JSON 大致结构：
-    {
-      "data": [
-        {
-          "pid": "googleadwords_int",
-          "c": "Some Campaign",
-          "geo": "US",
-          "cost": 12.34,
-          "installs": 42,
-          "retention_rate_day_1": 0.47,
-          "retention_rate_day_3": 0.43,
-          ...
-        },
-        ...
-      ]
-    }
+    API returns CSV format with columns:
+    Media Source, Campaign, GEO, Cost, Installs, Retention Rate Day 1, etc.
+
+    We filter client-side to only keep the specified media_source.
     """
     from_str = install_date.strftime("%Y-%m-%d")
     to_str = from_str
 
+    # Note: API returns ALL media sources regardless of filter, so we filter client-side
     url = (
         f"{AF_BASE_URL}/master-agg-data/v4/app/{AF_APP_ID}"
         f"?from={from_str}&to={to_str}"
         f"&groupings=pid,c,geo"
         f"&kpis=cost,installs,retention_rate_day_1,retention_rate_day_3,retention_rate_day_5,retention_rate_day_7"
-        f"&filters=pid={media_source};geo={geo}"
     )
 
     headers = {
         **COMMON_HEADERS,
-        "accept": "application/json",
+        "accept": "text/csv",  # Request CSV format
     }
 
     resp = requests.get(url, headers=headers, timeout=120)
     resp.raise_for_status()
 
-    data = resp.json()
-    rows = data.get("data", []) or data.get("rows", [])
+    # Handle empty response
+    if not resp.text or resp.text.strip() == "":
+        logger.debug(f"No cohort data for {install_date} (empty response)")
+        return []
+
+    # Parse CSV response
+    try:
+        df = pd.read_csv(io.StringIO(resp.text))
+    except Exception as e:
+        logger.warning(f"Failed to parse CSV for {install_date}: {e}")
+        return []
+
+    if df.empty:
+        logger.debug(f"No cohort data for {install_date} (empty CSV)")
+        return []
+
+    # Normalize column names to match expected format
+    column_mapping = {
+        "Media Source": "pid",
+        "Campaign": "c",
+        "GEO": "geo",
+        "Cost": "cost",
+        "Installs": "installs",
+        "Retention Rate Day 1": "retention_rate_day_1",
+        "Retention Rate Day 3": "retention_rate_day_3",
+        "Retention Rate Day 5": "retention_rate_day_5",
+        "Retention Rate Day 7": "retention_rate_day_7",
+    }
+    df = df.rename(columns=column_mapping)
+
+    # Filter to specified media_source only
+    if media_source and "pid" in df.columns:
+        df = df[df["pid"] == media_source]
+
+    if df.empty:
+        logger.debug(f"No cohort data for {install_date} with media_source={media_source}")
+        return []
+
+    # Aggregate duplicates (same pid, campaign, geo) by summing numeric columns
+    # This handles cases where the API returns duplicate rows
+    key_cols = ["pid", "c", "geo"]
+    if len(df) != len(df.drop_duplicates(subset=key_cols)):
+        logger.debug(f"Aggregating {len(df) - len(df.drop_duplicates(subset=key_cols))} duplicate rows")
+        agg_dict = {
+            "cost": "sum",
+            "installs": "sum",
+            "retention_rate_day_1": "mean",
+            "retention_rate_day_3": "mean",
+            "retention_rate_day_5": "mean",
+            "retention_rate_day_7": "mean",
+        }
+        df = df.groupby(key_cols, as_index=False).agg(agg_dict)
+
+    # Convert to list of dicts
+    rows = df.to_dict(orient="records")
     return rows
 
 
@@ -404,15 +540,16 @@ def build_cohort_kpi_rows(
     return out
 
 
-def upsert_cohort_kpi(rows: List[Dict[str, Any]]):
+def upsert_cohort_kpi(rows: List[Dict[str, Any]]) -> int:
     """
     写入 af_cohort_kpi_daily。
     使用 ON CONFLICT (app_id, media_source, campaign, geo, install_date, days_since_install)
     DO UPDATE 保持幂等。
+    Returns the number of rows upserted.
     """
     if not rows:
-        print("No cohort KPI rows to upsert.")
-        return
+        logger.info("No cohort KPI rows to upsert.")
+        return 0
 
     cols = [
         "app_id",
@@ -454,7 +591,8 @@ def upsert_cohort_kpi(rows: List[Dict[str, Any]]):
                     values,
                     template=placeholders,
                 )
-        print(f"Upserted {len(values)} rows into af_cohort_kpi_daily.")
+        logger.info(f"Upserted {len(values)} rows into af_cohort_kpi_daily.")
+        return len(values)
     finally:
         conn.close()
 
@@ -478,9 +616,16 @@ def sync_events(
     to_date: str,
     media_source: str = AF_MEDIA_SOURCE_DEFAULT,
     geo: str = AF_GEO_DEFAULT,
-):
-    print(f"Fetching IAP events {from_date} ~ {to_date}")
-    df_iap = fetch_raw_events_csv(
+) -> int:
+    """
+    Sync IAP and Ad Revenue events for a date range.
+    Returns total number of records processed.
+    """
+    total_records = 0
+
+    logger.info(f"Fetching IAP events {from_date} ~ {to_date}")
+    df_iap = fetch_with_retry(
+        fetch_raw_events_csv,
         event_type="iap_purchase",
         from_date=from_date,
         to_date=to_date,
@@ -488,10 +633,11 @@ def sync_events(
         geo=geo,
     )
     norm_iap = normalize_events_df(df_iap, "iap_purchase")
-    upsert_events(norm_iap)
+    total_records += upsert_events(norm_iap) or 0
 
-    print(f"Fetching Ad Revenue events {from_date} ~ {to_date}")
-    df_ad = fetch_raw_events_csv(
+    logger.info(f"Fetching Ad Revenue events {from_date} ~ {to_date}")
+    df_ad = fetch_with_retry(
+        fetch_raw_events_csv,
         event_type="af_ad_revenue",
         from_date=from_date,
         to_date=to_date,
@@ -499,7 +645,9 @@ def sync_events(
         geo=geo,
     )
     norm_ad = normalize_events_df(df_ad, "af_ad_revenue")
-    upsert_events(norm_ad)
+    total_records += upsert_events(norm_ad) or 0
+
+    return total_records
 
 
 def sync_cohort_kpi(
@@ -507,23 +655,135 @@ def sync_cohort_kpi(
     end_install_date: str,
     media_source: str = AF_MEDIA_SOURCE_DEFAULT,
     geo: str = AF_GEO_DEFAULT,
-):
+) -> int:
+    """
+    Sync cohort KPI data (cost, installs, retention) for a date range.
+    Returns total number of records processed.
+    """
     start = datetime.strptime(start_install_date, "%Y-%m-%d").date()
     end = datetime.strptime(end_install_date, "%Y-%m-%d").date()
 
+    total_records = 0
     for d in daterange(start, end):
-        print(f"Fetching master-agg for install_date={d}")
-        raw_rows = fetch_master_agg_for_install_date(d, media_source=media_source, geo=geo)
+        logger.info(f"Fetching master-agg for install_date={d}")
+        raw_rows = fetch_with_retry(fetch_master_agg_for_install_date, d, media_source=media_source, geo=geo)
         rows = build_cohort_kpi_rows(raw_rows, d)
-        upsert_cohort_kpi(rows)
+        total_records += upsert_cohort_kpi(rows) or 0
+
+    return total_records
+
+
+# -----------------------------------------------------------------------------
+# High-Level Sync Functions with Logging
+# -----------------------------------------------------------------------------
+
+def sync_events_with_logging(from_date: str, to_date: str) -> int:
+    """
+    Sync events with sync log tracking.
+    """
+    start_dt = datetime.strptime(from_date, "%Y-%m-%d").date()
+    end_dt = datetime.strptime(to_date, "%Y-%m-%d").date()
+
+    log_id = create_sync_log("events", start_dt, end_dt)
+    try:
+        records = sync_events(from_date, to_date)
+        update_sync_log(log_id, "success", records)
+        return records
+    except Exception as e:
+        update_sync_log(log_id, "failed", error_message=str(e))
+        raise
+
+
+def sync_cohort_kpi_with_logging(from_date: str, to_date: str) -> int:
+    """
+    Sync cohort KPI with sync log tracking.
+    """
+    start_dt = datetime.strptime(from_date, "%Y-%m-%d").date()
+    end_dt = datetime.strptime(to_date, "%Y-%m-%d").date()
+
+    log_id = create_sync_log("cohort_kpi", start_dt, end_dt)
+    try:
+        records = sync_cohort_kpi(from_date, to_date)
+        update_sync_log(log_id, "success", records)
+        return records
+    except Exception as e:
+        update_sync_log(log_id, "failed", error_message=str(e))
+        raise
 
 
 def main():
-    # 示例：拉 2025-11-01 ~ 2025-11-20 的事件数据
-    sync_events("2025-11-01", "2025-11-20")
+    """
+    Main entry point with CLI argument parsing.
+    """
+    parser = argparse.ArgumentParser(
+        description='AppsFlyer Data Sync - Synchronize events and cohort KPIs to PostgreSQL',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python sync_af_data.py --yesterday                     # Sync yesterday's data
+  python sync_af_data.py --from-date 2025-01-01 --to-date 2025-01-31
+  python sync_af_data.py --from-date 2025-01-01 --to-date 2025-01-07 --events-only
+  python sync_af_data.py --from-date 2025-01-01 --to-date 2025-01-07 --kpi-only
+        """
+    )
+    parser.add_argument('--yesterday', action='store_true',
+                        help='Sync yesterday\'s data only')
+    parser.add_argument('--from-date', dest='from_date',
+                        help='Start date (YYYY-MM-DD)')
+    parser.add_argument('--to-date', dest='to_date',
+                        help='End date (YYYY-MM-DD)')
+    parser.add_argument('--events-only', action='store_true',
+                        help='Only sync events (skip cohort KPI)')
+    parser.add_argument('--kpi-only', action='store_true',
+                        help='Only sync cohort KPI (skip events)')
 
-    # 示例：对 2025-11-01 ~ 2025-11-20 这些 install_date 的 cohort，拉 cost + retention
-    sync_cohort_kpi("2025-11-01", "2025-11-20")
+    args = parser.parse_args()
+
+    # Determine date range
+    if args.yesterday:
+        yesterday = (date.today() - timedelta(days=1)).strftime('%Y-%m-%d')
+        from_date = to_date = yesterday
+        logger.info(f"Mode: Yesterday ({yesterday})")
+    elif args.from_date and args.to_date:
+        from_date = args.from_date
+        to_date = args.to_date
+        logger.info(f"Mode: Custom range ({from_date} to {to_date})")
+    else:
+        # Default: last 7 days
+        to_date = (date.today() - timedelta(days=1)).strftime('%Y-%m-%d')
+        from_date = (date.today() - timedelta(days=7)).strftime('%Y-%m-%d')
+        logger.info(f"Mode: Default (last 7 days: {from_date} to {to_date})")
+
+    logger.info("=" * 60)
+    logger.info(f"AppsFlyer Data Sync Starting")
+    logger.info(f"Date range: {from_date} to {to_date}")
+    logger.info(f"Events: {'Yes' if not args.kpi_only else 'Skip'}")
+    logger.info(f"Cohort KPI: {'Yes' if not args.events_only else 'Skip'}")
+    logger.info("=" * 60)
+
+    total_events = 0
+    total_kpi = 0
+
+    try:
+        if not args.kpi_only:
+            logger.info("Starting events sync...")
+            total_events = sync_events_with_logging(from_date, to_date)
+            logger.info(f"Events sync complete: {total_events} records")
+
+        if not args.events_only:
+            logger.info("Starting cohort KPI sync...")
+            total_kpi = sync_cohort_kpi_with_logging(from_date, to_date)
+            logger.info(f"Cohort KPI sync complete: {total_kpi} records")
+
+        logger.info("=" * 60)
+        logger.info(f"Sync completed successfully!")
+        logger.info(f"Total events: {total_events}")
+        logger.info(f"Total KPI records: {total_kpi}")
+        logger.info("=" * 60)
+
+    except Exception as e:
+        logger.error(f"Sync failed: {e}")
+        raise
 
 
 if __name__ == "__main__":

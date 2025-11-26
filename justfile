@@ -206,3 +206,48 @@ atlas-init:
     @echo "2. Verify with: just db-status"
     @echo ""
     @echo "NOTE: Keep server/db/migrations/ for reference, but it's no longer used."
+
+# ============================================
+# AppsFlyer - Data Sync Commands
+# ============================================
+
+# Set up Python environment for AppsFlyer scripts
+af-setup:
+    @echo "Setting up Python environment for AppsFlyer..."
+    python3 -m venv server/appsflyer/.venv
+    server/appsflyer/.venv/bin/pip install -r server/appsflyer/requirements.txt
+    @echo "Python environment ready!"
+
+# Sync yesterday's AppsFlyer data
+af-sync-yesterday:
+    cd server/appsflyer && .venv/bin/python sync_af_data.py --yesterday
+
+# Sync AppsFlyer data for specific date range
+af-sync-range from to:
+    cd server/appsflyer && .venv/bin/python sync_af_data.py --from-date {{from}} --to-date {{to}}
+
+# Sync events only (no KPI)
+af-sync-events from to:
+    cd server/appsflyer && .venv/bin/python sync_af_data.py --from-date {{from}} --to-date {{to}} --events-only
+
+# Sync cohort KPI only (no events)
+af-sync-kpi from to:
+    cd server/appsflyer && .venv/bin/python sync_af_data.py --from-date {{from}} --to-date {{to}} --kpi-only
+
+# Backfill last 30 days (for testing)
+af-backfill-30:
+    cd server/appsflyer && .venv/bin/python backfill.py --days 30
+
+# Backfill last 180 days (full baseline)
+af-backfill-180:
+    cd server/appsflyer && .venv/bin/python backfill.py --days 180
+
+# Check AppsFlyer sync status
+af-status:
+    @echo "=== Recent AppsFlyer Sync Logs ==="
+    docker exec -it monitorsysua-postgres psql -U postgres -d monitor_sys_ua -c "SELECT id, sync_type, date_range_start, date_range_end, status, records_processed, started_at FROM af_sync_log ORDER BY started_at DESC LIMIT 10;"
+
+# Count records in AppsFlyer tables
+af-count:
+    @echo "=== AppsFlyer Table Row Counts ==="
+    docker exec -it monitorsysua-postgres psql -U postgres -d monitor_sys_ua -c "SELECT 'af_events' as table_name, COUNT(*) as row_count FROM af_events UNION ALL SELECT 'af_cohort_kpi_daily', COUNT(*) FROM af_cohort_kpi_daily;"
