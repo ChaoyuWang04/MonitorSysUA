@@ -1,0 +1,68 @@
+type: object
+description: >
+  Google Ads change event. Describes a granular change of certain resource types.
+  Changes in the last 30 days are included.
+
+properties:
+  resource_name:
+    type: string
+    readOnly: true
+    description: >
+      Resource name of the change event.
+      Format:
+      customers/{customer_id}/changeEvents/{timestamp_micros}~{command_index}~{mutate_index}.
+
+  change_date_time:
+    type: string
+    format: date-time
+    readOnly: true
+    description: Time at which the change was committed on this resource.
+
+  change_resource_type:
+    $ref: "./ChangeEventResourceType.yaml"
+
+  change_resource_name:
+    type: string
+    readOnly: true
+    description: The resource on which this change occurred.
+
+  client_type:
+    $ref: "./ChangeClientType.yaml"
+
+  user_email:
+    type: string
+    format: email
+    readOnly: true
+    description: Email of the user who made this change.
+
+  old_resource:
+    $ref: "./ChangedResource.yaml"
+
+  new_resource:
+    $ref: "./ChangedResource.yaml"
+
+  resource_change_operation:
+    $ref: "./ResourceChangeOperation.yaml"
+
+  changed_fields:
+    $ref: "./FieldMask.yaml"
+
+  campaign:
+    type: string
+    readOnly: true
+
+  ad_group:
+    type: string
+    readOnly: true
+
+  asset:
+    type: string
+    readOnly: true
+
+required:
+  - resource_name
+  - change_date_time
+  - change_resource_type
+  - change_resource_name
+  - client_type
+  - resource_change_operation

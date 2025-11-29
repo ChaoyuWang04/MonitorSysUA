@@ -3,6 +3,10 @@
  *
  * Tests all evaluation modules (A2-A5) to verify functionality
  *
+ * @deprecated Since Phase 5, A2/A3/A7 evaluation uses AppsFlyer data.
+ * This test script is kept for A4 Creative Evaluation testing only.
+ * For A2/A3/A7, use real AppsFlyer data via the tRPC API.
+ *
  * Usage:
  *   npm run eval:test
  */
@@ -11,7 +15,8 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "@/server/db/schema";
 import { calculateBaseline } from "./wrappers/baseline-calculator";
-import { evaluateCampaign } from "./wrappers/campaign-evaluator";
+// NOTE: evaluateCampaign is deprecated. Use evaluateCampaignFromAF instead.
+// import { evaluateCampaign } from "./wrappers/campaign-evaluator";
 import {
   evaluateCreativeD3,
   evaluateCreativeD7,
@@ -110,67 +115,29 @@ async function testA2BaselineCalculation() {
 async function testA3CampaignEvaluation() {
   printSection("A3: Campaign Evaluation");
 
+  // NOTE: A3 Campaign Evaluation now uses AppsFlyer data (Phase 5)
+  // The mock_campaign_performance table has been removed (Phase 8)
+  // Use evaluateCampaignFromAF() or tRPC api.appsflyer endpoints instead
+
+  printTest("A3 Status", "INFO", "A3 Campaign Evaluation now uses AppsFlyer data");
+  printTest("Migration Note", "INFO", "mock_campaign_performance table removed in Phase 8");
+  printTest("Usage", "INFO", "Use evaluateCampaignFromAF() or tRPC api.appsflyer.*");
+
+  console.log("\n  To test A3 with real data:");
+  console.log("  1. Sync AppsFlyer data: just af-sync-yesterday");
+  console.log("  2. Use tRPC: api.appsflyer.getCohortKpi({...})");
+  console.log("  3. Or call evaluateCampaignFromAF() directly\n");
+
+  // Check if we have any AppsFlyer data
   try {
-    // Test 1: Get a CURRENT campaign from today's date
-    const today = new Date().toISOString().split("T")[0];
-
-    const sampleCampaign = await db.query.mockCampaignPerformance.findFirst({
-      where: and(
-        eq(schema.mockCampaignPerformance.productName, "Solitaire"),
-        eq(schema.mockCampaignPerformance.date, today)
-      ),
-    });
-
-    if (!sampleCampaign) {
-      printTest("Sample Campaign", "FAIL", "No sample campaign found for today's date");
-      return;
-    }
-
-    printTest("Test 1", "INFO", `Evaluating campaign: ${sampleCampaign.campaignName}`);
-    printResult("Campaign ID", sampleCampaign.campaignId);
-    printResult("Total Spend", `$${sampleCampaign.totalSpend}`);
-    printResult("Date", sampleCampaign.date);
-
-    // Test 2: Evaluate the campaign
-    const evaluationDate = sampleCampaign.date;
-    const evaluationResult = await evaluateCampaign(
-      sampleCampaign.campaignId,
-      evaluationDate
-    );
-
-    printResult("Evaluation Result", evaluationResult);
-
-    // Test 3: Verify evaluation components
-    const hasType = evaluationResult.campaign_type === "test" || evaluationResult.campaign_type === "mature";
-    const hasMetrics = (evaluationResult.roas_achievement_rate ?? 0) > 0 && (evaluationResult.ret_achievement_rate ?? 0) > 0;
-    const hasStatus = evaluationResult.status && evaluationResult.status.length > 0;
-    const hasRecommendation = evaluationResult.recommendation_type && evaluationResult.recommendation_type.length > 0;
-
-    if (hasType && hasMetrics && hasStatus && hasRecommendation) {
-      printTest(
-        "Campaign Evaluation",
-        "PASS",
-        `Type: ${evaluationResult.campaign_type}, Status: ${evaluationResult.status}, Rec: ${evaluationResult.recommendation_type}`
-      );
+    const afDataCheck = await db.query.afCohortKpiDaily.findFirst();
+    if (afDataCheck) {
+      printTest("AppsFlyer Data", "PASS", `Data available - latest: ${afDataCheck.installDate}`);
     } else {
-      printTest("Campaign Evaluation", "FAIL", "Missing or invalid evaluation components");
-    }
-
-    // Test 4: Verify database persistence
-    const savedEvaluation = await db.query.campaignEvaluation.findFirst({
-      where: and(
-        eq(schema.campaignEvaluation.campaignId, sampleCampaign.campaignId),
-        eq(schema.campaignEvaluation.evaluationDate, evaluationDate)
-      ),
-    });
-
-    if (savedEvaluation) {
-      printTest("Database Persistence", "PASS", `Evaluation saved for campaign ${sampleCampaign.campaignId}`);
-    } else {
-      printTest("Database Persistence", "FAIL", "Evaluation not found in database");
+      printTest("AppsFlyer Data", "INFO", "No AppsFlyer data yet. Run: just af-sync-yesterday");
     }
   } catch (error) {
-    printTest("A3 Test Suite", "FAIL", `Error: ${error instanceof Error ? error.message : String(error)}`);
+    printTest("AppsFlyer Data", "FAIL", `Error: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

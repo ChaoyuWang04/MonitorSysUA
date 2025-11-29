@@ -22,10 +22,11 @@ const db = drizzle(pool)
 const restoreOrder = [
   'accounts',
   'safety_baseline',
+  'baseline_settings',
   'creative_test_baseline',
   'campaign_evaluation',
   'optimizer_leaderboard',
-  'mock_campaign_performance',
+  // NOTE: mock_campaign_performance has been removed (Phase 8). Use AppsFlyer data.
   'mock_creative_performance',
   'af_sync_log',
   'af_events',

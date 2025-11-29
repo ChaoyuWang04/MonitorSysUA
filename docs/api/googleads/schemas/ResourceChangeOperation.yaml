@@ -1,0 +1,17 @@
+type: string
+description: >
+  Operation applied to the changed resource in a ChangeEvent. Indicates whether
+  the entity was created, updated, or removed.
+enum:
+  - UNSPECIFIED
+  - UNKNOWN
+  - CREATE
+  - UPDATE
+  - REMOVE
+
+x-enum-descriptions:
+  UNSPECIFIED: No value has been specified.
+  UNKNOWN: Used for return-only; represents an operation unknown in this API version.
+  CREATE: The resource was created.
+  UPDATE: The resource was modified.
+  REMOVE: The resource was removed.

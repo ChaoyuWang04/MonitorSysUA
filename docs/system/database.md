@@ -24,9 +24,17 @@
 - `mock_campaign_performance`, `mock_creative_performance`: seed/test data for evaluation engines. **Deprecated since Phase 5: Evaluation now uses AppsFlyer data.**
 
 ## AppsFlyer Pipeline
-- `af_events`: IAP/ad-revenue events (`eventId` PK) with cohort dimensions, currency-normalised revenue, install/event timestamps.
+
+### Tables
+- `af_events`: IAP/ad-revenue events (`eventId` PK - MD5 hash) with cohort dimensions, currency-normalised revenue, install/event timestamps.
+  - Indexes: `install_date`, `event_date`, cohort composite `(app_id, geo, media_source, campaign, adset, install_date)`, `event_name`.
 - `af_cohort_kpi_daily`: per-cohort installs, cost, retention by `installDate`/`daysSinceInstall`; unique on appId+mediaSource+campaign+geo+installDate+daysSinceInstall.
+  - `days_since_install`: 0 (cost+installs), 1/3/5/7 (retention rates).
 - `af_sync_log`: status/history for ETL runs (events/cohort_kpi/baseline) with date range, counts, error, started/completed timestamps.
+
+### Views
+- `af_revenue_cohort_daily`: Aggregates `af_events` by cohort dimensions, splits revenue into `iap_revenue_usd`, `ad_revenue_usd`, `total_revenue_usd`.
+- `af_cohort_metrics_daily`: Joins revenue view with `af_cohort_kpi_daily` for complete cohort picture (revenue + installs + cost + retention).
 
 ## Commands
 - Migrations: `just db-status`, `just db-diff "name"`, `just db-apply`, `just db-studio`.

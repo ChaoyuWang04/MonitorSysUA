@@ -448,60 +448,10 @@ export type NewActionRecommendation = typeof actionRecommendation.$inferInsert
 // MOCK DATA TABLES - 用于开发和测试的模拟数据
 // ============================================
 
-// Mock Campaign Performance - 模拟Campaign性能数据
-export const mockCampaignPerformance = pgTable(
-  'mock_campaign_performance',
-  {
-    // Primary key
-    id: serial('id').primaryKey(),
+// NOTE: mockCampaignPerformance table has been removed (Phase 8).
+// Evaluation now uses real AppsFlyer data. See docs/migration-mock-to-real.md
 
-    // Campaign info
-    campaignId: varchar('campaign_id', { length: 100 }).notNull(),
-    campaignName: varchar('campaign_name', { length: 200 }).notNull(),
-
-    // Dimension fields
-    productName: varchar('product_name', { length: 100 }).notNull(),
-    countryCode: varchar('country_code', { length: 10 }).notNull(),
-    platform: varchar('platform', { length: 20 }).default('Android').notNull(),
-    channel: varchar('channel', { length: 20 }).default('Google').notNull(),
-
-    // Date
-    date: date('date').notNull(),
-
-    // Financial metrics
-    totalSpend: decimal('total_spend', { precision: 15, scale: 2 }).notNull(),
-    totalRevenue: decimal('total_revenue', { precision: 15, scale: 2 }).notNull(),
-
-    // User metrics
-    totalInstalls: integer('total_installs').notNull(),
-    d7ActiveUsers: integer('d7_active_users').notNull(), // Users still active on day 7
-
-    // Performance metrics
-    actualRoas7: decimal('actual_roas7', { precision: 10, scale: 4 }).notNull(),
-    actualRet7: decimal('actual_ret7', { precision: 10, scale: 4 }).notNull(),
-
-    // Tracking
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-  },
-  (table) => ({
-    // Unique constraint: one record per campaign per date
-    uniqueCampaignDate: uniqueIndex('unique_campaign_date').on(table.campaignId, table.date),
-
-    // Indexes for queries
-    dateIdx: index('mock_campaign_date_idx').on(table.date),
-    productCountryIdx: index('mock_campaign_product_country_idx').on(
-      table.productName,
-      table.countryCode,
-      table.platform,
-      table.channel
-    ),
-  })
-)
-
-export type MockCampaignPerformance = typeof mockCampaignPerformance.$inferSelect
-export type NewMockCampaignPerformance = typeof mockCampaignPerformance.$inferInsert
-
-// Mock Creative Performance - 模拟素材性能数据
+// Mock Creative Performance - 模拟素材性能数据 (still used by A4 Creative Evaluation)
 export const mockCreativePerformance = pgTable(
   'mock_creative_performance',
   {

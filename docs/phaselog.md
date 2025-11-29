@@ -155,3 +155,131 @@ Comprehensive testing of entire AppsFlyer integration with 78 automated tests ac
 
 ### Next Steps
 - Phase 8: Documentation & Cleanup
+
+---
+
+## Phase 8: Documentation & Cleanup
+
+**Date**: 2025-11-29
+**Status**: Complete
+**Version**: v1.1.0
+
+### Overview
+Comprehensive documentation and cleanup phase. Created user-facing documentation, API reference, migration guides, and removed deprecated mock data infrastructure.
+
+### Documentation Created
+
+| File | Purpose |
+|------|---------|
+| `docs/appsflyer-integration.md` | Main integration guide with architecture, data flow, metrics |
+| `docs/appsflyer-api.md` | Complete tRPC API reference for 10 procedures |
+| `docs/migration-mock-to-real.md` | Migration guide from mock to AppsFlyer data |
+| `docs/system/trd.md` | Technical Reference Document with architecture decisions |
+
+### Database Changes
+
+#### Table Removed
+- `mock_campaign_performance` - Dropped via migration `20251129085803_remove-mock-campaign-performance.sql`
+
+#### Table Retained
+- `mock_creative_performance` - Still used by A4 Creative Evaluation (future migration)
+
+### Code Cleanup
+
+#### Schema (`server/db/schema.ts`)
+- Removed `mockCampaignPerformance` table definition
+- Added migration note comments
+
+#### Mock Data Scripts (`server/evaluation/mock-data/`)
+- Updated `generator.ts`: Removed campaign generators, kept creative generators
+- Updated `seed.ts`: Removed campaign seeding, kept creative seeding for A4
+
+#### Snapshot Scripts (`scripts/`)
+- Updated `db-snapshot.ts`: Removed `mock_campaign_performance` reference, added `baseline_settings`
+- Updated `db-restore.ts`: Removed `mock_campaign_performance` reference, added `baseline_settings`
+
+#### Test Scripts (`server/evaluation/test-evaluation.ts`)
+- Updated A3 test to reflect AppsFlyer migration
+- Added deprecation notice for mock data tests
+
+#### Query Functions (`server/db/queries-appsflyer.ts`)
+- Added comprehensive JSDoc documentation to all exported functions
+
+### Validation
+
+- TypeScript compilation: PASS
+- Next.js build: PASS
+- Database migration: Applied successfully (5 total migrations)
+
+### Breaking Changes
+
+1. **`mock_campaign_performance` table removed**
+   - Migrate to `af_cohort_kpi_daily` and `af_events` tables
+   - See `docs/migration-mock-to-real.md` for details
+
+2. **Deprecated functions log warnings**
+   - `calculateBaseline()` -> `calculateBaselineFromAF()`
+   - `evaluateCampaign()` -> `evaluateCampaignFromAF()`
+   - `evaluateOperation()` -> `evaluateOperationFromAF()`
+
+### Files Modified
+
+```
+atlas/migrations/20251129085803_remove-mock-campaign-performance.sql (new)
+docs/appsflyer-api.md (new)
+docs/appsflyer-integration.md (new)
+docs/migration-mock-to-real.md (new)
+docs/system/database.md (updated)
+docs/system/trd.md (new)
+scripts/db-restore.ts (updated)
+scripts/db-snapshot.ts (updated)
+server/db/queries-appsflyer.ts (JSDoc added)
+server/db/schema.ts (updated)
+server/evaluation/mock-data/generator.ts (updated)
+server/evaluation/mock-data/seed.ts (updated)
+server/evaluation/test-evaluation.ts (updated)
+```
+
+### Release Notes (v1.1.0)
+
+#### Features
+- Complete AppsFlyer cohort data integration (Phases 1-7)
+- Real-time evaluation using actual user behavior data
+- P50 baseline calculation from 180-day historical cohorts
+- Docker-based automated ETL with cron scheduling
+
+#### Documentation
+- AppsFlyer integration guide with architecture diagrams
+- Complete API reference for all tRPC procedures
+- Migration guide from mock to real data
+- Technical Reference Document (TRD)
+
+#### Deprecated
+- Mock campaign performance data (removed)
+- Python-based evaluation functions (use `*FromAF()` variants)
+
+#### Database
+- New: `baseline_settings` table
+- New: `af_revenue_cohort_daily` view
+- New: `af_cohort_metrics_daily` view
+- Removed: `mock_campaign_performance` table
+
+---
+
+## Summary
+
+All 8 phases of the AppsFlyer integration project are now complete:
+
+| Phase | Status | Key Deliverable |
+|-------|--------|-----------------|
+| 1: Schema | Complete | Database tables, Python ETL |
+| 2: Python Scripts | Complete | sync_af_data.py |
+| 3: Query Layer | Complete | queries-appsflyer.ts |
+| 4: tRPC API | Complete | appsflyer.ts router |
+| 5: Evaluation Integration | Complete | *FromAF() wrappers |
+| 6: Automation | Complete | Docker ETL with cron |
+| 7: Testing | Complete | 78 automated tests |
+| 8: Documentation | Complete | Full docs + cleanup |
+
+**Total Tasks**: 182 completed across 8 phases
+**Version**: v1.1.0

@@ -1,0 +1,213 @@
+type: object
+description: >
+  Google Ads Ad resource. Contains configuration for different ad formats and
+  their landing URLs, tracking, and type-specific details.
+properties:
+  resource_name:
+    type: string
+    readOnly: true
+    description: >
+      Immutable resource name of the ad.
+      Format: customers/{customer_id}/ads/{ad_id}.
+
+  final_urls:
+    type: array
+    description: >
+      List of possible final URLs after all cross-domain redirects for the ad.
+    items:
+      type: string
+
+  final_app_urls:
+    type: array
+    description: >
+      Final app URLs used on mobile if the user has the specific app installed.
+    items:
+      $ref: '#/components/schemas/FinalAppUrl'
+
+  final_mobile_urls:
+    type: array
+    description: >
+      List of possible final mobile URLs after all cross-domain redirects for the ad.
+    items:
+      type: string
+
+  url_custom_parameters:
+    type: array
+    description: >
+      Mappings used to substitute custom parameter tags in
+      tracking_url_template, final_urls, or final_mobile_urls.
+      For mutates, use URL custom parameter operations.
+    items:
+      $ref: '#/components/schemas/CustomParameter'
+
+  type:
+    $ref: '#/components/schemas/AdType'
+    readOnly: true
+    description: Output only. The type of ad.
+
+  device_preference:
+    $ref: '#/components/schemas/Device'
+    description: >
+      Device preference for the ad. Only mobile preference is supported.
+      When set, the ad is preferred on mobile devices but can still be
+      shown on other device types if needed.
+
+  url_collections:
+    type: array
+    description: >
+      Additional URLs for the ad, tagged with unique identifiers that can be
+      referenced from other fields in the ad.
+    items:
+      $ref: '#/components/schemas/UrlCollection'
+
+  system_managed_resource_source:
+    $ref: '#/components/schemas/SystemManagedResourceSource'
+    readOnly: true
+    description: >
+      Output only. If this ad is system managed, indicates the source.
+
+  id:
+    type: integer
+    format: int64
+    readOnly: true
+    description: Output only. The ID of the ad.
+
+  tracking_url_template:
+    type: string
+    description: URL template for constructing a tracking URL.
+
+  final_url_suffix:
+    type: string
+    description: Suffix used when constructing a final URL.
+
+  display_url:
+    type: string
+    description: URL that appears in the ad description for some ad formats.
+
+  added_by_google_ads:
+    type: boolean
+    readOnly: true
+    description: >
+      Output only. True if this ad was automatically added by Google Ads
+      (for example, as a suggestion based on performance of existing ads).
+
+  name:
+    type: string
+    description: >
+      Immutable. Human-readable name of the ad for identification only.
+      Does not need to be unique and does not affect serving.
+      Currently only supported for DisplayUploadAd, ImageAd, LegacyAppInstallAd,
+      ShoppingComparisonListingAd, VideoAd, VideoResponsiveAd and DemandGen ads.
+
+  # --- ad_data oneof: exactly ONE of the following will be set ---
+
+  text_ad:
+    $ref: '#/components/schemas/TextAdInfo'
+    description: Immutable. Details for a text ad.
+
+  expanded_text_ad:
+    $ref: '#/components/schemas/ExpandedTextAdInfo'
+    description: Details for an expanded text ad.
+
+  call_ad:
+    $ref: '#/components/schemas/CallAdInfo'
+    description: Details for a call ad.
+
+  expanded_dynamic_search_ad:
+    $ref: '#/components/schemas/ExpandedDynamicSearchAdInfo'
+    description: >
+      Immutable. Details for an Expanded Dynamic Search Ad. Headline, final URLs,
+      and display URL are auto-generated at serving time based on campaign-level
+      dynamic_search_ads_setting.
+
+  hotel_ad:
+    $ref: '#/components/schemas/HotelAdInfo'
+    description: Details for a hotel ad.
+
+  shopping_smart_ad:
+    $ref: '#/components/schemas/ShoppingSmartAdInfo'
+    description: Details for a Smart Shopping ad.
+
+  shopping_product_ad:
+    $ref: '#/components/schemas/ShoppingProductAdInfo'
+    description: Details for a Shopping product ad.
+
+  image_ad:
+    $ref: '#/components/schemas/ImageAdInfo'
+    description: Immutable. Details for an Image ad.
+
+  video_ad:
+    $ref: '#/components/schemas/VideoAdInfo'
+    description: Details for a Video ad.
+
+  video_responsive_ad:
+    $ref: '#/components/schemas/VideoResponsiveAdInfo'
+    description: Details for a Video responsive ad.
+
+  responsive_search_ad:
+    $ref: '#/components/schemas/ResponsiveSearchAdInfo'
+    description: Details for a responsive search ad.
+
+  legacy_responsive_display_ad:
+    $ref: '#/components/schemas/LegacyResponsiveDisplayAdInfo'
+    description: Details for a legacy responsive display ad.
+
+  app_ad:
+    $ref: '#/components/schemas/AppAdInfo'
+    description: Details for an app ad.
+
+  legacy_app_install_ad:
+    $ref: '#/components/schemas/LegacyAppInstallAdInfo'
+    description: Immutable. Details for a legacy app install ad.
+
+  responsive_display_ad:
+    $ref: '#/components/schemas/ResponsiveDisplayAdInfo'
+    description: Details for a responsive display ad.
+
+  local_ad:
+    $ref: '#/components/schemas/LocalAdInfo'
+    description: Details for a local ad.
+
+  display_upload_ad:
+    $ref: '#/components/schemas/DisplayUploadAdInfo'
+    description: Details for a display upload ad.
+
+  app_engagement_ad:
+    $ref: '#/components/schemas/AppEngagementAdInfo'
+    description: Details for an app engagement ad.
+
+  shopping_comparison_listing_ad:
+    $ref: '#/components/schemas/ShoppingComparisonListingAdInfo'
+    description: Details for a Shopping Comparison Listing ad.
+
+  smart_campaign_ad:
+    $ref: '#/components/schemas/SmartCampaignAdInfo'
+    description: Details for a Smart campaign ad.
+
+  app_pre_registration_ad:
+    $ref: '#/components/schemas/AppPreRegistrationAdInfo'
+    description: Details for an app pre-registration ad.
+
+  demand_gen_multi_asset_ad:
+    $ref: '#/components/schemas/DemandGenMultiAssetAdInfo'
+    description: Details for a Demand Gen multi asset ad.
+
+  demand_gen_carousel_ad:
+    $ref: '#/components/schemas/DemandGenCarouselAdInfo'
+    description: Details for a Demand Gen carousel ad.
+
+  demand_gen_video_responsive_ad:
+    $ref: '#/components/schemas/DemandGenVideoResponsiveAdInfo'
+    description: Details for a Demand Gen video responsive ad.
+
+  demand_gen_product_ad:
+    $ref: '#/components/schemas/DemandGenProductAdInfo'
+    description: Details for a Demand Gen product ad.
+
+  travel_ad:
+    $ref: '#/components/schemas/TravelAdInfo'
+    description: Details for a travel ad.
+
+# Note: Proto semantics enforce that exactly one of the ad_data fields is set.
+# OpenAPI cannot enforce this oneof at JSON level here, so this constraint is
+# documented in descriptions instead.

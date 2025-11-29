@@ -6,6 +6,27 @@
  * - Cohort KPI queries (installs, cost, retention)
  * - Baseline calculations (median of historical ROAS/RET)
  * - Sync log management
+ *
+ * @module queries-appsflyer
+ * @description Type-safe database queries for AppsFlyer cohort data using Drizzle ORM.
+ *
+ * @example
+ * ```typescript
+ * import { getEventsByDateRange, calculateBaselineRoas } from './queries-appsflyer';
+ *
+ * // Get events for last 7 days
+ * const events = await getEventsByDateRange({
+ *   startDate: new Date('2025-11-01'),
+ *   endDate: new Date('2025-11-07')
+ * });
+ *
+ * // Calculate safety baseline
+ * const baseline = await calculateBaselineRoas({
+ *   appId: 'com.example.app',
+ *   geo: 'US',
+ *   mediaSource: 'googleadwords_int'
+ * });
+ * ```
  */
 
 import { db } from './index'
@@ -58,7 +79,32 @@ export interface RevenueBreakdown {
 // ============================================
 
 /**
- * Get events within a date range with pagination
+ * Get events within a date range with pagination.
+ *
+ * Queries `af_events` table for IAP purchases and ad revenue events.
+ * Supports filtering by event type, app, geo, and media source.
+ *
+ * @param params - Query parameters
+ * @param params.startDate - Start of date range (inclusive)
+ * @param params.endDate - End of date range (inclusive)
+ * @param params.eventName - Filter by event type: 'iap_purchase' or 'af_ad_revenue'
+ * @param params.appId - Filter by app identifier
+ * @param params.geo - Filter by country code (e.g., 'US')
+ * @param params.mediaSource - Filter by attribution source (e.g., 'googleadwords_int')
+ * @param params.limit - Maximum rows to return (default: 100, max: 1000)
+ * @param params.offset - Pagination offset (default: 0)
+ * @returns Promise with data array and total count for pagination
+ *
+ * @example
+ * ```typescript
+ * const result = await getEventsByDateRange({
+ *   startDate: new Date('2025-11-01'),
+ *   endDate: new Date('2025-11-07'),
+ *   eventName: 'iap_purchase',
+ *   limit: 50
+ * });
+ * console.log(`Page 1 of ${Math.ceil(result.total / 50)}`);
+ * ```
  */
 export async function getEventsByDateRange(params: {
   startDate: Date
@@ -106,7 +152,34 @@ export async function getEventsByDateRange(params: {
 }
 
 /**
- * Get all events for users who installed on a specific date
+ * Get all events for users who installed on a specific date.
+ *
+ * Returns all events (IAP + ad revenue) for a specific install cohort,
+ * ordered by days_since_install. Useful for cohort lifecycle analysis.
+ *
+ * @param params - Query parameters
+ * @param params.installDate - The install date defining the cohort
+ * @param params.appId - Filter by app identifier
+ * @param params.geo - Filter by country code
+ * @param params.mediaSource - Filter by attribution source
+ * @param params.campaign - Filter by campaign name
+ * @returns Array of events ordered by days_since_install, event_time
+ *
+ * @example
+ * ```typescript
+ * // Analyze Nov 1 cohort lifecycle
+ * const events = await getEventsByInstallDate({
+ *   installDate: new Date('2025-11-01'),
+ *   geo: 'US'
+ * });
+ *
+ * // Group by day
+ * const byDay = events.reduce((acc, e) => {
+ *   acc[e.daysSinceInstall] = acc[e.daysSinceInstall] || [];
+ *   acc[e.daysSinceInstall].push(e);
+ *   return acc;
+ * }, {});
+ * ```
  */
 export async function getEventsByInstallDate(params: {
   installDate: Date
@@ -136,8 +209,35 @@ export async function getEventsByInstallDate(params: {
 }
 
 /**
- * Get CUMULATIVE revenue for a cohort from D0 to Dn
- * Used for ROAS calculation: ROAS_Dn = cumulative revenue / cost
+ * Get CUMULATIVE revenue for a cohort from D0 to Dn.
+ *
+ * Calculates total revenue accumulated from install day (D0) through the specified day.
+ * This is the standard definition for ROAS calculation in mobile UA.
+ *
+ * **Important**: Revenue is cumulative, not daily. D7 revenue includes D0-D6.
+ *
+ * @param params - Query parameters
+ * @param params.installDate - Cohort install date
+ * @param params.daysSinceInstall - Calculate revenue from D0 through this day (0-180)
+ * @param params.appId - Filter by app identifier
+ * @param params.geo - Filter by country code
+ * @param params.mediaSource - Filter by attribution source
+ * @param params.campaign - Filter by campaign name
+ * @returns Revenue breakdown by type (IAP vs ad revenue)
+ *
+ * @example
+ * ```typescript
+ * // Calculate D7 ROAS
+ * const revenue = await getRevenueByCohort({
+ *   installDate: new Date('2025-11-01'),
+ *   daysSinceInstall: 7,  // Cumulative D0-D7
+ *   geo: 'US'
+ * });
+ *
+ * const cost = 1000; // From getCohortKpi
+ * const roas7 = revenue.totalRevenueUsd / cost;
+ * console.log(`ROAS_D7: ${(roas7 * 100).toFixed(1)}%`);
+ * ```
  */
 export async function getRevenueByCohort(params: {
   installDate: Date
@@ -362,9 +462,37 @@ export function getBaselineWindow(baselineDays: number = 180): {
 }
 
 /**
- * Calculate median D7 ROAS from historical cohorts (180-210 days ago)
- * 安全线 = app + geo + media_source 维度的 ROAS_D7 中位数
- * NOTE: 不含 campaign 维度 - 安全线是宏观基准线
+ * Calculate median D7 ROAS from historical cohorts (safety baseline).
+ *
+ * The safety baseline is the P50 (median) ROAS_D7 from mature cohorts,
+ * used to evaluate current campaign performance.
+ *
+ * **Dimensions**: app + geo + mediaSource (NOT campaign-specific)
+ * **Window**: Cohorts from (today - baselineDays - 30) to (today - baselineDays)
+ * **Method**: P50 of daily ROAS_D7 values using PostgreSQL PERCENTILE_CONT
+ *
+ * @param params - Baseline parameters
+ * @param params.appId - App identifier (required)
+ * @param params.geo - Country code (required)
+ * @param params.mediaSource - Attribution source (required)
+ * @param params.baselineDays - Days back for baseline window (default: 180)
+ * @returns Median ROAS_D7 or null if insufficient data
+ *
+ * @example
+ * ```typescript
+ * const baseline = await calculateBaselineRoas({
+ *   appId: 'solitaire.patience.card.games.klondike.free',
+ *   geo: 'US',
+ *   mediaSource: 'googleadwords_int',
+ *   baselineDays: 180
+ * });
+ *
+ * if (baseline !== null) {
+ *   console.log(`Safety ROAS: ${(baseline * 100).toFixed(1)}%`);
+ * } else {
+ *   console.log('Insufficient historical data');
+ * }
+ * ```
  */
 export async function calculateBaselineRoas(params: {
   appId: string
@@ -416,8 +544,37 @@ export async function calculateBaselineRoas(params: {
 }
 
 /**
- * Calculate median retention rate from historical cohorts
- * 安全线 = app + geo + media_source 维度的 RET_Dn 中位数
+ * Calculate median retention rate from historical cohorts (safety baseline).
+ *
+ * The safety baseline is the P50 (median) retention rate from mature cohorts,
+ * used to evaluate current campaign retention performance.
+ *
+ * **Dimensions**: app + geo + mediaSource (NOT campaign-specific)
+ * **Window**: Cohorts from (today - baselineDays - 30) to (today - baselineDays)
+ * **Method**: Install-weighted P50 using PostgreSQL PERCENTILE_CONT
+ *
+ * @param params - Baseline parameters
+ * @param params.appId - App identifier (required)
+ * @param params.geo - Country code (required)
+ * @param params.mediaSource - Attribution source (required)
+ * @param params.daysSinceInstall - Retention day: 1, 3, 5, or 7
+ * @param params.baselineDays - Days back for baseline window (default: 180)
+ * @returns Median retention rate or null if insufficient data
+ *
+ * @example
+ * ```typescript
+ * const baseline = await calculateBaselineRetention({
+ *   appId: 'solitaire.patience.card.games.klondike.free',
+ *   geo: 'US',
+ *   mediaSource: 'googleadwords_int',
+ *   daysSinceInstall: 7,  // D7 retention baseline
+ *   baselineDays: 180
+ * });
+ *
+ * if (baseline !== null) {
+ *   console.log(`Safety RET_D7: ${(baseline * 100).toFixed(1)}%`);
+ * }
+ * ```
  */
 export async function calculateBaselineRetention(params: {
   appId: string

@@ -26,6 +26,7 @@ const db = drizzle(pool)
 const tables = [
   { name: 'accounts', deps: [] },
   { name: 'safety_baseline', deps: [] },
+  { name: 'baseline_settings', deps: [] },
   { name: 'creative_test_baseline', deps: [] },
   { name: 'change_events', deps: ['accounts'] },
   { name: 'campaign_evaluation', deps: [] },
@@ -33,7 +34,7 @@ const tables = [
   { name: 'operation_score', deps: ['change_events'] },
   { name: 'action_recommendation', deps: ['campaign_evaluation'] },
   { name: 'optimizer_leaderboard', deps: [] },
-  { name: 'mock_campaign_performance', deps: [] },
+  // NOTE: mock_campaign_performance has been removed (Phase 8). Use AppsFlyer data.
   { name: 'mock_creative_performance', deps: [] },
   { name: 'af_sync_log', deps: [] },
   { name: 'af_events', deps: [] },

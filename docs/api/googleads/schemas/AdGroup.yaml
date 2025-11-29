@@ -1,0 +1,228 @@
+type: object
+description: >
+  Google Ads AdGroup resource. Defines bidding, targeting, status, type and
+  performance-related metadata of an ad group.
+properties:
+  resource_name:
+    type: string
+    readOnly: true
+    description: >
+      Immutable resource name of the ad group.
+      Format: customers/{customer_id}/adGroups/{ad_group_id}.
+
+  status:
+    $ref: '#/components/schemas/AdGroupStatus'
+    description: Status of the ad group.
+
+  type:
+    $ref: '#/components/schemas/AdGroupType'
+    description: Immutable. The type of the ad group.
+
+  ad_rotation_mode:
+    $ref: '#/components/schemas/AdGroupAdRotationMode'
+    description: Ad rotation mode of the ad group.
+
+  url_custom_parameters:
+    type: array
+    description: >
+      Mappings used to substitute custom parameter tags in a tracking_url_template,
+      final_urls, or mobile_final_urls.
+    items:
+      $ref: '#/components/schemas/CustomParameter'
+
+  optimized_targeting_enabled:
+    type: boolean
+    description: >
+      True if optimized targeting is enabled. Replacement for Audience Expansion.
+
+  exclude_demographic_expansion:
+    type: boolean
+    description: >
+      When true, demographics will not be expanded when optimized targeting is enabled.
+
+  display_custom_bid_dimension:
+    $ref: '#/components/schemas/TargetingDimension'
+    description: >
+      Targeting dimension for absolute bids (Display network only).
+
+  targeting_setting:
+    $ref: '#/components/schemas/TargetingSetting'
+    description: Settings for targeting-related features.
+
+  audience_setting:
+    $ref: '#/components/schemas/AdGroupAudienceSetting'
+    description: Immutable. Settings for audience-related features.
+
+  effective_target_cpa_source:
+    $ref: '#/components/schemas/BiddingSource'
+    readOnly: true
+    description: Output only. Source of effective target CPA.
+
+  effective_target_roas_source:
+    $ref: '#/components/schemas/BiddingSource'
+    readOnly: true
+    description: Output only. Source of effective target ROAS.
+
+  effective_target_cpc_source:
+    $ref: '#/components/schemas/BiddingSource'
+    readOnly: true
+    description: Output only. Source of effective target CPC.
+
+  labels:
+    type: array
+    readOnly: true
+    description: Output only. Resource names of labels attached to the ad group.
+    items:
+      type: string
+
+  excluded_parent_asset_field_types:
+    type: array
+    description: >
+      Asset field types excluded from this ad group (prevents inheritance).
+    items:
+      $ref: '#/components/schemas/AssetFieldType'
+
+  excluded_parent_asset_set_types:
+    type: array
+    description: >
+      Asset set types excluded from this ad group.
+    items:
+      $ref: '#/components/schemas/AssetSetType'
+
+  primary_status:
+    $ref: '#/components/schemas/AdGroupPrimaryStatus'
+    readOnly: true
+    description: >
+      Output only. Aggregated view of why an ad group is not serving optimally.
+
+  primary_status_reasons:
+    type: array
+    readOnly: true
+    description: Output only. Reasons for non-optimal serving status.
+    items:
+      $ref: '#/components/schemas/AdGroupPrimaryStatusReason'
+
+  demand_gen_ad_group_settings:
+    $ref: '#/components/schemas/DemandGenAdGroupSettings'
+    description: Settings for Demand Gen ad groups.
+
+  video_ad_group_settings:
+    $ref: '#/components/schemas/VideoAdGroupSettings'
+    description: Settings for video ad groups.
+
+  ai_max_ad_group_setting:
+    $ref: '#/components/schemas/AiMaxAdGroupSetting'
+    description: Settings for AI Max feature in standard search ad groups.
+
+  id:
+    type: integer
+    format: int64
+    readOnly: true
+    description: Output only. ID of the ad group.
+
+  name:
+    type: string
+    description: >
+      Name of the ad group. Required when creating new ad groups.
+      Must contain < 255 UTF-8 characters, and cannot contain null,
+      line feed, or carriage return characters.
+
+  base_ad_group:
+    type: string
+    readOnly: true
+    description: >
+      Output only. For drafts or experiment ad groups, resource name of the base
+      ad group. If none exists, value is null.
+
+  tracking_url_template:
+    type: string
+    description: URL template for constructing tracking URLs.
+
+  campaign:
+    type: string
+    description: Immutable. The campaign to which the ad group belongs.
+
+  cpc_bid_micros:
+    type: integer
+    format: int64
+    description: Max CPC bid.
+
+  effective_cpc_bid_micros:
+    type: integer
+    format: int64
+    readOnly: true
+    description: >
+      Output only. Same as CPC bid when manual CPC, enhanced CPC,
+      page-one-promoted, or target outrank strategies are used.
+
+  cpm_bid_micros:
+    type: integer
+    format: int64
+    description: Max CPM bid.
+
+  target_cpa_micros:
+    type: integer
+    format: int64
+    description: Target CPA override for the campaign bidding strategy.
+
+  cpv_bid_micros:
+    type: integer
+    format: int64
+    description: CPV bid.
+
+  target_cpm_micros:
+    type: integer
+    format: int64
+    description: >
+      Average amount (micros) advertiser is willing to pay per thousand impressions.
+
+  target_roas:
+    type: number
+    format: double
+    description: Target ROAS override.
+
+  percent_cpc_bid_micros:
+    type: integer
+    format: int64
+    description: >
+      Percent CPC bid = 1,000,000 × fraction. Range: [0, 1).
+
+  fixed_cpm_micros:
+    type: integer
+    format: int64
+    description: Fixed CPM bid.
+
+  target_cpv_micros:
+    type: integer
+    format: int64
+    description: >
+      Avg amount advertiser is willing to pay per view.
+
+  target_cpc_micros:
+    type: integer
+    format: int64
+    description: >
+      Avg amount advertiser is willing to pay per click.
+      Overrides campaign-level target CPC.
+
+  final_url_suffix:
+    type: string
+    description: Template for appending params to Final URL.
+
+  effective_target_cpa_micros:
+    type: integer
+    format: int64
+    readOnly: true
+    description: Output only. Effective target CPA.
+
+  effective_target_roas:
+    type: number
+    format: double
+    readOnly: true
+    description: Output only. Effective target ROAS.
+
+  effective_target_cpc:
+    type: integer
+    format: int64
+    readOnly: true
+    description: Output only. Effective target CPC.

@@ -1,11 +1,15 @@
 /**
  * Mock Data Seeding Script
  *
- * Seeds the database with mock data for testing the evaluation system
+ * Seeds the database with mock data for testing the evaluation system.
  *
- * @deprecated Since Phase 5, the evaluation system uses real AppsFlyer data.
- * This seeding script is retained for development/testing purposes only.
- * Production evaluation uses af_cohort_kpi_daily and af_events tables.
+ * @deprecated Since Phase 5, the evaluation system uses real AppsFlyer data
+ * for A2/A3/A7 evaluation. This script is retained ONLY for A4 Creative
+ * Evaluation mock data and development/testing purposes.
+ *
+ * **Phase 8 Changes**:
+ * - Campaign performance seeding removed (use AppsFlyer data)
+ * - Creative performance seeding retained for A4 Creative Evaluation
  *
  * Usage:
  *   tsx server/evaluation/mock-data/seed.ts
@@ -15,8 +19,6 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "@/server/db/schema";
 import {
-  generateHistoricalCampaignData,
-  generateCurrentCampaignData,
   generateCreativeData,
   generateSafetyBaselines,
   generateCreativeTestBaselines,
@@ -35,11 +37,16 @@ const db = drizzle(pool, { schema });
 
 async function seed() {
   console.warn("\n⚠️  DEPRECATION WARNING:");
-  console.warn("    This mock data seeder is deprecated since Phase 5.");
-  console.warn("    The evaluation system now uses real AppsFlyer cohort data.");
-  console.warn("    Use this script only for development/testing purposes.\n");
+  console.warn("    Mock data seeding is deprecated since Phase 5.");
+  console.warn("    A2/A3/A7 evaluation now uses real AppsFlyer cohort data.");
+  console.warn("    This script seeds ONLY:");
+  console.warn("    - Safety baselines (for reference)");
+  console.warn("    - Creative test baselines (for A4 Creative Evaluation)");
+  console.warn("    - Mock creative data (for A4 Creative Evaluation)\n");
+  console.warn("    Campaign performance data should come from AppsFlyer.");
+  console.warn("    See docs/migration-mock-to-real.md for details.\n");
 
-  console.log("🌱 Starting mock data seeding...\n");
+  console.log("🌱 Starting mock data seeding (A4 Creative only)...\n");
 
   try {
     // ============================================================================
@@ -47,7 +54,6 @@ async function seed() {
     // ============================================================================
     console.log("Step 1: Clearing existing mock data...");
     await db.delete(schema.mockCreativePerformance);
-    await db.delete(schema.mockCampaignPerformance);
     await db.delete(schema.creativeTestBaseline);
     await db.delete(schema.safetyBaseline);
     console.log("✓ Cleared existing mock data\n");
@@ -89,105 +95,23 @@ async function seed() {
     );
     console.log(`✓ Inserted ${creativeBaselines.length} creative test baselines\n`);
 
-    // ============================================================================
-    // Step 4: Generate and insert historical campaign data (180 days ago)
-    // ============================================================================
-    console.log("Step 4: Generating historical campaign data (180 days ago)...");
-
-    const now = new Date();
-    const referenceDate = new Date(now);
-    referenceDate.setMonth(now.getMonth() - 6);
-    referenceDate.setDate(1); // Start of reference month
-
-    let historicalDataCount = 0;
-
-    for (const config of DEFAULT_PRODUCT_CONFIGS) {
-      console.log(`  Generating data for ${config.productName}...`);
-      const historicalData = generateHistoricalCampaignData(config, referenceDate, 5); // 5 campaigns per country
-
-      // Insert in batches
-      const batchSize = 100;
-      for (let i = 0; i < historicalData.length; i += batchSize) {
-        const batch = historicalData.slice(i, i + batchSize);
-        await db.insert(schema.mockCampaignPerformance).values(
-          batch.map((d) => ({
-            campaignId: d.campaignId,
-            campaignName: d.campaignName,
-            productName: d.productName,
-            countryCode: d.countryCode,
-            platform: d.platform,
-            channel: d.channel,
-            date: d.date.toISOString().split("T")[0],
-            totalSpend: d.totalSpend.toFixed(2),
-            totalRevenue: d.totalRevenue.toFixed(2),
-            totalInstalls: d.totalInstalls,
-            d7ActiveUsers: d.d7ActiveUsers,
-            actualRoas7: d.actualRoas7.toFixed(4),
-            actualRet7: d.actualRet7.toFixed(4),
-          }))
-        );
-      }
-
-      historicalDataCount += historicalData.length;
-      console.log(`    ✓ Inserted ${historicalData.length} records`);
-    }
-
-    console.log(`✓ Total historical campaign records: ${historicalDataCount}\n`);
+    // NOTE: Steps 4 & 5 (historical/current campaign data) have been removed (Phase 8).
+    // Campaign evaluation now uses AppsFlyer data. See docs/migration-mock-to-real.md
 
     // ============================================================================
-    // Step 5: Generate and insert current campaign data
+    // Step 4: Generate and insert creative data (for A4 Creative Evaluation)
     // ============================================================================
-    console.log("Step 5: Generating current campaign data...");
+    console.log("Step 4: Generating creative data for A4 evaluation...");
 
-    const currentDate = new Date();
-    let currentDataCount = 0;
-    const allCampaignIds: string[] = [];
-
-    for (const config of DEFAULT_PRODUCT_CONFIGS) {
-      console.log(`  Generating data for ${config.productName}...`);
-      const currentData = generateCurrentCampaignData(config, currentDate, 30); // 30 campaigns per country
-
-      await db.insert(schema.mockCampaignPerformance).values(
-        currentData.map((d) => {
-          allCampaignIds.push(d.campaignId);
-          return {
-            campaignId: d.campaignId,
-            campaignName: d.campaignName,
-            productName: d.productName,
-            countryCode: d.countryCode,
-            platform: d.platform,
-            channel: d.channel,
-            date: d.date.toISOString().split("T")[0],
-            totalSpend: d.totalSpend.toFixed(2),
-            totalRevenue: d.totalRevenue.toFixed(2),
-            totalInstalls: d.totalInstalls,
-            d7ActiveUsers: d.d7ActiveUsers,
-            actualRoas7: d.actualRoas7.toFixed(4),
-            actualRet7: d.actualRet7.toFixed(4),
-          };
-        })
-      );
-
-      currentDataCount += currentData.length;
-      console.log(`    ✓ Inserted ${currentData.length} records`);
-    }
-
-    console.log(`✓ Total current campaign records: ${currentDataCount}\n`);
-
-    // ============================================================================
-    // Step 6: Generate and insert creative data
-    // ============================================================================
-    console.log("Step 6: Generating creative data...");
-
-    // Generate creatives for test campaigns (those with spend < $1000)
-    const testCampaignIds = allCampaignIds.filter((id) =>
-      id.includes("test") || id.includes("danger") || id.includes("warning")
-    ).slice(0, 20); // Limit to 20 campaigns for reasonable data size
+    // Generate creatives for sample test campaigns
+    const sampleCampaignIds = DEFAULT_PRODUCT_CONFIGS.flatMap((config) =>
+      config.countries.map((country) => `test-campaign-${config.productName}-${country}`)
+    ).slice(0, 20);
 
     let creativeDataCount = 0;
 
     for (const config of DEFAULT_PRODUCT_CONFIGS) {
-      const configCampaigns = testCampaignIds.filter((id) =>
+      const configCampaigns = sampleCampaignIds.filter((id) =>
         id.includes(config.productName)
       );
 
@@ -229,15 +153,15 @@ async function seed() {
     console.log("═══════════════════════════════════════════════════════");
     console.log(`Safety baselines:           ${safetyBaselines.length}`);
     console.log(`Creative test baselines:    ${creativeBaselines.length}`);
-    console.log(`Historical campaign data:   ${historicalDataCount}`);
-    console.log(`Current campaign data:      ${currentDataCount}`);
-    console.log(`Creative data:              ${creativeDataCount}`);
+    console.log(`Creative data (A4):         ${creativeDataCount}`);
     console.log("═══════════════════════════════════════════════════════\n");
 
     console.log("💡 Next steps:");
-    console.log("   1. Run evaluation system tests: tsx server/evaluation/test-evaluation.ts");
-    console.log("   2. Start development server: npm run dev");
-    console.log("   3. Test API endpoints via tRPC\n");
+    console.log("   1. For A2/A3/A7 evaluation, use AppsFlyer data:");
+    console.log("      just af-sync-yesterday");
+    console.log("   2. For A4 creative evaluation testing:");
+    console.log("      tsx server/evaluation/test-creative.ts");
+    console.log("   3. Start development server: npm run dev\n");
 
   } catch (error) {
     console.error("❌ Error seeding mock data:", error);

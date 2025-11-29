@@ -1,12 +1,15 @@
 /**
  * Mock Data Generator
  *
- * Generates realistic mock data for testing the evaluation system
+ * Generates mock data for testing the evaluation system.
  *
  * @deprecated Since Phase 5, use AppsFlyer data instead of mock data.
  * The evaluation system now uses real cohort data from af_cohort_kpi_daily
- * and af_events tables. Mock data generators are retained for testing purposes
- * only and should not be used in production.
+ * and af_events tables.
+ *
+ * **Phase 8 Changes**:
+ * - Campaign performance generators removed (use AppsFlyer data)
+ * - Creative generators retained for A4 Creative Evaluation only
  *
  * For production evaluation, use:
  * - calculateBaselineFromAF() in baseline-calculator.ts
@@ -15,7 +18,6 @@
  */
 
 import {
-  MockCampaignPerformanceData,
   MockCreativePerformanceData,
   SafetyBaselineData,
   CreativeTestBaselineData,
@@ -48,126 +50,8 @@ function randomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-/**
- * Generate historical campaign data (180 days ago)
- * Used for calculating safety baselines
- */
-export function generateHistoricalCampaignData(
-  config: ProductConfig,
-  referenceMonth: Date,
-  campaignCount: number = 20
-): MockCampaignPerformanceData[] {
-  const data: MockCampaignPerformanceData[] = [];
-
-  for (const country of config.countries) {
-    for (let i = 0; i < campaignCount; i++) {
-      const campaignId = `campaign-${config.productName}-${country}-hist-${i}`;
-
-      // Calculate month boundaries
-      const year = referenceMonth.getFullYear();
-      const month = referenceMonth.getMonth();
-      const startDate = new Date(year, month, 1);
-      const endDate = new Date(year, month + 1, 0);
-
-      // Generate daily data for the entire month
-      for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
-        const totalSpend = randomInRange(50, 2000);
-        const totalInstalls = randomInt(10, 400);
-
-        // ROAS7: mean 45%, stdDev 15%
-        const roas7 = Math.max(0.05, Math.min(0.85, randomNormal(0.45, 0.15)));
-        const totalRevenue = totalSpend * roas7;
-
-        // RET7: mean 38%, stdDev 10%
-        const ret7 = Math.max(0.10, Math.min(0.60, randomNormal(0.38, 0.10)));
-        const d7ActiveUsers = Math.round(totalInstalls * ret7);
-
-        data.push({
-          campaignId,
-          campaignName: `${config.productName} ${country} Historical ${i}`,
-          productName: config.productName,
-          countryCode: country,
-          platform: config.platform,
-          channel: config.channel,
-          date: new Date(date),
-          totalSpend,
-          totalRevenue,
-          totalInstalls,
-          d7ActiveUsers,
-          actualRoas7: roas7,
-          actualRet7: ret7,
-        });
-      }
-    }
-  }
-
-  return data;
-}
-
-/**
- * Generate current campaign data
- * Used for campaign evaluation
- */
-export function generateCurrentCampaignData(
-  config: ProductConfig,
-  currentDate: Date,
-  campaignCount: number = 30
-): MockCampaignPerformanceData[] {
-  const data: MockCampaignPerformanceData[] = [];
-
-  for (const country of config.countries) {
-    // Generate various campaign types with different performance levels
-    const performanceLevels = [
-      { name: "excellent", roas: 0.60, ret: 0.45, count: Math.floor(campaignCount * 0.20) }, // 20%
-      { name: "healthy", roas: 0.52, ret: 0.40, count: Math.floor(campaignCount * 0.25) }, // 25%
-      { name: "observation", roas: 0.42, ret: 0.36, count: Math.floor(campaignCount * 0.25) }, // 25%
-      { name: "warning", roas: 0.35, ret: 0.30, count: Math.floor(campaignCount * 0.20) }, // 20%
-      { name: "danger", roas: 0.25, ret: 0.22, count: Math.floor(campaignCount * 0.10) }, // 10%
-    ];
-
-    let campaignIndex = 0;
-
-    for (const level of performanceLevels) {
-      for (let i = 0; i < level.count; i++) {
-        const campaignId = `campaign-${config.productName}-${country}-${level.name}-${i}`;
-
-        // Vary spend: 50% test campaigns (<$1000), 50% mature campaigns (>=$1000)
-        const totalSpend = campaignIndex % 2 === 0
-          ? randomInRange(100, 900) // Test campaign
-          : randomInRange(1000, 5000); // Mature campaign
-
-        const totalInstalls = Math.round(totalSpend / randomInRange(3, 8)); // CPI between $3-$8
-
-        // Performance around level mean with some variance
-        const roas7 = Math.max(0.05, randomNormal(level.roas, 0.05));
-        const totalRevenue = totalSpend * roas7;
-
-        const ret7 = Math.max(0.10, randomNormal(level.ret, 0.03));
-        const d7ActiveUsers = Math.round(totalInstalls * ret7);
-
-        data.push({
-          campaignId,
-          campaignName: `${config.productName} ${country} ${level.name.toUpperCase()} ${i}`,
-          productName: config.productName,
-          countryCode: country,
-          platform: config.platform,
-          channel: config.channel,
-          date: currentDate,
-          totalSpend,
-          totalRevenue,
-          totalInstalls,
-          d7ActiveUsers,
-          actualRoas7: roas7,
-          actualRet7: ret7,
-        });
-
-        campaignIndex++;
-      }
-    }
-  }
-
-  return data;
-}
+// NOTE: generateHistoricalCampaignData and generateCurrentCampaignData have been removed (Phase 8).
+// Campaign evaluation now uses AppsFlyer data. See docs/migration-mock-to-real.md
 
 /**
  * Generate creative performance data

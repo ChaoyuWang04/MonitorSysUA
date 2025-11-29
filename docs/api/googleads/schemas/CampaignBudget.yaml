@@ -1,0 +1,119 @@
+type: object
+description: >
+  Google Ads CampaignBudget resource. Defines the budget amount, delivery behavior,
+  sharing options, recommendations, and metadata for campaigns using this budget.
+properties:
+  resource_name:
+    type: string
+    readOnly: true
+    description: >
+      Immutable resource name of the campaign budget.
+      Format: customers/{customer_id}/campaignBudgets/{campaign_budget_id}.
+
+  status:
+    $ref: '#/components/schemas/BudgetStatus'
+    readOnly: true
+    description: Output only. Status of this campaign budget.
+
+  delivery_method:
+    $ref: '#/components/schemas/BudgetDeliveryMethod'
+    description: >
+      Delivery method controlling the rate at which the campaign budget is spent.
+      Defaults to STANDARD if unspecified.
+
+  period:
+    $ref: '#/components/schemas/BudgetPeriod'
+    description: >
+      Immutable. Period over which the budget is spent. Defaults to DAILY.
+
+  type:
+    $ref: '#/components/schemas/BudgetType'
+    description: >
+      Immutable. Type of the campaign budget.
+
+  aligned_bidding_strategy_id:
+    type: integer
+    format: int64
+    description: >
+      ID of the portfolio bidding strategy aligned with this shared campaign budget.
+      When aligned, all campaigns using this budget must use the same bidding strategy.
+
+  id:
+    type: integer
+    format: int64
+    readOnly: true
+    description: >
+      Output only. ID of the budget. Created via CampaignBudgetService create operation.
+
+  name:
+    type: string
+    description: >
+      Name of the budget. Required for explicitly shared budgets.
+      Length: 1–255 UTF-8 bytes.
+
+  amount_micros:
+    type: integer
+    format: int64
+    description: >
+      Daily budget amount in micros (1,000,000 micros = 1 currency unit).
+      Monthly spend is capped at 30.4 × this amount.
+
+  total_amount_micros:
+    type: integer
+    format: int64
+    description: >
+      Lifetime budget amount in micros. Used when period = LIFETIME.
+
+  explicitly_shared:
+    type: boolean
+    description: >
+      Whether this budget is explicitly shared across multiple campaigns.
+      Defaults to true. Shared budgets cannot be reverted to non-shared.
+
+  reference_count:
+    type: integer
+    format: int64
+    readOnly: true
+    description: >
+      Output only. Number of campaigns actively using this budget.
+
+  has_recommended_budget:
+    type: boolean
+    readOnly: true
+    description: >
+      Output only. Whether a budget recommendation exists.
+
+  recommended_budget_amount_micros:
+    type: integer
+    format: int64
+    readOnly: true
+    description: >
+      Output only. Recommended budget amount. If unavailable, equals amount_micros.
+
+  recommended_budget_estimated_change_weekly_clicks:
+    type: integer
+    format: int64
+    readOnly: true
+    description: >
+      Output only. Estimated change in weekly clicks if recommended budget applied.
+
+  recommended_budget_estimated_change_weekly_cost_micros:
+    type: integer
+    format: int64
+    readOnly: true
+    description: >
+      Output only. Estimated change in weekly cost (micros) for recommended budget.
+
+  recommended_budget_estimated_change_weekly_interactions:
+    type: integer
+    format: int64
+    readOnly: true
+    description: >
+      Output only. Estimated change in weekly interactions if recommendation applied.
+
+  recommended_budget_estimated_change_weekly_views:
+    type: integer
+    format: int64
+    readOnly: true
+    description: >
+      Output only. Estimated change in weekly views if recommendation applied.

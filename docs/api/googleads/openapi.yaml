@@ -1,0 +1,39 @@
+openapi: 3.0.3
+info:
+  title: Google Ads ChangeEvent Model
+  version: "v22-local"
+
+servers:
+  - url: https://googleads.googleapis.com
+
+paths:
+  /v22/customers/{customer_id}/changeEvents:
+    $ref: ./paths/change_event.yaml
+
+components:
+  schemas:
+    # --- Core event chain ---
+    ChangeEvent:
+      $ref: ./schemas/ChangeEvent.yaml
+    ChangedResource:
+      $ref: ./schemas/ChangedResource.yaml
+    FieldMask:
+      $ref: ./schemas/FieldMask.yaml
+
+    # --- Entities already implemented ---
+    Ad:
+      $ref: ./schemas/Ad.yaml
+    AdGroup:
+      $ref: ./schemas/AdGroup.yaml
+    Campaign:
+      $ref: ./schemas/Campaign.yaml
+    CampaignBudget:
+      $ref: ./schemas/CampaignBudget.yaml
+
+    # --- Enums implemented for ChangeEvent ---
+    ChangeEventResourceType:
+      $ref: ./schemas/ChangeEventResourceType.yaml
+    ChangeClientType:
+      $ref: ./schemas/ChangeClientType.yaml
+    ResourceChangeOperation:
+      $ref: ./schemas/ResourceChangeOperation.yaml

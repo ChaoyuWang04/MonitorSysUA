@@ -1,0 +1,39 @@
+type: string
+description: >
+  Source where the change in a ChangeEvent was made. Indicates whether the
+  modification originated from UI, scripts, automated rules, API, editor,
+  mobile app, or other Google Ads systems.
+enum:
+  - UNSPECIFIED
+  - UNKNOWN
+  - GOOGLE_ADS_WEB_CLIENT
+  - GOOGLE_ADS_AUTOMATED_RULE
+  - GOOGLE_ADS_SCRIPTS
+  - GOOGLE_ADS_BULK_UPLOAD
+  - GOOGLE_ADS_API
+  - GOOGLE_ADS_EDITOR
+  - GOOGLE_ADS_MOBILE_APP
+  - GOOGLE_ADS_RECOMMENDATIONS
+  - SEARCH_ADS_360_SYNC
+  - SEARCH_ADS_360_POST
+  - INTERNAL_TOOL
+  - OTHER
+  - GOOGLE_ADS_RECOMMENDATIONS_SUBSCRIPTION
+
+# Optional: descriptions for AI tooling clarity
+x-enum-descriptions:
+  UNSPECIFIED: No value specified.
+  UNKNOWN: Used for return-only, represents a client type unknown in this version.
+  GOOGLE_ADS_WEB_CLIENT: Change made through ads.google.com (web UI).
+  GOOGLE_ADS_AUTOMATED_RULE: Change made through Google Ads automated rules.
+  GOOGLE_ADS_SCRIPTS: Change made via Google Ads scripts.
+  GOOGLE_ADS_BULK_UPLOAD: Change made through Google Ads bulk upload.
+  GOOGLE_ADS_API: Change made by Google Ads API.
+  GOOGLE_ADS_EDITOR: Change made via Google Ads Editor (placeholder; not returned by API).
+  GOOGLE_ADS_MOBILE_APP: Change made through Google Ads mobile application.
+  GOOGLE_ADS_RECOMMENDATIONS: Change made through Google Ads recommendation actions.
+  SEARCH_ADS_360_SYNC: Change made through Search Ads 360 Sync.
+  SEARCH_ADS_360_POST: Change made through Search Ads 360 Post.
+  INTERNAL_TOOL: Change made via internal Google tools (e.g., automated URL wrapping).
+  OTHER: Uncategorized changes (e.g., coupon redemption–triggered modifications).
+  GOOGLE_ADS_RECOMMENDATIONS_SUBSCRIPTION: Change made via subscription to recommendations.
