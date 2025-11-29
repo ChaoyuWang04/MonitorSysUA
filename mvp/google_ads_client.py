@@ -301,7 +301,7 @@ def test_client():
 
     # Get paths
     project_root = Path(__file__).parent.parent
-    config_path = project_root / "googletest" / "google-ads.yaml"
+    config_path = project_root / "local" / "credentials" / "google-ads" / "google-ads.yaml"
 
     # Load customer ID from env or use default
     customer_id = os.getenv("GOOGLE_ADS_CUSTOMER_ID", "2766411035")

@@ -73,7 +73,7 @@ mvp/
 
 ```bash
 # Path to Google Ads config (relative to project root)
-GOOGLE_ADS_CONFIG_PATH=../googletest/google-ads.yaml
+GOOGLE_ADS_CONFIG_PATH=../local/credentials/google-ads/google-ads.yaml
 
 # Your Google Ads customer ID (without dashes)
 GOOGLE_ADS_CUSTOMER_ID=2766411035

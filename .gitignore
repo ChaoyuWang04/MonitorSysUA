@@ -44,6 +44,7 @@ ENV/
 # Google API密钥
 googletest/*.json
 googletest/google-ads.yaml
+local/credentials/
 
 # 日志
 *.log
@@ -85,3 +86,4 @@ drizzle.config.ts
 
 # Database snapshots
 context/db-snapshot/
+docs/

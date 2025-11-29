@@ -24,7 +24,7 @@ CORS(app)  # Enable CORS for frontend development
 PROJECT_ROOT = Path(__file__).parent.parent
 GOOGLE_ADS_CONFIG = os.getenv(
     'GOOGLE_ADS_CONFIG_PATH',
-    str(PROJECT_ROOT / 'googletest' / 'google-ads.yaml')
+    str(PROJECT_ROOT / 'local' / 'credentials' / 'google-ads' / 'google-ads.yaml')
 )
 GOOGLE_ADS_CUSTOMER_ID = os.getenv('GOOGLE_ADS_CUSTOMER_ID', '2766411035')
 DATABASE_PATH = os.getenv('DATABASE_PATH', str(Path(tempfile.gettempdir()) / 'change_events.db'))

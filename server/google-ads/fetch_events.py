@@ -10,9 +10,11 @@ Returns:
     JSON array of change events to stdout
 """
 
-import sys
 import json
+import os
+import sys
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from google.ads.googleads.client import GoogleAdsClient
 from google.ads.googleads.errors import GoogleAdsException
 from google.protobuf.json_format import MessageToDict
@@ -223,18 +225,42 @@ def generate_chinese_summary(resource_type, operation_type, field_changes, curre
     return f"{operation_name}{resource_name}"
 
 
-def fetch_change_events(customer_id, days=7, currency='USD'):
+def resolve_config_path(config_path: str | Path | None = None) -> Path:
+    """Resolve Google Ads YAML config path with env override and sensible default."""
+    # Priority: explicit arg -> env var -> default local path
+    if config_path:
+        candidate = Path(config_path)
+    else:
+        env_path = os.getenv("GOOGLE_ADS_CONFIG_PATH")
+        if env_path:
+            candidate = Path(env_path)
+        else:
+            candidate = Path(__file__).resolve().parents[2] / "local" / "credentials" / "google-ads" / "google-ads.yaml"
+
+    candidate = candidate.expanduser().resolve()
+
+    if not candidate.exists():
+        raise FileNotFoundError(
+            f"Google Ads config not found at {candidate}. "
+            "Set GOOGLE_ADS_CONFIG_PATH or place google-ads.yaml in local/credentials/google-ads/."
+        )
+
+    return candidate
+
+
+def fetch_change_events(customer_id, days=7, currency='USD', config_path: str | Path | None = None):
     """Fetch change events from Google Ads API
 
     Args:
         customer_id: Google Ads customer ID
         days: Number of days to fetch events for
         currency: Currency code for formatting monetary values (e.g., 'USD', 'CNY')
+        config_path: Optional override path to google-ads.yaml
     """
 
     # Load client from YAML configuration
-    config_path = "googletest/google-ads.yaml"
-    client = GoogleAdsClient.load_from_storage(config_path)
+    resolved_config_path = resolve_config_path(config_path)
+    client = GoogleAdsClient.load_from_storage(str(resolved_config_path))
 
     ga_service = client.get_service("GoogleAdsService")
 
@@ -336,6 +362,14 @@ def fetch_change_events(customer_id, days=7, currency='USD'):
 
         return events
 
+    except FileNotFoundError as ex:
+        error_msg = {
+            "error": True,
+            "message": str(ex),
+            "hint": "Set GOOGLE_ADS_CONFIG_PATH or place google-ads.yaml in local/credentials/google-ads/."
+        }
+        print(json.dumps(error_msg), file=sys.stderr)
+        sys.exit(1)
     except GoogleAdsException as ex:
         error_msg = {
             "error": True,
@@ -362,8 +396,9 @@ if __name__ == "__main__":
     customer_id = sys.argv[1]
     days = int(sys.argv[2]) if len(sys.argv) > 2 else 7
     currency = sys.argv[3] if len(sys.argv) > 3 else 'USD'
+    config_path_arg = sys.argv[4] if len(sys.argv) > 4 else None
 
-    events = fetch_change_events(customer_id, days, currency)
+    events = fetch_change_events(customer_id, days, currency, config_path_arg)
 
     # Output JSON to stdout
     print(json.dumps(events, default=str))

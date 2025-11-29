@@ -11,7 +11,7 @@
 - `server/google-ads/`: `client.ts` (spawn Python), `fetch_events.py`, `parser.ts`, `diff-engine.ts`, `regenerate_summaries.py`.
 - `server/appsflyer/`: `sync_af_data.py`, `backfill.py`, `monthly_baseline_update.py`, `email_notifier.py`, `Dockerfile`, `crontab`, `entrypoint.sh`, `requirements.txt` for Docker ETL container.
 - `server/evaluation/`: wrappers (`baseline-calculator.ts`, `campaign-evaluator.ts`, `creative-evaluator.ts`, `operation-evaluator.ts`), Python engines, mock-data seed + test harness.
-- Utilities: `scripts/db-snapshot.ts`, `scripts/db-restore.ts`, Just recipes for dev/DB/AppsFlyer.
+- Utilities: `scripts/db-snapshot.ts` (CSV preview + JSON for restore, random sampling, default limit 100), `scripts/db-restore.ts`, Just recipes for dev/DB/AppsFlyer.
 
 ## Data Flows
 - **Google Ads Sync**: `events.sync` → load account (currency) → Python `fetch_events.py` → parse + dedupe → insert `change_events` → update `accounts.lastSyncedAt`.
@@ -24,6 +24,10 @@
 ## Integrations
 - **Google Ads API**: ChangeEvent stream per account via MCC credentials; summaries kept in English + Chinese; soft-delete for accounts.
 - **AppsFlyer API**: Token-based export of IAP/ad-revenue and cohort KPIs; baseline helpers compute median ROAS/retention windows.
+
+## Google Ads Credentials
+- ChangeEvent sync loads `google-ads.yaml` (service account) from `local/credentials/google-ads/google-ads.yaml` by default; set `GOOGLE_ADS_CONFIG_PATH` to override.
+- Keep the service account JSON in the same folder (default entry points to `./local/credentials/google-ads/<file>.json`); the `local/credentials/` folder is gitignored to avoid leaking secrets.
 
 ## Patterns
 - Python bridge via `child_process.spawn` with JSON over stdout; detached background for ETL runs.
