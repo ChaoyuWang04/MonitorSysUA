@@ -1,0 +1,1176 @@
+openapi: 3.0.3
+info:
+  title: AppsFlyer tRPC API
+  version: "1.0.0"
+  description: |
+    Type-safe AppsFlyer cohort data API exposed via tRPC.
+    All procedures are available under the `appsflyer` router and are invoked through the tRPC HTTP endpoint.
+servers:
+  - url: /
+    description: Relative to the deployed Next.js host (App Router, Turbopack)
+
+tags:
+  - name: appsflyer
+    description: tRPC procedures for AppsFlyer data (events, cohorts, baselines, sync)
+
+paths:
+  /api/trpc/appsflyer.getEventsByDateRange:
+    post:
+      tags: [appsflyer]
+      summary: Query events by date range
+      description: Returns AppsFlyer events (IAP + ad revenue) within a date range with pagination.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppsflyerGetEventsByDateRangeRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppsflyerGetEventsByDateRangeResponse'
+        default:
+          $ref: '#/components/responses/TrpcError'
+
+  /api/trpc/appsflyer.getEventsByInstallDate:
+    post:
+      tags: [appsflyer]
+      summary: Get events for an install cohort
+      description: Returns all events for users who installed on a specific date (cohort lifecycle view).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppsflyerGetEventsByInstallDateRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppsflyerGetEventsByInstallDateResponse'
+        default:
+          $ref: '#/components/responses/TrpcError'
+
+  /api/trpc/appsflyer.getRevenueByCohort:
+    post:
+      tags: [appsflyer]
+      summary: Get cumulative revenue for a cohort
+      description: Calculates cumulative revenue (IAP + ad) for a cohort from D0 through the specified day.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppsflyerGetRevenueByCohortRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppsflyerGetRevenueByCohortResponse'
+        default:
+          $ref: '#/components/responses/TrpcError'
+
+  /api/trpc/appsflyer.getCohortKpi:
+    post:
+      tags: [appsflyer]
+      summary: Get cohort KPIs
+      description: Returns installs, cost, and retention metrics with flexible filtering and pagination.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppsflyerGetCohortKpiRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppsflyerGetCohortKpiResponse'
+        default:
+          $ref: '#/components/responses/TrpcError'
+
+  /api/trpc/appsflyer.getCohortMetrics:
+    post:
+      tags: [appsflyer]
+      summary: Get cohort metrics (revenue + KPIs)
+      description: Reads from `af_cohort_metrics_daily` view for full revenue and KPI coverage.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppsflyerGetCohortMetricsRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppsflyerGetCohortMetricsResponse'
+        default:
+          $ref: '#/components/responses/TrpcError'
+
+  /api/trpc/appsflyer.getLatestCohortData:
+    post:
+      tags: [appsflyer]
+      summary: Get latest cohort data window
+      description: Returns recent cohort KPI rows within the configured `daysBack` window for dashboards.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppsflyerGetLatestCohortDataRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppsflyerGetLatestCohortDataResponse'
+        default:
+          $ref: '#/components/responses/TrpcError'
+
+  /api/trpc/appsflyer.calculateBaselineRoas:
+    post:
+      tags: [appsflyer]
+      summary: Calculate baseline ROAS
+      description: Computes median ROAS for mature cohorts within a baseline window for safety benchmarking.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppsflyerCalculateBaselineRoasRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppsflyerCalculateBaselineRoasResponse'
+        default:
+          $ref: '#/components/responses/TrpcError'
+
+  /api/trpc/appsflyer.calculateBaselineRetention:
+    post:
+      tags: [appsflyer]
+      summary: Calculate baseline retention
+      description: Computes median retention (D1/D3/D5/D7) for mature cohorts within a baseline window.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppsflyerCalculateBaselineRetentionRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppsflyerCalculateBaselineRetentionResponse'
+        default:
+          $ref: '#/components/responses/TrpcError'
+
+  /api/trpc/appsflyer.getSyncStatus:
+    post:
+      tags: [appsflyer]
+      summary: Get sync status
+      description: Returns sync history and latest status for AppsFlyer ETL jobs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppsflyerGetSyncStatusRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppsflyerGetSyncStatusResponse'
+        default:
+          $ref: '#/components/responses/TrpcError'
+
+  /api/trpc/appsflyer.triggerManualSync:
+    post:
+      tags: [appsflyer]
+      summary: Trigger manual sync
+      description: Starts a background Python ETL sync for events or cohort KPIs; returns immediately with a tracking ID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppsflyerTriggerManualSyncRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppsflyerTriggerManualSyncResponse'
+        default:
+          $ref: '#/components/responses/TrpcError'
+
+components:
+  responses:
+    TrpcError:
+      description: tRPC error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/TrpcErrorResponse'
+
+  schemas:
+    # tRPC envelopes
+    TrpcCallRequest:
+      type: object
+      description: Single-call tRPC payload (non-batch). Encapsulates procedure input inside `json.input`.
+      properties:
+        id:
+          type: integer
+          description: Optional client-generated request ID.
+        json:
+          $ref: '#/components/schemas/TrpcInputEnvelope'
+      required:
+        - json
+
+    TrpcInputEnvelope:
+      type: object
+      properties:
+        input:
+          description: Procedure input payload.
+      required:
+        - input
+
+    TrpcResultEnvelope:
+      type: object
+      properties:
+        data:
+          description: Procedure result payload.
+        type:
+          type: string
+          description: tRPC result type indicator.
+          example: data
+      required:
+        - data
+
+    TrpcSuccess:
+      type: object
+      properties:
+        result:
+          $ref: '#/components/schemas/TrpcResultEnvelope'
+      required:
+        - result
+
+    TrpcErrorData:
+      type: object
+      properties:
+        code:
+          type: string
+          description: tRPC error code (e.g., BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR).
+        httpStatus:
+          type: integer
+          description: HTTP status code mapped by tRPC.
+        path:
+          type: string
+          description: Procedure path causing the error.
+        stack:
+          type: string
+          description: Stack trace (if enabled).
+        zodError:
+          description: Zod validation error details (if input validation failed).
+
+    TrpcErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            data:
+              $ref: '#/components/schemas/TrpcErrorData'
+          required:
+            - code
+            - message
+
+    # Domain models
+    AfEvent:
+      type: object
+      properties:
+        eventId:
+          type: string
+        appId:
+          type: string
+        appName:
+          type: string
+          nullable: true
+        bundleId:
+          type: string
+          nullable: true
+        appsflyerId:
+          type: string
+          nullable: true
+        eventName:
+          type: string
+          description: 'iap_purchase | af_ad_revenue'
+        eventTime:
+          type: string
+          format: date-time
+        eventDate:
+          type: string
+          format: date
+        installTime:
+          type: string
+          format: date-time
+        installDate:
+          type: string
+          format: date
+        daysSinceInstall:
+          type: integer
+        eventRevenue:
+          type: number
+          nullable: true
+        eventRevenueUsd:
+          type: number
+          nullable: true
+        eventRevenueCurrency:
+          type: string
+          nullable: true
+        geo:
+          type: string
+          nullable: true
+        mediaSource:
+          type: string
+          nullable: true
+        channel:
+          type: string
+          nullable: true
+        campaign:
+          type: string
+          nullable: true
+        campaignId:
+          type: string
+          nullable: true
+        adset:
+          type: string
+          nullable: true
+        adsetId:
+          type: string
+          nullable: true
+        ad:
+          type: string
+          nullable: true
+        isPrimaryAttribution:
+          type: boolean
+          nullable: true
+        rawPayload:
+          nullable: true
+        importedAt:
+          type: string
+          format: date-time
+
+    AfCohortKpiDaily:
+      type: object
+      properties:
+        id:
+          type: integer
+        appId:
+          type: string
+        mediaSource:
+          type: string
+        campaign:
+          type: string
+        geo:
+          type: string
+        installDate:
+          type: string
+          format: date
+        daysSinceInstall:
+          type: integer
+          description: 0, 1, 3, 5, or 7
+        installs:
+          type: integer
+          nullable: true
+        costUsd:
+          type: string
+          nullable: true
+        retentionRate:
+          type: string
+          nullable: true
+        lastRefreshedAt:
+          type: string
+          format: date-time
+
+    CohortMetrics:
+      type: object
+      properties:
+        appId:
+          type: string
+        geo:
+          type: string
+          nullable: true
+        mediaSource:
+          type: string
+          nullable: true
+        campaign:
+          type: string
+          nullable: true
+        adset:
+          type: string
+          nullable: true
+        installDate:
+          type: string
+          format: date
+        daysSinceInstall:
+          type: integer
+        iapRevenueUsd:
+          type: number
+        adRevenueUsd:
+          type: number
+        totalRevenueUsd:
+          type: number
+        installs:
+          type: integer
+          nullable: true
+        costUsd:
+          type: number
+          nullable: true
+        retentionRate:
+          type: number
+          nullable: true
+
+    AfSyncLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        syncType:
+          type: string
+          description: events | cohort_kpi | baseline
+        dateRangeStart:
+          type: string
+          format: date
+          nullable: true
+        dateRangeEnd:
+          type: string
+          format: date
+          nullable: true
+        status:
+          type: string
+          description: running | success | failed
+        recordsProcessed:
+          type: integer
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    RevenueBreakdown:
+      type: object
+      properties:
+        iapRevenueUsd:
+          type: number
+        adRevenueUsd:
+          type: number
+        totalRevenueUsd:
+          type: number
+      required:
+        - iapRevenueUsd
+        - adRevenueUsd
+        - totalRevenueUsd
+
+    BaselineWindow:
+      type: object
+      properties:
+        start:
+          type: string
+          format: date
+        end:
+          type: string
+          format: date
+      required:
+        - start
+        - end
+
+    # Inputs
+    GetEventsByDateRangeInput:
+      type: object
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        eventName:
+          type: string
+          enum: [iap_purchase, af_ad_revenue]
+        appId:
+          type: string
+        geo:
+          type: string
+        mediaSource:
+          type: string
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+        offset:
+          type: integer
+          minimum: 0
+          default: 0
+      required:
+        - startDate
+        - endDate
+
+    GetEventsByInstallDateInput:
+      type: object
+      properties:
+        installDate:
+          type: string
+          format: date
+        appId:
+          type: string
+        geo:
+          type: string
+        mediaSource:
+          type: string
+        campaign:
+          type: string
+      required:
+        - installDate
+
+    GetRevenueByCohortInput:
+      type: object
+      properties:
+        installDate:
+          type: string
+          format: date
+        daysSinceInstall:
+          type: integer
+          minimum: 0
+          maximum: 180
+        appId:
+          type: string
+        geo:
+          type: string
+        mediaSource:
+          type: string
+        campaign:
+          type: string
+      required:
+        - installDate
+        - daysSinceInstall
+
+    GetCohortKpiInput:
+      type: object
+      properties:
+        appId:
+          type: string
+        geo:
+          type: string
+        mediaSource:
+          type: string
+        campaign:
+          type: string
+        installDate:
+          type: string
+          format: date
+        installDateStart:
+          type: string
+          format: date
+        installDateEnd:
+          type: string
+          format: date
+        daysSinceInstall:
+          type: integer
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+        offset:
+          type: integer
+          minimum: 0
+          default: 0
+
+    GetCohortMetricsInput:
+      type: object
+      properties:
+        installDate:
+          type: string
+          format: date
+        daysSinceInstall:
+          type: integer
+          minimum: 0
+          maximum: 180
+        appId:
+          type: string
+        geo:
+          type: string
+        mediaSource:
+          type: string
+        campaign:
+          type: string
+      required:
+        - installDate
+        - daysSinceInstall
+
+    GetLatestCohortDataInput:
+      type: object
+      properties:
+        daysBack:
+          type: integer
+          minimum: 1
+          maximum: 365
+          default: 30
+        appId:
+          type: string
+        geo:
+          type: string
+        mediaSource:
+          type: string
+
+    CalculateBaselineRoasInput:
+      type: object
+      properties:
+        appId:
+          type: string
+        geo:
+          type: string
+        mediaSource:
+          type: string
+        baselineDays:
+          type: integer
+          minimum: 30
+          maximum: 365
+          default: 180
+      required:
+        - appId
+        - geo
+        - mediaSource
+
+    CalculateBaselineRetentionInput:
+      type: object
+      properties:
+        appId:
+          type: string
+        geo:
+          type: string
+        mediaSource:
+          type: string
+        daysSinceInstall:
+          type: integer
+          enum: [1, 3, 5, 7]
+        baselineDays:
+          type: integer
+          minimum: 30
+          maximum: 365
+          default: 180
+      required:
+        - appId
+        - geo
+        - mediaSource
+        - daysSinceInstall
+
+    GetSyncStatusInput:
+      type: object
+      properties:
+        syncType:
+          type: string
+          enum: [events, cohort_kpi, baseline]
+        status:
+          type: string
+          enum: [running, success, failed]
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+
+    TriggerManualSyncInput:
+      type: object
+      properties:
+        syncType:
+          type: string
+          enum: [events, cohort_kpi]
+        dateRangeStart:
+          type: string
+          pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+          description: Start date (YYYY-MM-DD)
+        dateRangeEnd:
+          type: string
+          pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+          description: End date (YYYY-MM-DD)
+      required:
+        - syncType
+        - dateRangeStart
+        - dateRangeEnd
+
+    # Outputs
+    GetEventsByDateRangeOutput:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AfEvent'
+        total:
+          type: integer
+      required:
+        - data
+        - total
+
+    GetEventsByInstallDateOutput:
+      type: array
+      items:
+        $ref: '#/components/schemas/AfEvent'
+
+    GetRevenueByCohortOutput:
+      $ref: '#/components/schemas/RevenueBreakdown'
+
+    GetCohortKpiOutput:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AfCohortKpiDaily'
+        total:
+          type: integer
+      required:
+        - data
+        - total
+
+    GetCohortMetricsOutput:
+      type: array
+      items:
+        $ref: '#/components/schemas/CohortMetrics'
+
+    GetLatestCohortDataOutput:
+      type: array
+      items:
+        $ref: '#/components/schemas/AfCohortKpiDaily'
+
+    CalculateBaselineRoasOutput:
+      type: object
+      properties:
+        baselineRoas:
+          type: number
+          nullable: true
+        hasData:
+          type: boolean
+        window:
+          $ref: '#/components/schemas/BaselineWindow'
+      required:
+        - hasData
+        - window
+
+    CalculateBaselineRetentionOutput:
+      type: object
+      properties:
+        baselineRetention:
+          type: number
+          nullable: true
+        hasData:
+          type: boolean
+        window:
+          $ref: '#/components/schemas/BaselineWindow'
+      required:
+        - hasData
+        - window
+
+    GetSyncStatusOutput:
+      type: object
+      properties:
+        logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/AfSyncLog'
+        latest:
+          oneOf:
+            - $ref: '#/components/schemas/AfSyncLog'
+            - type: 'null'
+      required:
+        - logs
+        - latest
+
+    TriggerManualSyncOutput:
+      type: object
+      properties:
+        success:
+          type: boolean
+        syncLogId:
+          type: integer
+        message:
+          type: string
+      required:
+        - success
+        - syncLogId
+        - message
+
+    # Requests (tRPC envelopes bound to inputs)
+    AppsflyerGetEventsByDateRangeRequest:
+      allOf:
+        - $ref: '#/components/schemas/TrpcCallRequest'
+        - type: object
+          properties:
+            json:
+              allOf:
+                - $ref: '#/components/schemas/TrpcInputEnvelope'
+                - type: object
+                  properties:
+                    input:
+                      $ref: '#/components/schemas/GetEventsByDateRangeInput'
+                  required:
+                    - input
+          required:
+            - json
+
+    AppsflyerGetEventsByInstallDateRequest:
+      allOf:
+        - $ref: '#/components/schemas/TrpcCallRequest'
+        - type: object
+          properties:
+            json:
+              allOf:
+                - $ref: '#/components/schemas/TrpcInputEnvelope'
+                - type: object
+                  properties:
+                    input:
+                      $ref: '#/components/schemas/GetEventsByInstallDateInput'
+                  required:
+                    - input
+          required:
+            - json
+
+    AppsflyerGetRevenueByCohortRequest:
+      allOf:
+        - $ref: '#/components/schemas/TrpcCallRequest'
+        - type: object
+          properties:
+            json:
+              allOf:
+                - $ref: '#/components/schemas/TrpcInputEnvelope'
+                - type: object
+                  properties:
+                    input:
+                      $ref: '#/components/schemas/GetRevenueByCohortInput'
+                  required:
+                    - input
+          required:
+            - json
+
+    AppsflyerGetCohortKpiRequest:
+      allOf:
+        - $ref: '#/components/schemas/TrpcCallRequest'
+        - type: object
+          properties:
+            json:
+              allOf:
+                - $ref: '#/components/schemas/TrpcInputEnvelope'
+                - type: object
+                  properties:
+                    input:
+                      $ref: '#/components/schemas/GetCohortKpiInput'
+                  required:
+                    - input
+          required:
+            - json
+
+    AppsflyerGetCohortMetricsRequest:
+      allOf:
+        - $ref: '#/components/schemas/TrpcCallRequest'
+        - type: object
+          properties:
+            json:
+              allOf:
+                - $ref: '#/components/schemas/TrpcInputEnvelope'
+                - type: object
+                  properties:
+                    input:
+                      $ref: '#/components/schemas/GetCohortMetricsInput'
+                  required:
+                    - input
+          required:
+            - json
+
+    AppsflyerGetLatestCohortDataRequest:
+      allOf:
+        - $ref: '#/components/schemas/TrpcCallRequest'
+        - type: object
+          properties:
+            json:
+              allOf:
+                - $ref: '#/components/schemas/TrpcInputEnvelope'
+                - type: object
+                  properties:
+                    input:
+                      $ref: '#/components/schemas/GetLatestCohortDataInput'
+                  required:
+                    - input
+          required:
+            - json
+
+    AppsflyerCalculateBaselineRoasRequest:
+      allOf:
+        - $ref: '#/components/schemas/TrpcCallRequest'
+        - type: object
+          properties:
+            json:
+              allOf:
+                - $ref: '#/components/schemas/TrpcInputEnvelope'
+                - type: object
+                  properties:
+                    input:
+                      $ref: '#/components/schemas/CalculateBaselineRoasInput'
+                  required:
+                    - input
+          required:
+            - json
+
+    AppsflyerCalculateBaselineRetentionRequest:
+      allOf:
+        - $ref: '#/components/schemas/TrpcCallRequest'
+        - type: object
+          properties:
+            json:
+              allOf:
+                - $ref: '#/components/schemas/TrpcInputEnvelope'
+                - type: object
+                  properties:
+                    input:
+                      $ref: '#/components/schemas/CalculateBaselineRetentionInput'
+                  required:
+                    - input
+          required:
+            - json
+
+    AppsflyerGetSyncStatusRequest:
+      allOf:
+        - $ref: '#/components/schemas/TrpcCallRequest'
+        - type: object
+          properties:
+            json:
+              allOf:
+                - $ref: '#/components/schemas/TrpcInputEnvelope'
+                - type: object
+                  properties:
+                    input:
+                      $ref: '#/components/schemas/GetSyncStatusInput'
+                  required:
+                    - input
+          required:
+            - json
+
+    AppsflyerTriggerManualSyncRequest:
+      allOf:
+        - $ref: '#/components/schemas/TrpcCallRequest'
+        - type: object
+          properties:
+            json:
+              allOf:
+                - $ref: '#/components/schemas/TrpcInputEnvelope'
+                - type: object
+                  properties:
+                    input:
+                      $ref: '#/components/schemas/TriggerManualSyncInput'
+                  required:
+                    - input
+          required:
+            - json
+
+    # Responses (tRPC envelopes bound to outputs)
+    AppsflyerGetEventsByDateRangeResponse:
+      allOf:
+        - $ref: '#/components/schemas/TrpcSuccess'
+        - type: object
+          properties:
+            result:
+              allOf:
+                - $ref: '#/components/schemas/TrpcResultEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/GetEventsByDateRangeOutput'
+                  required:
+                    - data
+          required:
+            - result
+
+    AppsflyerGetEventsByInstallDateResponse:
+      allOf:
+        - $ref: '#/components/schemas/TrpcSuccess'
+        - type: object
+          properties:
+            result:
+              allOf:
+                - $ref: '#/components/schemas/TrpcResultEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/GetEventsByInstallDateOutput'
+                  required:
+                    - data
+          required:
+            - result
+
+    AppsflyerGetRevenueByCohortResponse:
+      allOf:
+        - $ref: '#/components/schemas/TrpcSuccess'
+        - type: object
+          properties:
+            result:
+              allOf:
+                - $ref: '#/components/schemas/TrpcResultEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/GetRevenueByCohortOutput'
+                  required:
+                    - data
+          required:
+            - result
+
+    AppsflyerGetCohortKpiResponse:
+      allOf:
+        - $ref: '#/components/schemas/TrpcSuccess'
+        - type: object
+          properties:
+            result:
+              allOf:
+                - $ref: '#/components/schemas/TrpcResultEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/GetCohortKpiOutput'
+                  required:
+                    - data
+          required:
+            - result
+
+    AppsflyerGetCohortMetricsResponse:
+      allOf:
+        - $ref: '#/components/schemas/TrpcSuccess'
+        - type: object
+          properties:
+            result:
+              allOf:
+                - $ref: '#/components/schemas/TrpcResultEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/GetCohortMetricsOutput'
+                  required:
+                    - data
+          required:
+            - result
+
+    AppsflyerGetLatestCohortDataResponse:
+      allOf:
+        - $ref: '#/components/schemas/TrpcSuccess'
+        - type: object
+          properties:
+            result:
+              allOf:
+                - $ref: '#/components/schemas/TrpcResultEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/GetLatestCohortDataOutput'
+                  required:
+                    - data
+          required:
+            - result
+
+    AppsflyerCalculateBaselineRoasResponse:
+      allOf:
+        - $ref: '#/components/schemas/TrpcSuccess'
+        - type: object
+          properties:
+            result:
+              allOf:
+                - $ref: '#/components/schemas/TrpcResultEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/CalculateBaselineRoasOutput'
+                  required:
+                    - data
+          required:
+            - result
+
+    AppsflyerCalculateBaselineRetentionResponse:
+      allOf:
+        - $ref: '#/components/schemas/TrpcSuccess'
+        - type: object
+          properties:
+            result:
+              allOf:
+                - $ref: '#/components/schemas/TrpcResultEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/CalculateBaselineRetentionOutput'
+                  required:
+                    - data
+          required:
+            - result
+
+    AppsflyerGetSyncStatusResponse:
+      allOf:
+        - $ref: '#/components/schemas/TrpcSuccess'
+        - type: object
+          properties:
+            result:
+              allOf:
+                - $ref: '#/components/schemas/TrpcResultEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/GetSyncStatusOutput'
+                  required:
+                    - data
+          required:
+            - result
+
+    AppsflyerTriggerManualSyncResponse:
+      allOf:
+        - $ref: '#/components/schemas/TrpcSuccess'
+        - type: object
+          properties:
+            result:
+              allOf:
+                - $ref: '#/components/schemas/TrpcResultEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/TriggerManualSyncOutput'
+                  required:
+                    - data
+          required:
+            - result
