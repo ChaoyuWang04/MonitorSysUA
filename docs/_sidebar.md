@@ -19,3 +19,7 @@
   - [Todo](planning/todo.md)
   - [Notes](planning/src.md)
   - [Data sync script](planning/sync_af_data.py)
+- Reviews
+  - [Phase 7: Testing](reviews/phase7-testing-review.md)
+- Logs
+  - [Phase Log](phaselog.md)
