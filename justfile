@@ -283,3 +283,56 @@ af-status:
 af-count:
     @echo "=== AppsFlyer Table Row Counts ==="
     docker exec -it monitorsysua-postgres psql -U postgres -d monitor_sys_ua -c "SELECT 'af_events' as table_name, COUNT(*) as row_count FROM af_events UNION ALL SELECT 'af_cohort_kpi_daily', COUNT(*) FROM af_cohort_kpi_daily;"
+
+# ============================================
+# AppsFlyer - Docker Commands (Automated Sync)
+# ============================================
+
+# Build AppsFlyer ETL container
+af-docker-build:
+    docker-compose build appsflyer-etl
+
+# Start AppsFlyer ETL container (with cron scheduler)
+af-docker-up:
+    docker-compose up -d appsflyer-etl
+    @echo "AppsFlyer ETL container started."
+    @echo "Cron schedule: Daily at 2 AM UTC, Monthly at 1st 3 AM UTC"
+
+# Stop AppsFlyer ETL container
+af-docker-down:
+    docker-compose stop appsflyer-etl
+
+# View AppsFlyer ETL container logs
+af-docker-logs:
+    docker-compose logs -f appsflyer-etl
+
+# View daily sync log file
+af-docker-sync-logs:
+    docker exec appsflyer-etl cat /var/log/appsflyer/daily-sync.log 2>/dev/null || echo "No sync logs yet."
+
+# View baseline update log file
+af-docker-baseline-logs:
+    docker exec appsflyer-etl cat /var/log/appsflyer/baseline-update.log 2>/dev/null || echo "No baseline logs yet."
+
+# Manual sync via Docker (yesterday)
+af-docker-sync-yesterday:
+    docker exec appsflyer-etl python sync_af_data.py --yesterday
+
+# Manual sync via Docker (date range)
+af-docker-sync-range from to:
+    docker exec appsflyer-etl python sync_af_data.py --from-date {{from}} --to-date {{to}}
+
+# Manual baseline update via Docker
+af-docker-baseline-update:
+    docker exec appsflyer-etl python monthly_baseline_update.py
+
+# Restart AppsFlyer ETL container
+af-docker-restart:
+    docker-compose restart appsflyer-etl
+
+# Check AppsFlyer container status
+af-docker-status:
+    docker-compose ps appsflyer-etl
+    @echo ""
+    @echo "=== Container Logs (last 10 lines) ==="
+    docker-compose logs --tail=10 appsflyer-etl

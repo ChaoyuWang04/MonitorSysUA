@@ -19,6 +19,7 @@ import {
 } from '@mui/icons-material'
 import { trpc } from '@/lib/trpc/client'
 import { useAccount } from '@/lib/contexts/account-context'
+import { SyncStatusCard } from '@/components/appsflyer'
 
 export default function DashboardPage() {
   const { selectedAccountId } = useAccount()
@@ -292,6 +293,11 @@ export default function DashboardPage() {
             })}
           </Box>
         </Paper>
+      </Box>
+
+      {/* Data Sync Status */}
+      <Box sx={{ mt: 3 }}>
+        <SyncStatusCard />
       </Box>
     </Container>
   )

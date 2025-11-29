@@ -3,12 +3,13 @@
 ## Architecture
 - Next.js App Router with tRPC; Drizzle ORM to PostgreSQL (Docker, port 5433).
 - Python subprocesses handle Google Ads fetch, AppsFlyer ETL, and evaluation engines; TypeScript wrappers orchestrate and persist results.
+- **Docker-based ETL**: AppsFlyer sync runs in dedicated Python container (`appsflyer-etl`) with cron scheduler; independent from Next.js app.
 
 ## Modules
 - `server/api/`: `trpc.ts`, `root.ts`, routers (`accounts`, `events`, `stats`, `evaluation`, `appsflyer`).
 - `server/db/`: `schema.ts` (14 tables), `index.ts` (client), `queries.ts` (accounts/events/stats), `queries-evaluation.ts` (A2-A5 + recommendations), `queries-appsflyer.ts` (events/cohort/baseline/sync logs).
 - `server/google-ads/`: `client.ts` (spawn Python), `fetch_events.py`, `parser.ts`, `diff-engine.ts`, `regenerate_summaries.py`.
-- `server/appsflyer/`: `sync_af_data.py`, `backfill.py`, `requirements.txt` for ETL venv.
+- `server/appsflyer/`: `sync_af_data.py`, `backfill.py`, `monthly_baseline_update.py`, `email_notifier.py`, `Dockerfile`, `crontab`, `entrypoint.sh`, `requirements.txt` for Docker ETL container.
 - `server/evaluation/`: wrappers (`baseline-calculator.ts`, `campaign-evaluator.ts`, `creative-evaluator.ts`, `operation-evaluator.ts`), Python engines, mock-data seed + test harness.
 - Utilities: `scripts/db-snapshot.ts`, `scripts/db-restore.ts`, Just recipes for dev/DB/AppsFlyer.
 
@@ -30,10 +31,15 @@
 - Deletes are soft (`isActive=false`), unique constraints and indexes aligned to account-scoped lookups.
 
 ## Operational Status
-- Manual triggers only (UI buttons or Just/CLI); cron/scheduled runs not yet set up.
-- AppsFlyer ETL available via Python scripts; exposed through tRPC `appsflyer` router.
+- **Phase 6 Complete**: Automated AppsFlyer sync via Docker container with cron scheduler.
+  - Daily sync: 2:00 AM UTC (yesterday's data)
+  - Monthly baseline: 3:00 AM UTC, 1st of month (180-day refresh)
+  - Email notifications on sync failures (optional, configure SMTP vars)
+- Dashboard displays sync status with 36-hour stale warning.
+- Manual triggers available via Just recipes (`just af-docker-sync-yesterday`, `just af-docker-baseline-update`).
+- AppsFlyer ETL exposed through tRPC `appsflyer` router (`getSyncStatus`, `triggerManualSync`).
 - **Phase 5 Complete**: Evaluation uses AppsFlyer data (A2/A3/A7). A4 creative evaluation deferred to future phase.
 - Batch evaluation functions available: `updateAllBaselinesFromAF()`, `evaluateAllCampaignsFromAF()`, `evaluateOperations7DaysAgoFromAF()`.
 - Mock data generators deprecated; retained for development/testing only.
-- Observability limited to console/log output; no metrics pipeline configured.
+- Observability limited to console/log output + sync status UI; no metrics pipeline configured.
 - No auth/permissions; intended for internal operators.

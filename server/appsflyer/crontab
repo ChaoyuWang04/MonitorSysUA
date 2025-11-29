@@ -1,0 +1,19 @@
+# AppsFlyer Cron Schedule
+# All times are in UTC (container timezone set to UTC)
+#
+# ┌──────── minute (0-59)
+# │ ┌────── hour (0-23)
+# │ │ ┌──── day of month (1-31)
+# │ │ │ ┌── month (1-12)
+# │ │ │ │ ┌ day of week (0-6, Sunday=0)
+# │ │ │ │ │
+
+# Daily AppsFlyer Sync - 2 AM UTC
+# Syncs yesterday's events (IAP + Ad Revenue) and cohort KPI data
+0 2 * * * root cd /app && /usr/local/bin/python sync_af_data.py --yesterday >> /var/log/appsflyer/daily-sync.log 2>&1
+
+# Monthly Baseline Update - 1st of month, 3 AM UTC
+# Recalculates all safety baselines (P50 ROAS7, RET7) from historical data
+0 3 1 * * root cd /app && /usr/local/bin/python monthly_baseline_update.py >> /var/log/appsflyer/baseline-update.log 2>&1
+
+# Empty line required by cron (do not remove)

@@ -27,6 +27,17 @@ import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
 
+# Email notification (optional - import with fallback)
+try:
+    from email_notifier import send_failure_notification, is_email_configured
+    EMAIL_AVAILABLE = True
+except ImportError:
+    EMAIL_AVAILABLE = False
+    def is_email_configured():
+        return False
+    def send_failure_notification(*args, **kwargs):
+        return False
+
 # -----------------------------------------------------------------------------
 # Logging Configuration
 # -----------------------------------------------------------------------------
@@ -94,9 +105,25 @@ def create_sync_log(sync_type: str, date_start: date, date_end: date) -> int:
         conn.close()
 
 
-def update_sync_log(log_id: int, status: str, records_processed: int = None, error_message: str = None):
+def update_sync_log(
+    log_id: int,
+    status: str,
+    records_processed: int = None,
+    error_message: str = None,
+    sync_type: str = None,
+    date_range: str = None
+):
     """
     Update sync log entry with final status.
+    Sends email notification on failure if configured.
+
+    Args:
+        log_id: Sync log ID to update
+        status: Final status ('success' or 'failed')
+        records_processed: Number of records processed
+        error_message: Error message if failed
+        sync_type: Type of sync for email notification
+        date_range: Date range for email notification
     """
     conn = get_pg_connection()
     try:
@@ -110,6 +137,19 @@ def update_sync_log(log_id: int, status: str, records_processed: int = None, err
                 logger.info(f"Updated sync log #{log_id}: status={status}, records={records_processed}")
     finally:
         conn.close()
+
+    # Send email notification on failure
+    if status == 'failed' and EMAIL_AVAILABLE and is_email_configured():
+        try:
+            send_failure_notification(
+                sync_type=sync_type or 'unknown',
+                date_range=date_range or 'unknown',
+                error_message=error_message or 'No error message provided',
+                records_processed=records_processed or 0
+            )
+            logger.info("Failure notification email sent")
+        except Exception as e:
+            logger.warning(f"Failed to send email notification: {e}")
 
 
 # -----------------------------------------------------------------------------
@@ -680,34 +720,38 @@ def sync_cohort_kpi(
 def sync_events_with_logging(from_date: str, to_date: str) -> int:
     """
     Sync events with sync log tracking.
+    Sends email notification on failure if configured.
     """
     start_dt = datetime.strptime(from_date, "%Y-%m-%d").date()
     end_dt = datetime.strptime(to_date, "%Y-%m-%d").date()
+    date_range = f"{from_date} to {to_date}"
 
     log_id = create_sync_log("events", start_dt, end_dt)
     try:
         records = sync_events(from_date, to_date)
-        update_sync_log(log_id, "success", records)
+        update_sync_log(log_id, "success", records, sync_type="events", date_range=date_range)
         return records
     except Exception as e:
-        update_sync_log(log_id, "failed", error_message=str(e))
+        update_sync_log(log_id, "failed", error_message=str(e), sync_type="events", date_range=date_range)
         raise
 
 
 def sync_cohort_kpi_with_logging(from_date: str, to_date: str) -> int:
     """
     Sync cohort KPI with sync log tracking.
+    Sends email notification on failure if configured.
     """
     start_dt = datetime.strptime(from_date, "%Y-%m-%d").date()
     end_dt = datetime.strptime(to_date, "%Y-%m-%d").date()
+    date_range = f"{from_date} to {to_date}"
 
     log_id = create_sync_log("cohort_kpi", start_dt, end_dt)
     try:
         records = sync_cohort_kpi(from_date, to_date)
-        update_sync_log(log_id, "success", records)
+        update_sync_log(log_id, "success", records, sync_type="cohort_kpi", date_range=date_range)
         return records
     except Exception as e:
-        update_sync_log(log_id, "failed", error_message=str(e))
+        update_sync_log(log_id, "failed", error_message=str(e), sync_type="cohort_kpi", date_range=date_range)
         raise
 
 

@@ -31,8 +31,55 @@ services:
     networks:
       - monitorsysua-network
 
+  # AppsFlyer ETL Service - Python data sync with cron scheduler
+  appsflyer-etl:
+    build:
+      context: ./server/appsflyer
+      dockerfile: Dockerfile
+    container_name: appsflyer-etl
+    restart: unless-stopped
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    environment:
+      # AppsFlyer API Configuration
+      AF_API_TOKEN: ${AF_API_TOKEN}
+      AF_APP_ID: ${AF_APP_ID}
+      AF_DEFAULT_MEDIA_SOURCE: ${AF_DEFAULT_MEDIA_SOURCE:-googleadwords_int}
+      AF_DEFAULT_GEO: ${AF_DEFAULT_GEO:-US}
+      # PostgreSQL Connection (internal container network)
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_USER: ${PG_USER:-postgres}
+      PG_PASSWORD: ${PG_PASSWORD:-postgres}
+      PG_DATABASE: ${PG_DATABASE:-monitor_sys_ua}
+      # Email Notification (optional - leave empty to disable)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_TO: ${SMTP_TO:-}
+
+    volumes:
+      # Persist sync logs for debugging
+      - appsflyer_logs:/var/log/appsflyer
+
+    networks:
+      - monitorsysua-network
+
+    healthcheck:
+      test: ["CMD", "pgrep", "cron"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+
 volumes:
   postgres_data:
+    driver: local
+  appsflyer_logs:
     driver: local
 
 networks:
