@@ -22,6 +22,14 @@ build:
 start:
     npm run start
 
+# ============================================
+# Documentation
+# ============================================
+
+# Serve docsify locally (auto reload on refresh)
+docs-serve:
+    npx docsify-cli@latest serve docs --port 3001
+
 # Install dependencies
 install:
     npm install
@@ -127,6 +135,30 @@ db-reset:
 # Connect to PostgreSQL shell
 db-shell:
     docker exec -it monitorsysua-postgres psql -U postgres -d monitor_sys_ua
+
+# Create database snapshot (JSON export)
+# Usage: just db-snapshot [limit]
+# Examples:
+#   just db-snapshot          # Default: 10000 rows per table
+#   just db-snapshot 1000     # Limit to 1000 rows per table
+#   just db-snapshot 0        # No limit (export all)
+db-snapshot limit="10000":
+    @mkdir -p context/db-snapshot
+    npx tsx scripts/db-snapshot.ts --limit {{limit}}
+
+# Restore database from snapshot
+# Usage: just db-restore [snapshot_name]
+# Examples:
+#   just db-restore                              # Restore latest snapshot
+#   just db-restore snapshot_20250127_143000     # Restore specific snapshot
+db-restore snapshot="":
+    @echo "WARNING: This will overwrite current database data!"
+    @read -p "Are you sure? (y/N) " confirm && [ "$$confirm" = "y" ] || exit 1
+    npx tsx scripts/db-restore.ts {{snapshot}}
+
+# List available snapshots
+db-snapshots:
+    @ls -la context/db-snapshot/ 2>/dev/null || echo "No snapshots found"
 
 # ============================================
 # Code Quality

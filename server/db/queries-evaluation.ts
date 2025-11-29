@@ -10,6 +10,9 @@ import {
   safetyBaseline,
   type SafetyBaseline,
   type NewSafetyBaseline,
+  baselineSettings,
+  type BaselineSettings,
+  type NewBaselineSettings,
   creativeTestBaseline,
   type CreativeTestBaseline,
   type NewCreativeTestBaseline,
@@ -25,8 +28,10 @@ import {
   actionRecommendation,
   type ActionRecommendation,
   type NewActionRecommendation,
+  afCohortKpiDaily,
+  afEvents,
 } from './schema'
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, sql, gte, lte, sum } from 'drizzle-orm'
 
 // ============================================
 // SAFETY BASELINE FUNCTIONS
@@ -88,6 +93,65 @@ export async function upsertSafetyBaseline(baseline: NewSafetyBaseline) {
         baselineRet7: baseline.baselineRet7,
         referencePeriod: baseline.referencePeriod,
         lastUpdated: sql`now()`,
+      },
+    })
+    .returning()
+
+  return result[0]
+}
+
+// ============================================
+// BASELINE SETTINGS FUNCTIONS
+// ============================================
+
+/**
+ * Get baseline settings for a specific app/geo/mediaSource
+ */
+export async function getBaselineSettings(params: {
+  appId: string
+  geo: string
+  mediaSource: string
+}) {
+  const { appId, geo, mediaSource } = params
+
+  const result = await db
+    .select()
+    .from(baselineSettings)
+    .where(
+      and(
+        eq(baselineSettings.appId, appId),
+        eq(baselineSettings.geo, geo),
+        eq(baselineSettings.mediaSource, mediaSource)
+      )
+    )
+    .limit(1)
+
+  return result[0] || null
+}
+
+/**
+ * Get all baseline settings
+ */
+export async function getAllBaselineSettings() {
+  return await db
+    .select()
+    .from(baselineSettings)
+    .orderBy(baselineSettings.appId, baselineSettings.geo)
+}
+
+/**
+ * Upsert baseline settings (create or update)
+ */
+export async function upsertBaselineSettings(settings: NewBaselineSettings) {
+  const result = await db
+    .insert(baselineSettings)
+    .values(settings)
+    .onConflictDoUpdate({
+      target: [baselineSettings.appId, baselineSettings.geo, baselineSettings.mediaSource],
+      set: {
+        baselineDays: settings.baselineDays,
+        minSampleSize: settings.minSampleSize,
+        updatedAt: sql`now()`,
       },
     })
     .returning()
@@ -579,4 +643,223 @@ export async function markRecommendationAsExecuted(
     .returning()
 
   return result[0] || null
+}
+
+// ============================================
+// APPSFLYER BRIDGE FUNCTIONS
+// ============================================
+// These functions bridge the evaluation system with real AppsFlyer cohort data
+// replacing the mock_campaign_performance queries
+
+/**
+ * Aggregated campaign metrics from AppsFlyer cohort data
+ */
+export interface AggregatedCampaignMetrics {
+  totalCostUsd: number
+  totalRevenueUsd: number
+  totalInstalls: number
+  roas: number | null
+  retention: number | null
+  cohortCount: number
+  installDateRange: { start: Date; end: Date }
+}
+
+/**
+ * Operation cohort metrics for T+7 evaluation
+ */
+export interface OperationCohortMetrics {
+  actualRoas7: number | null
+  actualRet7: number | null
+  totalCostUsd: number
+  totalRevenueUsd: number
+  totalInstalls: number
+  cohortCount: number
+}
+
+/**
+ * Get aggregated campaign metrics from AppsFlyer cohort data
+ * Uses raw SQL for proper date handling and revenue calculation
+ * Used by A3 campaign evaluator
+ */
+export async function getAggregatedCampaignMetrics(params: {
+  campaign: string
+  appId: string
+  geo: string
+  mediaSource: string
+  installDateStart: Date
+  installDateEnd: Date
+}): Promise<AggregatedCampaignMetrics> {
+  const { campaign, appId, geo, mediaSource, installDateStart, installDateEnd } = params
+
+  // Convert dates to string format for SQL comparison
+  const startDateStr = installDateStart.toISOString().split('T')[0]
+  const endDateStr = installDateEnd.toISOString().split('T')[0]
+
+  // Query aggregated cohort data using raw SQL
+  const result = await db.execute(sql`
+    SELECT
+      COALESCE(SUM(cost_usd), 0) as total_cost_usd,
+      COALESCE(SUM(installs), 0) as total_installs,
+      COUNT(DISTINCT install_date) as cohort_count
+    FROM af_cohort_kpi_daily
+    WHERE campaign = ${campaign}
+      AND app_id = ${appId}
+      AND geo = ${geo}
+      AND media_source = ${mediaSource}
+      AND days_since_install = 0
+      AND install_date >= ${startDateStr}
+      AND install_date <= ${endDateStr}
+  `)
+
+  // Get D7 retention
+  const d7Result = await db.execute(sql`
+    SELECT
+      AVG(retention_rate) as avg_retention
+    FROM af_cohort_kpi_daily
+    WHERE campaign = ${campaign}
+      AND app_id = ${appId}
+      AND geo = ${geo}
+      AND media_source = ${mediaSource}
+      AND days_since_install = 7
+      AND install_date >= ${startDateStr}
+      AND install_date <= ${endDateStr}
+  `)
+
+  // Get revenue from af_events (D0-D7 cumulative)
+  const revenueResult = await db.execute(sql`
+    SELECT
+      COALESCE(SUM(event_revenue_usd), 0) as total_revenue_usd
+    FROM af_events
+    WHERE campaign = ${campaign}
+      AND app_id = ${appId}
+      AND geo = ${geo}
+      AND media_source = ${mediaSource}
+      AND install_date >= ${startDateStr}
+      AND install_date <= ${endDateStr}
+      AND days_since_install <= 7
+  `)
+
+  const row = result.rows[0] as Record<string, unknown> | undefined
+  const d7Row = d7Result.rows[0] as Record<string, unknown> | undefined
+  const revRow = revenueResult.rows[0] as Record<string, unknown> | undefined
+
+  const totalCostUsd = Number(row?.total_cost_usd || 0)
+  const totalRevenueUsd = Number(revRow?.total_revenue_usd || 0)
+  const totalInstalls = Number(row?.total_installs || 0)
+  const cohortCount = Number(row?.cohort_count || 0)
+  const retention = d7Row?.avg_retention ? Number(d7Row.avg_retention) : null
+
+  const roas = totalCostUsd > 0 ? totalRevenueUsd / totalCostUsd : null
+
+  return {
+    totalCostUsd,
+    totalRevenueUsd,
+    totalInstalls,
+    roas,
+    retention,
+    cohortCount,
+    installDateRange: { start: installDateStart, end: installDateEnd },
+  }
+}
+
+/**
+ * Get cohort metrics for operation evaluation (T+7)
+ * Used by A7 operation evaluator
+ */
+export async function getOperationCohortMetrics(params: {
+  campaign: string
+  operationDate: Date // T+0
+  appId: string
+  geo: string
+  mediaSource: string
+}): Promise<OperationCohortMetrics | null> {
+  const { campaign, operationDate, appId, geo, mediaSource } = params
+
+  // Cohort window: install dates from T+0 to T+6 (7 days of installs)
+  const installDateStart = operationDate
+  const installDateEnd = new Date(operationDate)
+  installDateEnd.setDate(installDateEnd.getDate() + 6)
+
+  // Check if we have D7 data for the latest cohort in window
+  const today = new Date()
+  const requiredDataDate = new Date(installDateEnd)
+  requiredDataDate.setDate(requiredDataDate.getDate() + 7) // D7 for last cohort
+
+  if (today < requiredDataDate) {
+    // Not enough time elapsed for D7 evaluation
+    return null
+  }
+
+  // Get aggregated metrics for the operation window
+  const metrics = await getAggregatedCampaignMetrics({
+    campaign,
+    appId,
+    geo,
+    mediaSource,
+    installDateStart,
+    installDateEnd,
+  })
+
+  if (metrics.cohortCount === 0) {
+    return null
+  }
+
+  return {
+    actualRoas7: metrics.roas,
+    actualRet7: metrics.retention,
+    totalCostUsd: metrics.totalCostUsd,
+    totalRevenueUsd: metrics.totalRevenueUsd,
+    totalInstalls: metrics.totalInstalls,
+    cohortCount: metrics.cohortCount,
+  }
+}
+
+/**
+ * Get campaign list with their latest metrics from AppsFlyer
+ * Uses raw SQL for proper date handling
+ * Used to retrieve all campaigns for evaluation dashboard
+ */
+export async function getCampaignsFromAF(params: {
+  appId?: string
+  geo?: string
+  mediaSource?: string
+  installDateStart: Date
+  installDateEnd: Date
+}) {
+  const { appId, geo, mediaSource, installDateStart, installDateEnd } = params
+
+  // Convert dates to string format
+  const startDateStr = installDateStart.toISOString().split('T')[0]
+  const endDateStr = installDateEnd.toISOString().split('T')[0]
+
+  // Build dynamic WHERE clause
+  let whereClause = `days_since_install = 0 AND install_date >= '${startDateStr}' AND install_date <= '${endDateStr}'`
+  if (appId) whereClause += ` AND app_id = '${appId}'`
+  if (geo) whereClause += ` AND geo = '${geo}'`
+  if (mediaSource) whereClause += ` AND media_source = '${mediaSource}'`
+
+  const result = await db.execute(sql.raw(`
+    SELECT
+      campaign,
+      app_id,
+      geo,
+      media_source,
+      COALESCE(SUM(cost_usd), 0) as total_cost_usd,
+      COALESCE(SUM(installs), 0) as total_installs,
+      MAX(install_date) as latest_install_date
+    FROM af_cohort_kpi_daily
+    WHERE ${whereClause}
+    GROUP BY campaign, app_id, geo, media_source
+    ORDER BY MAX(install_date) DESC
+  `))
+
+  return result.rows.map((row: Record<string, unknown>) => ({
+    campaign: String(row.campaign || ''),
+    appId: String(row.app_id || ''),
+    geo: String(row.geo || ''),
+    mediaSource: String(row.media_source || ''),
+    totalCostUsd: Number(row.total_cost_usd || 0),
+    totalInstalls: Number(row.total_installs || 0),
+    latestInstallDate: row.latest_install_date as Date,
+  }))
 }

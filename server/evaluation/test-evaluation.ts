@@ -142,7 +142,7 @@ async function testA3CampaignEvaluation() {
 
     // Test 3: Verify evaluation components
     const hasType = evaluationResult.campaign_type === "test" || evaluationResult.campaign_type === "mature";
-    const hasMetrics = evaluationResult.roas_achievement_rate > 0 && evaluationResult.ret_achievement_rate > 0;
+    const hasMetrics = (evaluationResult.roas_achievement_rate ?? 0) > 0 && (evaluationResult.ret_achievement_rate ?? 0) > 0;
     const hasStatus = evaluationResult.status && evaluationResult.status.length > 0;
     const hasRecommendation = evaluationResult.recommendation_type && evaluationResult.recommendation_type.length > 0;
 
@@ -282,7 +282,7 @@ async function testA5OperationEvaluation() {
         printTest(
           "Operation Evaluation",
           "PASS",
-          `Score: ${evaluationResult.score}, Min Achievement: ${evaluationResult.min_achievement_rate.toFixed(2)}%`
+          `Score: ${evaluationResult.score}, Min Achievement: ${(evaluationResult.min_achievement_rate ?? 0).toFixed(2)}%`
         );
 
         // Test 3: Verify database persistence

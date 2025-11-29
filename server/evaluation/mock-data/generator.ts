@@ -2,6 +2,16 @@
  * Mock Data Generator
  *
  * Generates realistic mock data for testing the evaluation system
+ *
+ * @deprecated Since Phase 5, use AppsFlyer data instead of mock data.
+ * The evaluation system now uses real cohort data from af_cohort_kpi_daily
+ * and af_events tables. Mock data generators are retained for testing purposes
+ * only and should not be used in production.
+ *
+ * For production evaluation, use:
+ * - calculateBaselineFromAF() in baseline-calculator.ts
+ * - evaluateCampaignFromAF() in campaign-evaluator.ts
+ * - evaluateOperationFromAF() in operation-evaluator.ts
  */
 
 import {

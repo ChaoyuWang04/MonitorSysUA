@@ -1,0 +1,21 @@
+- [Home](README.md)
+- [PRD](prd.md)
+- [TRD](trd.md)
+- Architecture
+  - [Overview (Mermaid)](architecture/overview.mmd)
+- Modules
+  - [Accounts](modules/accounts.md)
+  - [Change Events](modules/change-events.md)
+  - [Evaluation](modules/evaluation.md)
+  - [AppsFlyer](modules/appsflyer.md)
+- System
+  - [Structure](system/structure.md)
+  - [Frontend](system/frontend.md)
+  - [Backend](system/backend.md)
+  - [API](system/api.md)
+  - [Database](system/database.md)
+- Planning
+  - [Product & API PRD](planning/prd_for_schema_and_api.md)
+  - [Todo](planning/todo.md)
+  - [Notes](planning/src.md)
+  - [Data sync script](planning/sync_af_data.py)

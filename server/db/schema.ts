@@ -139,6 +139,41 @@ export type SafetyBaseline = typeof safetyBaseline.$inferSelect
 export type NewSafetyBaseline = typeof safetyBaseline.$inferInsert
 
 // ============================================
+// BASELINE SETTINGS TABLE - 基线配置表 (Configurable per app/geo)
+// ============================================
+export const baselineSettings = pgTable(
+  'baseline_settings',
+  {
+    // Primary key
+    id: serial('id').primaryKey(),
+
+    // Dimension fields (matches AppsFlyer data)
+    appId: text('app_id').notNull(),
+    geo: text('geo').notNull(),
+    mediaSource: text('media_source').notNull(),
+
+    // Configurable baseline parameters
+    baselineDays: integer('baseline_days').notNull().default(180), // Days to look back for baseline calculation
+    minSampleSize: integer('min_sample_size').notNull().default(30), // Min cohorts for valid P50 baseline
+
+    // Tracking
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    // Unique constraint: one setting per app/geo/mediaSource combination
+    uniqueBaselineSetting: uniqueIndex('unique_baseline_setting').on(
+      table.appId,
+      table.geo,
+      table.mediaSource
+    ),
+  })
+)
+
+export type BaselineSettings = typeof baselineSettings.$inferSelect
+export type NewBaselineSettings = typeof baselineSettings.$inferInsert
+
+// ============================================
 // CREATIVE TEST BASELINE TABLE - 素材测试标准表
 // ============================================
 export const creativeTestBaseline = pgTable(

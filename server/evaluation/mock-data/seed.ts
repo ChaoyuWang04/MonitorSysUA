@@ -3,6 +3,10 @@
  *
  * Seeds the database with mock data for testing the evaluation system
  *
+ * @deprecated Since Phase 5, the evaluation system uses real AppsFlyer data.
+ * This seeding script is retained for development/testing purposes only.
+ * Production evaluation uses af_cohort_kpi_daily and af_events tables.
+ *
  * Usage:
  *   tsx server/evaluation/mock-data/seed.ts
  */
@@ -30,6 +34,11 @@ const pool = new Pool({
 const db = drizzle(pool, { schema });
 
 async function seed() {
+  console.warn("\n⚠️  DEPRECATION WARNING:");
+  console.warn("    This mock data seeder is deprecated since Phase 5.");
+  console.warn("    The evaluation system now uses real AppsFlyer cohort data.");
+  console.warn("    Use this script only for development/testing purposes.\n");
+
   console.log("🌱 Starting mock data seeding...\n");
 
   try {

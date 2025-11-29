@@ -557,3 +557,37 @@ export async function getSyncLogs(params?: {
     .orderBy(desc(afSyncLog.startedAt))
     .limit(limit)
 }
+
+// ============================================
+// UTILITY QUERIES
+// ============================================
+
+/**
+ * Get all unique app/geo/mediaSource combinations from AppsFlyer data
+ * Used by batch baseline calculation
+ */
+export async function getUniqueAppGeoMediaCombinations(): Promise<
+  Array<{ appId: string; geo: string; mediaSource: string }>
+> {
+  const result = await db
+    .selectDistinct({
+      appId: afCohortKpiDaily.appId,
+      geo: afCohortKpiDaily.geo,
+      mediaSource: afCohortKpiDaily.mediaSource,
+    })
+    .from(afCohortKpiDaily)
+    .where(
+      and(
+        sql`${afCohortKpiDaily.appId} IS NOT NULL`,
+        sql`${afCohortKpiDaily.geo} IS NOT NULL`,
+        sql`${afCohortKpiDaily.mediaSource} IS NOT NULL`
+      )
+    )
+    .orderBy(afCohortKpiDaily.appId, afCohortKpiDaily.geo, afCohortKpiDaily.mediaSource)
+
+  return result.map((row) => ({
+    appId: row.appId!,
+    geo: row.geo!,
+    mediaSource: row.mediaSource!,
+  }))
+}
