@@ -22,4 +22,4 @@
 - Reviews
   - [Phase 7: Testing](reviews/phase7-testing-review.md)
 - Logs
-  - [Phase Log](phaselog.md)
+  - [Phase Log](logs/phaselog.md)

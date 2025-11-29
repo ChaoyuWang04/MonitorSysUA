@@ -35,6 +35,7 @@
 - Cohorts: `getCohortKpi`, `getCohortMetrics`, `getLatestCohortData`.
 - Baselines: `calculateBaselineRoas`, `calculateBaselineRetention`.
 - Sync: `getSyncStatus`, `triggerManualSync` (spawns Python ETL; returns `syncLogId`).
+- 规范：内部 OpenAPI（tRPC 调用层）见 `docs/api/internal/appsflyer/appsflyer-trpc.yaml`。
 
 ## Patterns
 - All queries/mutations are gated by `accountId` where relevant; frontend enforces selection first.
