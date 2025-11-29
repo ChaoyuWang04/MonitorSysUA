@@ -28,7 +28,7 @@
 ## Google Ads Credentials
 - ChangeEvent sync loads `google-ads.yaml` (service account) from `local/credentials/google-ads/google-ads.yaml` by default; set `GOOGLE_ADS_CONFIG_PATH` to override.
 - Keep the service account JSON in the same folder (default entry points to `./local/credentials/google-ads/<file>.json`); the `local/credentials/` folder is gitignored to avoid leaking secrets.
-- Manager login header can be overridden via `GOOGLE_ADS_LOGIN_CUSTOMER_ID` (recommended: your MCC ID). If set, backend passes it to Python to satisfy multi-account permissions instead of relying on the YAML’s fixed `login_customer_id`.
+- The Python client uses `GOOGLE_ADS_LOGIN_CUSTOMER_ID` for the login header; the Node bridge sets this per account to the account’s customer ID when syncing, so login is not fixed in the YAML.
 
 ## Patterns
 - Python bridge via `child_process.spawn` with JSON over stdout; detached background for ETL runs.
