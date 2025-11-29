@@ -22,6 +22,8 @@ export async function fetchAndParseChangeEvents(
   days: number = 7,
   currency: string = 'USD'
 ): Promise<Omit<NewChangeEvent, 'accountId'>[]> {
+  const loginCustomerId = process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID
+
   return new Promise((resolve, reject) => {
     console.log(`Fetching ChangeEvents for account ${customerId} (last ${days} days, currency: ${currency}) via Python...`)
 
@@ -29,7 +31,17 @@ export async function fetchAndParseChangeEvents(
     const scriptPath = join(process.cwd(), 'server', 'google-ads', 'fetch_events.py')
 
     // Spawn Python process with currency parameter
-    const pythonProcess = spawn('python3', [scriptPath, customerId, days.toString(), currency])
+    const args = [scriptPath, customerId, days.toString(), currency]
+    if (loginCustomerId) {
+      args.push(loginCustomerId)
+    }
+
+    const pythonProcess = spawn('python3', args, {
+      env: {
+        ...process.env,
+        ...(loginCustomerId ? { GOOGLE_ADS_LOGIN_CUSTOMER_ID: loginCustomerId } : {}),
+      },
+    })
 
     let stdout = ''
     let stderr = ''

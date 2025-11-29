@@ -258,9 +258,14 @@ def fetch_change_events(customer_id, days=7, currency='USD', config_path: str | 
         config_path: Optional override path to google-ads.yaml
     """
 
+    login_customer_id = os.getenv("GOOGLE_ADS_LOGIN_CUSTOMER_ID")
+
     # Load client from YAML configuration
     resolved_config_path = resolve_config_path(config_path)
     client = GoogleAdsClient.load_from_storage(str(resolved_config_path))
+    if login_customer_id:
+        # Use MCC login header when provided (supports multi-manager setups)
+        client.login_customer_id = login_customer_id
 
     ga_service = client.get_service("GoogleAdsService")
 
@@ -397,6 +402,10 @@ if __name__ == "__main__":
     days = int(sys.argv[2]) if len(sys.argv) > 2 else 7
     currency = sys.argv[3] if len(sys.argv) > 3 else 'USD'
     config_path_arg = sys.argv[4] if len(sys.argv) > 4 else None
+    login_customer_arg = sys.argv[5] if len(sys.argv) > 5 else None
+
+    if login_customer_arg:
+        os.environ["GOOGLE_ADS_LOGIN_CUSTOMER_ID"] = login_customer_arg
 
     events = fetch_change_events(customer_id, days, currency, config_path_arg)
 
