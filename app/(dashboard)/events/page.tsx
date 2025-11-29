@@ -91,6 +91,15 @@ export default function EventsPage() {
     })
   }
 
+  const handleInitSync = async () => {
+    if (!selectedAccountId) return
+    // Google Ads API allows up to 30 days lookback for ChangeEvent
+    await syncEvents.mutateAsync({
+      accountId: selectedAccountId,
+      days: 30,
+    })
+  }
+
   const handleRowClick = (params: GridRowParams) => {
     setSelectedEvent(params.row as ChangeEvent)
     setDetailDialogOpen(true)
@@ -256,6 +265,15 @@ export default function EventsPage() {
               sx={{ textTransform: 'none' }}
             >
               {syncEvents.isPending ? 'Syncing...' : 'Sync Events'}
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<SyncIcon />}
+              onClick={handleInitSync}
+              disabled={syncEvents.isPending}
+              sx={{ textTransform: 'none' }}
+            >
+              {syncEvents.isPending ? 'Syncing...' : 'Init Sync (30d)'}
             </Button>
           </Stack>
         </Stack>
