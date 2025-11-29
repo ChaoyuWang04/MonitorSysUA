@@ -260,6 +260,9 @@ def fetch_change_events(customer_id, days=7, currency='USD', config_path: str | 
 
     login_customer_id = os.getenv("GOOGLE_ADS_LOGIN_CUSTOMER_ID")
 
+    # Clamp days to API constraints (1..30) to avoid START_DATE_TOO_OLD
+    date_range_days = max(1, min(int(days), 30))
+
     # Load client from YAML configuration
     resolved_config_path = resolve_config_path(config_path)
     client = GoogleAdsClient.load_from_storage(str(resolved_config_path))
@@ -269,8 +272,8 @@ def fetch_change_events(customer_id, days=7, currency='USD', config_path: str | 
 
     ga_service = client.get_service("GoogleAdsService")
 
-    # Calculate date range
-    start_date = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
+    # Calculate date range (inclusive) - Google Ads allows max 30 days
+    start_date = (datetime.now(timezone.utc) - timedelta(days=date_range_days - 1)).strftime("%Y-%m-%d")
     end_date = (datetime.now(timezone.utc) + timedelta(days=1)).strftime("%Y-%m-%d")
 
     # Build GAQL query
