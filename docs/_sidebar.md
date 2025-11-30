@@ -1,13 +1,15 @@
 - [Home](README.md)
 - [PRD](prd.md)
 - [TRD](trd.md)
-- Architecture
-  - [Overview (Mermaid)](architecture/overview.mmd)
 - Modules
   - [Accounts](modules/accounts.md)
   - [Change Events](modules/change-events.md)
   - [Evaluation](modules/evaluation.md)
   - [AppsFlyer](modules/appsflyer.md)
+- Mermaid
+  - [Folder overview](Mermaid/README.md)
+  - [AppsFlyer → Evaluation Flow](Mermaid/appsflyer-evaluation-flow.md)
+  - [Google Ads ChangeEvent Sync](Mermaid/google-ads-change-events.md)
 - System
   - [Structure](system/structure.md)
   - [Frontend](system/frontend.md)
@@ -15,10 +17,10 @@
   - [API](system/api.md)
   - [Database](system/database.md)
 - Planning
-  - [Product & API PRD](planning/prd_for_schema_and_api.md)
-  - [Todo](planning/todo.md)
-  - [Notes](planning/src.md)
-  - [Data sync script](planning/sync_af_data.py)
+  - [Product & API PRD](planning_never_touch/prd_for_schema_and_api.md)
+  - [Todo](planning_never_touch/todo.md)
+  - [Notes](planning_never_touch/src.md)
+  - [Data sync script](planning_never_touch/sync_af_data.py)
 - Reviews
   - [Phase 7: Testing](reviews/phase7-testing-review.md)
 - Logs
