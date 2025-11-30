@@ -10,3 +10,15 @@ MonitorSysUA documentation set for architecture, modules, and system reference.
 - API Specs: external + internal (tRPC) OpenAPI files under `docs/api/`.
 
 View locally with `just docs-serve` (docsify on port 3001).
+
+Mermaid diagrams
+- Mermaid is available via docsify-mermaid; diagrams render when browsing the docs site.
+- Example snippet:
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant Server
+  User->>Server: Login request
+  Server-->>User: Return token
+```
