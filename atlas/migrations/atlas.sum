@@ -1,6 +1,8 @@
-h1:j4jalr9Ce+rxukiXoiTXJ3XvC6zUWFiAfuW4ZH2eubc=
+h1:OAVZSQqFPspRKO8ZWcwcKRI+gpoSrtbEW+5+JELAZ/U=
 20251125073456_baseline.sql h1:Lf1aJwOchiR8Q3vDersfUKctDRv8keaP8+VHgSGbRgc=
 20251126102618_add_appsflyer_tables.sql h1:OPlUEXc8x0FL20Q6JBlexA/pGoIl0hcI88mqtUisZ1U=
 20251126102717_add_appsflyer_views.sql h1:3AKx3pZdHUP7mZvLOFEeNvh5pfMXqIvUNIb+AydGdII=
 20251129061739_add_baseline_settings.sql h1:+xlN+GEHkxvkx2xEhGWsKR0pu2N2cJlGtdbAVJtTjLs=
 20251129085803_remove-mock-campaign-performance.sql h1:Ku9g5VqLYMnInb429wxBnhZNj1qT7n0vMc5HN/gS4DQ=
+20260205000000_add_campaigns_ad_groups_ads.sql h1:lsKouTYVa69pazGxteY5aVFMqsGvrgH5KSxIb/Pm17Q=
+20260205000001_operation-score-prdv3.sql h1:Qkw+lJ/7hshkaBbqjnLAOfApK8+0e0sUIj+3FFSm6bg=

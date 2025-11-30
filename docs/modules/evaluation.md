@@ -22,4 +22,6 @@
 ## A5: Operation Scoring
 - Scores optimizer actions (decision quality, execution, risk) and builds leaderboard.
 - UI: tabbed list + leaderboard; detail dialog per day per optimizer.
-- Status: UI and storage ready; daily auto-run not yet scheduled; action execution is still mocked in frontend service.
+- Stage scoring: T+1/T+3/T+7 against AppsFlyer cohort metrics and baseline (ROAS/RET), base→final score mapping (0/40/60/80/100 with stage factors 0.5/0.8/1.0).
+- Data linkage: `change_events.campaign` (Google resource_name) → `operation_score.campaign_id`, `change_events.operation_scores` JSON mirrors latest stage results; AF context resolved by campaign name/resource with fallback to default app/geo/media_source.
+- Status: backend now writes stage scores to `operation_score` + `change_events.operation_scores`; daily auto-run not yet scheduled; action execution still mocked in frontend service.

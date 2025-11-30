@@ -19,6 +19,12 @@
 - `sync` (mutation) `{ accountId: number, days?: number (1-30, default 7) }` → `{ success, count, totalFetched, accountName, message }`.
 - `getById` (query) `{ id: number }` → `ChangeEvent`.
 
+### Entities (`entities`)
+- `sync` (mutation) `{ accountId: number, scope?: ['campaigns' | 'adGroups' | 'ads'][] }` → counts for upsert/prune per entity; hard-deletes missing/REMOVED rows; surfaces Python errors directly.
+- `listCampaigns` (query) `{ accountId, page?, pageSize?, status?, channelType?, mediaSource? }` → campaigns + `latestChange`.
+- `listAdGroups` (query) `{ accountId, page?, pageSize?, status?, type?, mediaSource? }` → ad groups + `latestChange`.
+- `listAds` (query) `{ accountId, page?, pageSize?, status?, type?, mediaSource? }` → ads + `latestChange`.
+
 ### Stats (`stats`)
 - `overview` (query) `{ accountId: number }` → totals plus resource/operation distributions.
 - `multiAccountOverview` (query) `void` → `{ account, stats }[]` for all active accounts.
@@ -27,7 +33,7 @@
 - **Baseline (A2)**: `calculateBaseline` *(deprecated)*, `calculateBaselineFromAF` (appId, geo, mediaSource, windowDays?), `updateAllBaselinesFromAF`, `getBaseline`, `getBaselineSettings`, `upsertBaselineSettings`.
 - **Campaign (A3)**: `evaluateCampaign` *(deprecated)*, `evaluateCampaignFromAF` (campaignId, evaluationDate?, lookbackDays?), `evaluateAllCampaignsFromAF`, `getCampaignEvaluations`.
 - **Creative (A4)**: `evaluateCreativeD3`, `evaluateCreativeD7`, `checkCampaignClosure`, `getCreativeEvaluations`. *(Deferred: not yet using AppsFlyer data)*
-- **Operations (A7)**: `evaluateOperation` *(deprecated)*, `evaluateOperationFromAF` (operationId, campaignId, appId, geo, mediaSource), `evaluateOperations7DaysAgoFromAF`, `getOperationScores`, `getOptimizerLeaderboard`.
+- **Operations (A7)**: `evaluateOperation` *(calls AppsFlyer-based evaluator with stage scoring)*, `evaluateOperationFromAF` (operationId, optional stages T+1/T+3/T+7), `evaluateOperations7DaysAgoFromAF`, `getOperationScores` (filter by stage), `getOptimizerLeaderboard`.
 - **Note**: Phase 5 refactored A2/A3/A7 to use AppsFlyer data. Old mock-based functions remain but are deprecated.
 
 ### AppsFlyer (`appsflyer`)

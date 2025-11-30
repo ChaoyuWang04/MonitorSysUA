@@ -237,30 +237,33 @@ async function testA5OperationEvaluation() {
       const evaluationResult = await evaluateOperation(existingEvent.id);
 
       printResult("Evaluation Result", evaluationResult);
+      const primaryStage = evaluationResult.stages[0];
 
-      if (evaluationResult.error) {
-        // Expected - might not have data 7 days after this operation
+      if (primaryStage.dataStatus !== 'complete') {
         printTest(
           "Operation Evaluation",
           "INFO",
-          `Expected outcome: ${evaluationResult.error}`
+          `Pending/missing data: ${primaryStage.error ?? 'waiting for cohorts'}`
         );
-      } else if (evaluationResult.score) {
+      } else {
         printTest(
           "Operation Evaluation",
           "PASS",
-          `Score: ${evaluationResult.score}, Min Achievement: ${(evaluationResult.min_achievement_rate ?? 0).toFixed(2)}%`
+          `Stage ${primaryStage.stage} Final Score: ${primaryStage.finalScore ?? 'N/A'} Risk: ${primaryStage.riskLevel ?? 'N/A'}`
         );
 
         // Test 3: Verify database persistence
         const savedScore = await db.query.operationScore.findFirst({
-          where: eq(schema.operationScore.operationId, existingEvent.id),
+          where: and(
+            eq(schema.operationScore.operationId, existingEvent.id),
+            eq(schema.operationScore.scoreStage, 'T+7')
+          ),
         });
 
         if (savedScore) {
           printTest("Database Persistence", "PASS", `Operation score saved: ${savedScore.optimizerEmail}`);
         } else {
-          printTest("Database Persistence", "INFO", "No score saved (expected if no data 7 days later)");
+          printTest("Database Persistence", "INFO", "No score saved (expected if no data yet)");
         }
       }
     } catch (evalError) {

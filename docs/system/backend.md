@@ -6,20 +6,21 @@
 - **Docker-based ETL**: AppsFlyer sync runs in dedicated Python container (`appsflyer-etl`) with cron scheduler; independent from Next.js app.
 
 ## Modules
-- `server/api/`: `trpc.ts`, `root.ts`, routers (`accounts`, `events`, `stats`, `evaluation`, `appsflyer`).
-- `server/db/`: `schema.ts` (14 tables), `index.ts` (client), `queries.ts` (accounts/events/stats), `queries-evaluation.ts` (A2-A5 + recommendations), `queries-appsflyer.ts` (events/cohort/baseline/sync logs).
-- `server/google-ads/`: `client.ts` (spawn Python), `fetch_events.py`, `parser.ts`, `diff-engine.ts`, `regenerate_summaries.py`.
+- `server/api/`: `trpc.ts`, `root.ts`, routers (`accounts`, `events`, `entities`, `stats`, `evaluation`, `appsflyer`).
+- `server/db/`: `schema.ts` (adds campaigns/ad_groups/ads), `index.ts` (client), `queries.ts` (accounts/events/entities/stats; BigInt → number for API), `queries-evaluation.ts` (A2-A5 + recommendations), `queries-appsflyer.ts` (events/cohort/baseline/sync logs).
+- `server/google-ads/`: `client.ts` (ChangeEvent Python bridge), `fetch_events.py`, `fetch_entities.py` (campaign/ad group/ad GAQL), `parser.ts`, `diff-engine.ts`, `regenerate_summaries.py`.
 - `server/appsflyer/`: `sync_af_data.py`, `backfill.py`, `monthly_baseline_update.py`, `email_notifier.py`, `Dockerfile`, `crontab`, `entrypoint.sh`, `requirements.txt` for Docker ETL container.
 - `server/evaluation/`: wrappers (`baseline-calculator.ts`, `campaign-evaluator.ts`, `creative-evaluator.ts`, `operation-evaluator.ts`), Python engines, mock-data seed + test harness.
 - Utilities: `scripts/db-snapshot.ts` (CSV preview + JSON for restore, random sampling, default limit 100), `scripts/db-restore.ts`, Just recipes for dev/DB/AppsFlyer.
 
 ## Data Flows
-- **Google Ads Sync**: `events.sync` → load account (currency) → Python `fetch_events.py` → parse + dedupe → insert `change_events` → update `accounts.lastSyncedAt`.
+- **Google Ads ChangeEvents**: `events.sync` → load account (currency) → Python `fetch_events.py` → parse + dedupe → insert `change_events` → update `accounts.lastSyncedAt`.
+- **Google Ads Entities (full state)**: `entities.sync` → load account → Python `fetch_entities.py` (GAQL campaigns/ad_groups/ads) → TS bridge upsert + prune (hard delete REMOVED/missing) into `campaigns`, `ad_groups`, `ads` → update `accounts.lastSyncedAt`. Listings join latest `change_events` by `resource_name`; BigInt budget/bid fields normalized to number in API responses.
 - **AppsFlyer Sync**: `appsflyer.triggerManualSync` (or Just commands) → Python `sync_af_data.py`/`backfill.py` → write `af_events`, `af_cohort_kpi_daily` + `af_sync_log`.
 - **Evaluation (Phase 5)**: TypeScript wrappers query AppsFlyer tables directly → calculate metrics → persist to `campaign_evaluation`, `operation_score`, `optimizer_leaderboard`. Primary functions:
   - A2 Baseline: `calculateBaselineFromAF()` queries `af_cohort_kpi_daily` for P50 ROAS/RET; configurable window via `baseline_settings`.
   - A3 Campaign: `evaluateCampaignFromAF()` aggregates cohort metrics for evaluation; batch via `evaluateAllCampaignsFromAF()`.
-  - A7 Operation: `evaluateOperationFromAF()` compares before/after cohort performance for change events.
+  - A7 Operation: `evaluateOperationFromAF()` resolves AppsFlyer context from change events/campaigns, computes stage scores (T+1/T+3/T+7) vs baseline, writes to `operation_score` and mirrors into `change_events.operation_scores`; `evaluateOperations7DaysAgoFromAF()` batches by operation date.
 
 ## Integrations
 - **Google Ads API**: ChangeEvent stream per account via MCC credentials; summaries kept in English + Chinese; soft-delete for accounts.

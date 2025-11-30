@@ -7,38 +7,56 @@
 
 import { spawn } from 'child_process'
 import path from 'path'
+import { and, eq, gte, lte, sql } from 'drizzle-orm'
+import { db } from '../../db'
+import {
+  campaigns,
+  changeEvents,
+  type ChangeEvent,
+  type NewOperationScore,
+} from '../../db/schema'
 import {
   getOperationCohortMetrics,
-  getSafetyBaseline,
   createOperationScore,
 } from '../../db/queries-evaluation'
-import { calculateBaselineFromAF } from './baseline-calculator'
+import { calculateBaselineRoas, calculateBaselineRetention } from '../../db/queries-appsflyer'
+import { getOrCreateBaselineSettings } from './baseline-calculator'
 
 // ============================================
 // TYPE DEFINITIONS
 // ============================================
 
-export type OperationScore = '优秀' | '合格' | '失败'
+export type ScoreStage = 'T+1' | 'T+3' | 'T+7'
+
+export interface OperationStageResult {
+  stage: ScoreStage
+  stageDays: number
+  baseScore: number | null
+  finalScore: number | null
+  minAchievement: number | null
+  roasAchievement: number | null
+  retentionAchievement: number | null
+  riskLevel: 'danger' | 'warning' | 'observe' | 'healthy' | 'excellent' | null
+  operationScoreId?: number
+  dataStatus: 'complete' | 'pending' | 'missing'
+  error?: string
+}
 
 export interface OperationEvaluationResult {
-  operation_id: number
-  campaign_id: string
-  campaign_name: string
-  optimizer_email: string
-  operation_type: string
-  operation_date: string
-  evaluation_date: string
-  actual_roas7: number | null
-  actual_ret7: number | null
-  baseline_roas7: number | null
-  baseline_ret7: number | null
-  roas_achievement_rate: number | null
-  ret_achievement_rate: number | null
-  min_achievement_rate: number | null
-  score: OperationScore
-  error?: string
+  operationId: number
+  campaignId: string
+  campaignName?: string
+  optimizerEmail: string
+  operationType: string
+  operationDate: string
+  stages: OperationStageResult[]
   dataSource?: 'appsflyer' | 'mock'
-  dataIncomplete?: boolean
+  context?: {
+    appId: string
+    geo: string
+    mediaSource: string
+    campaignKey: string
+  }
 }
 
 export interface OptimizerStats {
@@ -75,8 +93,7 @@ export interface BatchEvaluationResult {
   results: Array<{
     operation_id: number
     optimizer?: string
-    score?: string
-    min_achievement_rate?: number
+    stages?: OperationStageResult[]
     error?: string
     pending?: boolean
   }>
@@ -84,249 +101,395 @@ export interface BatchEvaluationResult {
   dataSource?: 'appsflyer' | 'mock'
 }
 
-export interface EvaluateOperationFromAFParams {
-  operationId: number
-  campaign: string
-  optimizerEmail: string
-  operationType: string
-  operationDate: Date
-  appId: string
-  geo: string
-  mediaSource: string
-}
-
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
 
-/**
- * Map achievement rate to operation score
- * Per PRD: ≥110% = 优秀, ≥85% = 合格, <85% = 失败
- */
-function mapAchievementToScore(rate: number | null): OperationScore {
-  if (rate === null) return '合格' // Default to qualified if no data
-  if (rate >= 110) return '优秀'
-  if (rate >= 85) return '合格'
-  return '失败'
+const STAGE_DAY_MAP: Record<ScoreStage, number> = {
+  'T+1': 1,
+  'T+3': 3,
+  'T+7': 7,
+}
+
+const STAGE_FACTOR: Record<ScoreStage, number> = {
+  'T+1': 0.5,
+  'T+3': 0.8,
+  'T+7': 1,
+}
+
+const DEFAULT_STAGES: ScoreStage[] = ['T+1', 'T+3', 'T+7']
+
+function mapToBaseScore(achievement: number | null): number | null {
+  if (achievement === null || Number.isNaN(achievement)) return null
+  if (achievement < 0.6) return 0
+  if (achievement < 0.85) return 40
+  if (achievement < 1.0) return 60
+  if (achievement < 1.1) return 80
+  return 100
+}
+
+function getRiskLevel(
+  achievement: number | null
+): OperationStageResult['riskLevel'] {
+  if (achievement === null || Number.isNaN(achievement)) return null
+  if (achievement < 0.6) return 'danger'
+  if (achievement < 0.85) return 'warning'
+  if (achievement < 1.0) return 'observe'
+  if (achievement < 1.1) return 'healthy'
+  return 'excellent'
+}
+
+function mapSuggestionType(riskLevel: OperationStageResult['riskLevel']): string | null {
+  switch (riskLevel) {
+    case 'danger':
+      return 'stop'
+    case 'warning':
+      return 'shrink'
+    case 'observe':
+      return 'observe'
+    case 'healthy':
+    case 'excellent':
+      return 'expand'
+    default:
+      return null
+  }
+}
+
+function classifyOperationMagnitude(changePercentage: number | null | undefined) {
+  if (changePercentage === null || changePercentage === undefined) return { magnitude: null, label: null }
+  const absChange = Math.abs(changePercentage)
+  if (absChange <= 0.05) return { magnitude: absChange, label: '微调' }
+  if (absChange <= 0.2) return { magnitude: absChange, label: '常规调整' }
+  return { magnitude: absChange, label: '大胆操作' }
 }
 
 // ============================================
 // APPSFLYER-BASED EVALUATION (PRIMARY)
 // ============================================
+interface OperationContext {
+  changeEvent: ChangeEvent
+  campaignId: string
+  campaignName?: string
+  appId: string
+  geo: string
+  mediaSource: string
+  campaignKey: string
+}
 
-/**
- * Evaluate an operation using real AppsFlyer cohort data (T+7 evaluation)
- *
- * This is the primary function for Phase 5+, replacing mock data.
- * Evaluates operations 7 days after execution based on cohort performance.
- *
- * @param params - Operation evaluation parameters
- * @returns Operation evaluation result with score
- *
- * @example
- * ```typescript
- * const result = await evaluateOperationFromAF({
- *   operationId: 12345,
- *   campaign: "my_campaign",
- *   optimizerEmail: "optimizer@company.com",
- *   operationType: "bid_adjustment",
- *   operationDate: new Date("2024-01-15"),
- *   appId: "id123456789",
- *   geo: "US",
- *   mediaSource: "googleadwords_int",
- * });
- * console.log(`Score: ${result.score}`);
- * ```
- */
-export async function evaluateOperationFromAF(
-  params: EvaluateOperationFromAFParams
-): Promise<OperationEvaluationResult> {
-  const {
-    operationId,
-    campaign,
-    optimizerEmail,
-    operationType,
-    operationDate,
+async function pickAfContext(campaignIdentifiers: string[]): Promise<{
+  appId: string
+  geo: string
+  mediaSource: string
+  campaignKey: string
+} | null> {
+  for (const identifier of campaignIdentifiers) {
+    const res = await db.execute(sql`
+      SELECT app_id, geo, media_source, SUM(installs) AS installs
+      FROM af_cohort_kpi_daily
+      WHERE campaign = ${identifier} AND days_since_install = 0
+      GROUP BY app_id, geo, media_source
+      ORDER BY SUM(installs) DESC
+      LIMIT 1
+    `)
+
+    const row = res.rows[0] as Record<string, unknown> | undefined
+    if (row) {
+      return {
+        appId: String(row.app_id),
+        geo: String(row.geo),
+        mediaSource: String(row.media_source),
+        campaignKey: identifier,
+      }
+    }
+  }
+  return null
+}
+
+async function resolveOperationContext(operationId: number): Promise<OperationContext> {
+  const [operation] = await db
+    .select()
+    .from(changeEvents)
+    .where(eq(changeEvents.id, operationId))
+    .limit(1)
+
+  if (!operation) {
+    throw new Error(`Operation ${operationId} not found`)
+  }
+
+  const campaignId = operation.campaign || operation.resourceName
+
+  let campaignName: string | undefined
+  if (campaignId) {
+    const campaignRow = await db
+      .select({ name: campaigns.name })
+      .from(campaigns)
+      .where(and(eq(campaigns.accountId, operation.accountId), eq(campaigns.resourceName, campaignId)))
+      .limit(1)
+
+    campaignName = campaignRow[0]?.name || undefined
+  }
+
+  const campaignIdentifiers = [campaignId, campaignName].filter(Boolean) as string[]
+  const afContext = await pickAfContext(campaignIdentifiers)
+
+  const fallbackAppId = process.env.AF_APP_ID
+  const fallbackGeo = process.env.AF_DEFAULT_GEO
+  const fallbackMediaSource = process.env.AF_DEFAULT_MEDIA_SOURCE
+
+  const appId = afContext?.appId || fallbackAppId
+  const geo = afContext?.geo || fallbackGeo
+  const mediaSource = afContext?.mediaSource || fallbackMediaSource
+  const campaignKey = afContext?.campaignKey || campaignIdentifiers[0]
+
+  if (!appId || !geo || !mediaSource || !campaignKey) {
+    throw new Error('Missing AppsFlyer context for operation scoring')
+  }
+
+  return {
+    changeEvent: operation,
+    campaignId,
+    campaignName,
     appId,
     geo,
     mediaSource,
-  } = params
+    campaignKey,
+  }
+}
 
-  const evaluationDate = new Date()
+async function evaluateStage(params: {
+  context: OperationContext
+  stage: ScoreStage
+  baselineDays: number
+}): Promise<OperationStageResult & { operationScoreId?: number }> {
+  const { context, stage, baselineDays } = params
+  const stageDays = STAGE_DAY_MAP[stage]
+
+  const operationDate = new Date(context.changeEvent.timestamp)
+
+  const metrics = await getOperationCohortMetrics({
+    campaign: context.campaignKey,
+    operationDate,
+    appId: context.appId,
+    geo: context.geo,
+    mediaSource: context.mediaSource,
+    daysSinceInstall: stageDays,
+  })
+
+  if (!metrics) {
+    return {
+      stage,
+      stageDays,
+      baseScore: null,
+      finalScore: null,
+      minAchievement: null,
+      roasAchievement: null,
+      retentionAchievement: null,
+      riskLevel: null,
+      dataStatus: 'pending',
+      error: 'Insufficient cohort data for this stage',
+    }
+  }
+
+  const [baselineRoas, baselineRet] = await Promise.all([
+    calculateBaselineRoas({
+      appId: context.appId,
+      geo: context.geo,
+      mediaSource: context.mediaSource,
+      baselineDays,
+      daysSinceInstall: stageDays,
+    }),
+    calculateBaselineRetention({
+      appId: context.appId,
+      geo: context.geo,
+      mediaSource: context.mediaSource,
+      daysSinceInstall: stageDays,
+      baselineDays,
+    }),
+  ])
+
+  const roasAchievement = baselineRoas && baselineRoas > 0 && metrics.actualRoas7 !== null
+    ? metrics.actualRoas7 / baselineRoas
+    : null
+
+  const retentionAchievement = baselineRet && baselineRet > 0 && metrics.actualRet7 !== null
+    ? metrics.actualRet7 / baselineRet
+    : null
+
+  const minAchievement = [roasAchievement, retentionAchievement]
+    .filter((v): v is number => v !== null && !Number.isNaN(v))
+    .reduce<number | null>((acc, curr) => {
+      if (acc === null) return curr
+      return Math.min(acc, curr)
+    }, null)
+
+  const baseScore = mapToBaseScore(minAchievement)
+  const stageFactor = STAGE_FACTOR[stage]
+  const finalScore = baseScore !== null ? baseScore * stageFactor : null
+  const riskLevel = getRiskLevel(minAchievement)
+  const suggestionType = mapSuggestionType(riskLevel)
+
+  // Operation magnitude (optional)
+  const changePct = (
+    context.changeEvent.fieldChanges as Record<string, unknown> | null | undefined
+  )?.change_percentage as number | undefined
+  const operationMagnitude = classifyOperationMagnitude(changePct ?? null)
+
+  // Score date = operation date + stageDays
+  const evaluationDate = new Date(operationDate)
+  evaluationDate.setDate(evaluationDate.getDate() + stageDays)
+
+  let savedScoreId: number | undefined
+  const shouldPersist = metrics !== null && baseScore !== null
+
+  if (shouldPersist) {
+    const payload: NewOperationScore = {
+      operationId: context.changeEvent.id,
+      campaignId: context.campaignId,
+      optimizerEmail: context.changeEvent.userEmail,
+      operationType: context.changeEvent.operationType,
+      operationDate: operationDate.toISOString().split('T')[0],
+      evaluationDate: evaluationDate.toISOString().split('T')[0],
+      scoreStage: stage,
+      stageFactor: stageFactor.toString(),
+      actualRoas: metrics.actualRoas7 !== null ? metrics.actualRoas7.toString() : null,
+      actualRet: metrics.actualRet7 !== null ? metrics.actualRet7.toString() : null,
+      baselineRoas: baselineRoas !== null && baselineRoas !== undefined ? baselineRoas.toString() : null,
+      baselineRet: baselineRet !== null && baselineRet !== undefined ? baselineRet.toString() : null,
+      roasAchievement: roasAchievement !== null ? roasAchievement.toString() : null,
+      retentionAchievement: retentionAchievement !== null ? retentionAchievement.toString() : null,
+      minAchievement: minAchievement !== null ? minAchievement.toString() : null,
+      roasAchievementRate: roasAchievement !== null ? (roasAchievement * 100).toString() : null,
+      retAchievementRate: retentionAchievement !== null ? (retentionAchievement * 100).toString() : null,
+      riskLevel,
+      baseScore,
+      finalScore: finalScore !== null ? Number(finalScore).toFixed(2) : null,
+      valueBefore: null,
+      valueAfter: null,
+      changePercentage: changePct !== undefined && changePct !== null ? changePct.toString() : null,
+      operationMagnitude: operationMagnitude.magnitude !== null ? operationMagnitude.magnitude.toString() : null,
+      operationTypeLabel: operationMagnitude.label,
+      isBoldSuccess: baseScore !== null && baseScore >= 80 && (operationMagnitude.magnitude || 0) > 0.2,
+      specialRecognition:
+        baseScore !== null && baseScore >= 80 && (operationMagnitude.magnitude || 0) > 0.2
+          ? '🌟 大胆创新奖'
+          : baseScore !== null && baseScore >= 80 && (operationMagnitude.magnitude || 0) <= 0.05
+            ? '🎯 精准调优奖'
+            : baseScore !== null && baseScore >= 100
+              ? '🏆 卓越表现奖'
+              : null,
+      suggestionType,
+      suggestionDetail: suggestionType ? `Auto-suggest: ${suggestionType}` : null,
+
+      // Legacy columns for compatibility
+      actualRoas7: metrics.actualRoas7 !== null ? metrics.actualRoas7.toString() : null,
+      actualRet7: metrics.actualRet7 !== null ? metrics.actualRet7.toString() : null,
+      baselineRoas7: baselineRoas !== null && baselineRoas !== undefined ? baselineRoas.toString() : null,
+      baselineRet7: baselineRet !== null && baselineRet !== undefined ? baselineRet.toString() : null,
+    }
+
+    const saved = await createOperationScore(payload)
+    savedScoreId = saved?.id
+  }
+
+  return {
+    stage,
+    stageDays,
+    baseScore,
+    finalScore,
+    minAchievement,
+    roasAchievement,
+    retentionAchievement,
+    riskLevel,
+    operationScoreId: savedScoreId,
+    dataStatus: baseScore === null ? 'missing' : 'complete',
+    error:
+      baseScore === null
+        ? 'Baseline missing or insufficient to compute score'
+        : undefined,
+  }
+}
+
+export async function evaluateOperationFromAF(params: {
+  operationId: number
+  stages?: ScoreStage[]
+}): Promise<OperationEvaluationResult> {
+  const { operationId, stages = DEFAULT_STAGES } = params
 
   try {
-    // Get cohort metrics for the operation window (T+0 to T+6, evaluated at T+7)
-    const metrics = await getOperationCohortMetrics({
-      campaign,
-      operationDate,
-      appId,
-      geo,
-      mediaSource,
+    const context = await resolveOperationContext(operationId)
+    const baselineSettings = await getOrCreateBaselineSettings({
+      appId: context.appId,
+      geo: context.geo,
+      mediaSource: context.mediaSource,
     })
 
-    // Check if we have enough time for D7 evaluation
-    if (metrics === null) {
-      // Not enough time elapsed or no data
-      const daysElapsed = Math.floor(
-        (evaluationDate.getTime() - operationDate.getTime()) / (1000 * 60 * 60 * 24)
-      )
+    const stageResults: OperationStageResult[] = []
 
-      if (daysElapsed < 14) {
-        // Need at least 14 days (7 days install window + 7 days maturation)
-        return {
-          operation_id: operationId,
-          campaign_id: campaign,
-          campaign_name: campaign,
-          optimizer_email: optimizerEmail,
-          operation_type: operationType,
-          operation_date: operationDate.toISOString().split('T')[0],
-          evaluation_date: evaluationDate.toISOString().split('T')[0],
-          actual_roas7: null,
-          actual_ret7: null,
-          baseline_roas7: null,
-          baseline_ret7: null,
-          roas_achievement_rate: null,
-          ret_achievement_rate: null,
-          min_achievement_rate: null,
-          score: '合格',
-          dataSource: 'appsflyer',
-          dataIncomplete: true,
-          error: `Need ${14 - daysElapsed} more days for D7 evaluation`,
-        }
-      }
-
-      // Enough time but no data
-      return {
-        operation_id: operationId,
-        campaign_id: campaign,
-        campaign_name: campaign,
-        optimizer_email: optimizerEmail,
-        operation_type: operationType,
-        operation_date: operationDate.toISOString().split('T')[0],
-        evaluation_date: evaluationDate.toISOString().split('T')[0],
-        actual_roas7: null,
-        actual_ret7: null,
-        baseline_roas7: null,
-        baseline_ret7: null,
-        roas_achievement_rate: null,
-        ret_achievement_rate: null,
-        min_achievement_rate: null,
-        score: '合格',
-        dataSource: 'appsflyer',
-        dataIncomplete: true,
-        error: 'No cohort data for operation window',
-      }
-    }
-
-    // Get or calculate baseline
-    let baseline = await getSafetyBaseline({
-      productName: appId,
-      countryCode: geo,
-      platform: 'AppsFlyer',
-      channel: mediaSource,
-    })
-
-    if (!baseline) {
-      const baselineResult = await calculateBaselineFromAF({ appId, geo, mediaSource })
-      if (baselineResult.hasData) {
-        baseline = {
-          id: 0,
-          productName: appId,
-          countryCode: geo,
-          platform: 'AppsFlyer',
-          channel: mediaSource,
-          baselineRoas7: baselineResult.baseline_roas7?.toString() || null,
-          baselineRet7: baselineResult.baseline_ret7?.toString() || null,
-          referencePeriod: baselineResult.reference_period,
-          lastUpdated: new Date(),
-        }
-      }
-    }
-
-    const baselineRoas7 = baseline?.baselineRoas7 ? parseFloat(baseline.baselineRoas7) : null
-    const baselineRet7 = baseline?.baselineRet7 ? parseFloat(baseline.baselineRet7) : null
-
-    // Calculate achievement rates
-    let roasAchievementRate: number | null = null
-    let retAchievementRate: number | null = null
-
-    if (metrics.actualRoas7 !== null && baselineRoas7 && baselineRoas7 > 0) {
-      roasAchievementRate = (metrics.actualRoas7 / baselineRoas7) * 100
-    }
-
-    if (metrics.actualRet7 !== null && baselineRet7 && baselineRet7 > 0) {
-      retAchievementRate = (metrics.actualRet7 / baselineRet7) * 100
-    }
-
-    // Min achievement rate
-    let minAchievementRate: number | null = null
-    if (roasAchievementRate !== null && retAchievementRate !== null) {
-      minAchievementRate = Math.min(roasAchievementRate, retAchievementRate)
-    } else if (roasAchievementRate !== null) {
-      minAchievementRate = roasAchievementRate
-    } else if (retAchievementRate !== null) {
-      minAchievementRate = retAchievementRate
-    }
-
-    // Determine score
-    const score = mapAchievementToScore(minAchievementRate)
-
-    // Store operation score (note: score is derived, not stored in DB)
-    if (minAchievementRate !== null) {
-      await createOperationScore({
-        operationId,
-        optimizerEmail,
-        campaignId: campaign,
-        operationType,
-        operationDate: operationDate.toISOString().split('T')[0],
-        evaluationDate: evaluationDate.toISOString().split('T')[0],
-        actualRoas7: metrics.actualRoas7?.toString() || null,
-        actualRet7: metrics.actualRet7?.toString() || null,
-        roasAchievementRate: roasAchievementRate?.toString() || null,
-        retAchievementRate: retAchievementRate?.toString() || null,
+    for (const stage of stages) {
+      const result = await evaluateStage({
+        context,
+        stage,
+        baselineDays: baselineSettings.baselineDays,
       })
+      stageResults.push(result)
     }
+
+    // Update change_events.operation_scores for quick lookup
+    await db
+      .update(changeEvents)
+      .set({
+        operationScores: stageResults.map((stage) => ({
+          stage: stage.stage,
+          finalScore: stage.finalScore,
+          baseScore: stage.baseScore,
+          minAchievement: stage.minAchievement,
+          riskLevel: stage.riskLevel,
+          operationScoreId: stage.operationScoreId,
+          dataStatus: stage.dataStatus,
+          error: stage.error,
+        })),
+      })
+      .where(eq(changeEvents.id, operationId))
 
     return {
-      operation_id: operationId,
-      campaign_id: campaign,
-      campaign_name: campaign,
-      optimizer_email: optimizerEmail,
-      operation_type: operationType,
-      operation_date: operationDate.toISOString().split('T')[0],
-      evaluation_date: evaluationDate.toISOString().split('T')[0],
-      actual_roas7: metrics.actualRoas7,
-      actual_ret7: metrics.actualRet7,
-      baseline_roas7: baselineRoas7,
-      baseline_ret7: baselineRet7,
-      roas_achievement_rate: roasAchievementRate,
-      ret_achievement_rate: retAchievementRate,
-      min_achievement_rate: minAchievementRate,
-      score,
+      operationId,
+      campaignId: context.campaignId,
+      campaignName: context.campaignName,
+      optimizerEmail: context.changeEvent.userEmail,
+      operationType: context.changeEvent.operationType,
+      operationDate: new Date(context.changeEvent.timestamp).toISOString().split('T')[0],
+      stages: stageResults,
       dataSource: 'appsflyer',
-      dataIncomplete: false,
+      context: {
+        appId: context.appId,
+        geo: context.geo,
+        mediaSource: context.mediaSource,
+        campaignKey: context.campaignKey,
+      },
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const message = error instanceof Error ? error.message : 'Unknown error'
     return {
-      operation_id: operationId,
-      campaign_id: campaign,
-      campaign_name: campaign,
-      optimizer_email: optimizerEmail,
-      operation_type: operationType,
-      operation_date: operationDate.toISOString().split('T')[0],
-      evaluation_date: evaluationDate.toISOString().split('T')[0],
-      actual_roas7: null,
-      actual_ret7: null,
-      baseline_roas7: null,
-      baseline_ret7: null,
-      roas_achievement_rate: null,
-      ret_achievement_rate: null,
-      min_achievement_rate: null,
-      score: '合格',
-      error: errorMessage,
+      operationId,
+      campaignId: '',
+      optimizerEmail: '',
+      operationType: '',
+      operationDate: '',
+      stages: [
+        {
+          stage: 'T+7',
+          stageDays: 7,
+          baseScore: null,
+          finalScore: null,
+          minAchievement: null,
+          roasAchievement: null,
+          retentionAchievement: null,
+          riskLevel: null,
+          dataStatus: 'missing',
+          error: message,
+        },
+      ],
       dataSource: 'appsflyer',
-      dataIncomplete: true,
     }
   }
 }
@@ -347,11 +510,6 @@ export async function evaluateOperationFromAF(
 export async function evaluateOperations7DaysAgoFromAF(
   targetDate?: Date
 ): Promise<BatchEvaluationResult> {
-  // Import dynamically to avoid circular dependency
-  const { db } = await import('../../db/index')
-  const { changeEvents } = await import('../../db/schema')
-  const { and, gte, lte } = await import('drizzle-orm')
-
   // Target date is 7 days ago by default
   const target = targetDate || new Date()
   if (!targetDate) {
@@ -365,33 +523,45 @@ export async function evaluateOperations7DaysAgoFromAF(
   endOfDay.setHours(23, 59, 59, 999)
 
   try {
-    // Query change_events for operations on target date
     const operations = await db
       .select()
       .from(changeEvents)
-      .where(and(gte(changeEvents.timestamp, startOfDay), lte(changeEvents.timestamp, endOfDay)))
+      .where(
+        and(
+          gte(changeEvents.timestamp, startOfDay),
+          lte(changeEvents.timestamp, endOfDay),
+          eq(changeEvents.resourceType, 'campaign')
+        )
+      )
 
     const results: BatchEvaluationResult['results'] = []
     let successCount = 0
     let failedCount = 0
     let pendingCount = 0
 
-    // NOTE: Current change_events schema lacks appId/geo/mediaSource fields
-    // which are required for AppsFlyer cohort matching.
-    // All operations will be marked as skipped until schema is extended.
     for (const op of operations) {
-      // Current change_events doesn't have AppsFlyer fields
-      // Skip with informative message
+      const evaluation = await evaluateOperationFromAF({ operationId: op.id, stages: ['T+7'] })
+      const stage = evaluation.stages[0]
+
+      if (stage.dataStatus === 'complete') {
+        successCount++
+      } else if (stage.dataStatus === 'pending') {
+        pendingCount++
+      } else {
+        failedCount++
+      }
+
       results.push({
         operation_id: op.id,
         optimizer: op.userEmail,
-        error: 'AppsFlyer fields (appId, geo, mediaSource) not available in change_events',
+        stages: evaluation.stages,
+        error: stage.error,
+        pending: stage.dataStatus === 'pending',
       })
-      failedCount++
     }
 
     return {
-      success: operations.length === 0, // Success if no operations to process
+      success: failedCount === 0,
       target_date: target.toISOString().split('T')[0],
       total_operations: operations.length,
       success_count: successCount,
@@ -399,10 +569,6 @@ export async function evaluateOperations7DaysAgoFromAF(
       pending_count: pendingCount,
       results,
       dataSource: 'appsflyer',
-      error:
-        operations.length > 0
-          ? 'change_events table needs appId, geo, mediaSource fields for AppsFlyer integration'
-          : undefined,
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -492,13 +658,7 @@ export async function evaluateOperation(operationId: number): Promise<OperationE
     '[DEPRECATED] evaluateOperation uses mock data. Use evaluateOperationFromAF instead.'
   )
 
-  const input = {
-    action: 'evaluate',
-    operationId,
-  }
-
-  const result = await runPythonScript<OperationEvaluationResult>('operation_evaluator.py', input)
-  return { ...result, dataSource: 'mock' }
+  return evaluateOperationFromAF({ operationId })
 }
 
 /**

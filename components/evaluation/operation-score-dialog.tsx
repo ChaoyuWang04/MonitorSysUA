@@ -62,7 +62,16 @@ export function OperationScoreDialog({
     failedActions,
     avgResponseTime,
     status,
+    riskLevel,
+    finalScore,
+    baseScore,
   } = operation
+
+  const totalScoreValue = totalScore ?? finalScore ?? baseScore ?? null
+  const decisionScore = decisionQualityScore ?? totalScoreValue
+  const executionScore = executionEfficiencyScore ?? totalScoreValue
+  const riskScore = riskManagementScore ?? baseScore ?? totalScoreValue
+  const statusValue = status ?? riskLevel ?? null
 
   const successRate = actionsExecuted && actionsExecuted > 0 && successfulActions !== undefined
     ? (successfulActions / actionsExecuted) * 100
@@ -70,9 +79,9 @@ export function OperationScoreDialog({
 
   // Score data for bar chart
   const scoreData = [
-    { category: 'Decision\nQuality', score: decisionQualityScore || 0, max: 100 },
-    { category: 'Execution\nEfficiency', score: executionEfficiencyScore || 0, max: 100 },
-    { category: 'Risk\nManagement', score: riskManagementScore || 0, max: 100 },
+    { category: 'Decision\nQuality', score: decisionScore || 0, max: 100 },
+    { category: 'Execution\nEfficiency', score: executionScore || 0, max: 100 },
+    { category: 'Risk\nManagement', score: riskScore || 0, max: 100 },
   ]
 
   return (
@@ -106,8 +115,8 @@ export function OperationScoreDialog({
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Chip
-            label={getOperationStatusLabel(status)}
-            color={getOperationStatusColor(status)}
+            label={getOperationStatusLabel(statusValue)}
+            color={getOperationStatusColor(statusValue)}
             size="medium"
             sx={{ fontWeight: 600 }}
           />
@@ -128,7 +137,9 @@ export function OperationScoreDialog({
                 Total Operation Score
               </Typography>
               <Typography variant="h2" sx={{ fontWeight: 700, color: 'primary.main', mb: 1 }}>
-                {totalScore?.toFixed(1) || 'N/A'}
+                {totalScoreValue !== null && totalScoreValue !== undefined
+                  ? Number(totalScoreValue).toFixed(1)
+                  : 'N/A'}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Out of 100 points
@@ -153,12 +164,14 @@ export function OperationScoreDialog({
                         Decision Quality
                       </Typography>
                       <Typography variant="body2" sx={{ fontWeight: 700, color: 'primary.main' }}>
-                        {decisionQualityScore?.toFixed(1) || 'N/A'}
+                        {decisionScore !== null && decisionScore !== undefined
+                          ? Number(decisionScore).toFixed(1)
+                          : 'N/A'}
                       </Typography>
                     </Box>
                     <LinearProgress
                       variant="determinate"
-                      value={decisionQualityScore || 0}
+                    value={decisionScore || 0}
                       sx={{
                         height: 8,
                         borderRadius: 1,
@@ -184,12 +197,14 @@ export function OperationScoreDialog({
                         Execution Efficiency
                       </Typography>
                       <Typography variant="body2" sx={{ fontWeight: 700, color: 'success.main' }}>
-                        {executionEfficiencyScore?.toFixed(1) || 'N/A'}
+                        {executionScore !== null && executionScore !== undefined
+                          ? Number(executionScore).toFixed(1)
+                          : 'N/A'}
                       </Typography>
                     </Box>
                     <LinearProgress
                       variant="determinate"
-                      value={executionEfficiencyScore || 0}
+                    value={executionScore || 0}
                       sx={{
                         height: 8,
                         borderRadius: 1,
@@ -215,12 +230,14 @@ export function OperationScoreDialog({
                         Risk Management
                       </Typography>
                       <Typography variant="body2" sx={{ fontWeight: 700, color: 'warning.main' }}>
-                        {riskManagementScore?.toFixed(1) || 'N/A'}
+                        {riskScore !== null && riskScore !== undefined
+                          ? Number(riskScore).toFixed(1)
+                          : 'N/A'}
                       </Typography>
                     </Box>
                     <LinearProgress
                       variant="determinate"
-                      value={riskManagementScore || 0}
+                    value={riskScore || 0}
                       sx={{
                         height: 8,
                         borderRadius: 1,

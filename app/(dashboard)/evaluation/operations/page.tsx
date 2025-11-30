@@ -130,10 +130,17 @@ export default function OperationScoresPage() {
           variant="body2"
           sx={{
             fontWeight: 700,
-            color: params.value >= 90 ? 'success.main' : params.value >= 70 ? 'info.main' : 'text.primary',
+            color:
+              (params.value ?? params.row.finalScore ?? params.row.baseScore) >= 90
+                ? 'success.main'
+                : (params.value ?? params.row.finalScore ?? params.row.baseScore) >= 70
+                  ? 'info.main'
+                  : 'text.primary',
           }}
         >
-          {params.value?.toFixed(1) || 'N/A'}
+          {(
+            params.value ?? params.row.finalScore ?? params.row.baseScore ?? null
+          )?.toFixed?.(1) || 'N/A'}
         </Typography>
       ),
     },
@@ -143,7 +150,14 @@ export default function OperationScoresPage() {
       width: 150,
       align: 'right',
       headerAlign: 'right',
-      valueFormatter: (value: number | null | undefined) => (value !== null && value !== undefined ? value.toFixed(1) : 'N/A'),
+      valueFormatter: (params) => {
+        const val =
+          (params as { value: number | null | undefined; row: any }).value ??
+          (params as { row: any }).row?.baseScore ??
+          (params as { row: any }).row?.finalScore
+
+        return val !== null && val !== undefined ? Number(val).toFixed(1) : 'N/A'
+      },
     },
     {
       field: 'executionEfficiencyScore',
@@ -151,7 +165,14 @@ export default function OperationScoresPage() {
       width: 120,
       align: 'right',
       headerAlign: 'right',
-      valueFormatter: (value: number | null | undefined) => (value !== null && value !== undefined ? value.toFixed(1) : 'N/A'),
+      valueFormatter: (params) => {
+        const val =
+          (params as { value: number | null | undefined; row: any }).value ??
+          (params as { row: any }).row?.baseScore ??
+          (params as { row: any }).row?.finalScore
+
+        return val !== null && val !== undefined ? Number(val).toFixed(1) : 'N/A'
+      },
     },
     {
       field: 'riskManagementScore',
@@ -159,7 +180,14 @@ export default function OperationScoresPage() {
       width: 120,
       align: 'right',
       headerAlign: 'right',
-      valueFormatter: (value: number | null | undefined) => (value !== null && value !== undefined ? value.toFixed(1) : 'N/A'),
+      valueFormatter: (params) => {
+        const val =
+          (params as { value: number | null | undefined; row: any }).value ??
+          (params as { row: any }).row?.baseScore ??
+          (params as { row: any }).row?.finalScore
+
+        return val !== null && val !== undefined ? Number(val).toFixed(1) : 'N/A'
+      },
     },
     {
       field: 'actionsExecuted',
@@ -184,7 +212,7 @@ export default function OperationScoresPage() {
       headerName: 'Status',
       width: 120,
       renderCell: (params) => {
-        const status = params.value
+        const status = params.value || params.row.riskLevel
         const color = getOperationStatusColor(status)
         const label = getOperationStatusLabel(status)
 

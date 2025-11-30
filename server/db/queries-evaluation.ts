@@ -473,10 +473,11 @@ export async function getExcellentCreatives(campaignId?: string) {
 export async function getOperationScores(params: {
   optimizerEmail?: string
   campaignId?: string
+  scoreStage?: string
   page?: number
   pageSize?: number
 }) {
-  const { optimizerEmail, campaignId, page = 1, pageSize = 50 } = params
+  const { optimizerEmail, campaignId, scoreStage = 'T+7', page = 1, pageSize = 50 } = params
 
   const conditions = []
   if (optimizerEmail) {
@@ -484,6 +485,9 @@ export async function getOperationScores(params: {
   }
   if (campaignId) {
     conditions.push(eq(operationScore.campaignId, campaignId))
+  }
+  if (scoreStage) {
+    conditions.push(eq(operationScore.scoreStage, scoreStage))
   }
 
   const where = conditions.length > 0 ? and(...conditions) : undefined
@@ -504,8 +508,14 @@ export async function getOperationScores(params: {
   const total = Number(totalResult[0]?.count || 0)
   const totalPages = Math.ceil(total / pageSize)
 
+  const normalizedData = data.map((row) => ({
+    ...row,
+    totalScore: row.finalScore ?? row.baseScore ?? null,
+    status: (row as unknown as { riskLevel?: string }).riskLevel || (row as unknown as { status?: string }).status || null,
+  }))
+
   return {
-    data,
+    data: normalizedData,
     total,
     page,
     pageSize,
@@ -517,7 +527,16 @@ export async function getOperationScores(params: {
  * Create operation score
  */
 export async function createOperationScore(score: NewOperationScore) {
-  const result = await db.insert(operationScore).values(score).returning()
+  const { createdAt, ...updatable } = score as Record<string, unknown>
+
+  const result = await db
+    .insert(operationScore)
+    .values(score)
+    .onConflictDoUpdate({
+      target: [operationScore.operationId, operationScore.scoreStage],
+      set: updatable,
+    })
+    .returning()
 
   return result[0]
 }
@@ -674,6 +693,7 @@ export interface OperationCohortMetrics {
   totalRevenueUsd: number
   totalInstalls: number
   cohortCount: number
+  stageDays: number
 }
 
 /**
@@ -688,66 +708,57 @@ export async function getAggregatedCampaignMetrics(params: {
   mediaSource: string
   installDateStart: Date
   installDateEnd: Date
+  daysSinceInstall?: number
 }): Promise<AggregatedCampaignMetrics> {
-  const { campaign, appId, geo, mediaSource, installDateStart, installDateEnd } = params
+  const {
+    campaign,
+    appId,
+    geo,
+    mediaSource,
+    installDateStart,
+    installDateEnd,
+    daysSinceInstall = 7,
+  } = params
 
   // Convert dates to string format for SQL comparison
   const startDateStr = installDateStart.toISOString().split('T')[0]
   const endDateStr = installDateEnd.toISOString().split('T')[0]
 
-  // Query aggregated cohort data using raw SQL
   const result = await db.execute(sql`
+    WITH cohort AS (
+      SELECT
+        install_date,
+        SUM(CASE WHEN days_since_install = 0 THEN cost_usd ELSE 0 END) as cost_usd,
+        SUM(CASE WHEN days_since_install = 0 THEN installs ELSE 0 END) as installs,
+        SUM(CASE WHEN days_since_install <= ${daysSinceInstall} THEN total_revenue_usd ELSE 0 END) as revenue_usd,
+        MAX(CASE WHEN days_since_install = ${daysSinceInstall} THEN retention_rate END) as retention_rate
+      FROM af_cohort_metrics_daily
+      WHERE campaign = ${campaign}
+        AND app_id = ${appId}
+        AND geo = ${geo}
+        AND media_source = ${mediaSource}
+        AND install_date >= ${startDateStr}
+        AND install_date <= ${endDateStr}
+      GROUP BY install_date
+    )
     SELECT
       COALESCE(SUM(cost_usd), 0) as total_cost_usd,
       COALESCE(SUM(installs), 0) as total_installs,
-      COUNT(DISTINCT install_date) as cohort_count
-    FROM af_cohort_kpi_daily
-    WHERE campaign = ${campaign}
-      AND app_id = ${appId}
-      AND geo = ${geo}
-      AND media_source = ${mediaSource}
-      AND days_since_install = 0
-      AND install_date >= ${startDateStr}
-      AND install_date <= ${endDateStr}
-  `)
-
-  // Get D7 retention
-  const d7Result = await db.execute(sql`
-    SELECT
-      AVG(retention_rate) as avg_retention
-    FROM af_cohort_kpi_daily
-    WHERE campaign = ${campaign}
-      AND app_id = ${appId}
-      AND geo = ${geo}
-      AND media_source = ${mediaSource}
-      AND days_since_install = 7
-      AND install_date >= ${startDateStr}
-      AND install_date <= ${endDateStr}
-  `)
-
-  // Get revenue from af_events (D0-D7 cumulative)
-  const revenueResult = await db.execute(sql`
-    SELECT
-      COALESCE(SUM(event_revenue_usd), 0) as total_revenue_usd
-    FROM af_events
-    WHERE campaign = ${campaign}
-      AND app_id = ${appId}
-      AND geo = ${geo}
-      AND media_source = ${mediaSource}
-      AND install_date >= ${startDateStr}
-      AND install_date <= ${endDateStr}
-      AND days_since_install <= 7
+      COALESCE(SUM(revenue_usd), 0) as total_revenue_usd,
+      AVG(retention_rate) as avg_retention,
+      COUNT(*) as cohort_count
+    FROM cohort
   `)
 
   const row = result.rows[0] as Record<string, unknown> | undefined
-  const d7Row = d7Result.rows[0] as Record<string, unknown> | undefined
-  const revRow = revenueResult.rows[0] as Record<string, unknown> | undefined
 
   const totalCostUsd = Number(row?.total_cost_usd || 0)
-  const totalRevenueUsd = Number(revRow?.total_revenue_usd || 0)
+  const totalRevenueUsd = Number(row?.total_revenue_usd || 0)
   const totalInstalls = Number(row?.total_installs || 0)
   const cohortCount = Number(row?.cohort_count || 0)
-  const retention = d7Row?.avg_retention ? Number(d7Row.avg_retention) : null
+  const retention = row?.avg_retention !== undefined && row?.avg_retention !== null
+    ? Number(row.avg_retention)
+    : null
 
   const roas = totalCostUsd > 0 ? totalRevenueUsd / totalCostUsd : null
 
@@ -772,8 +783,9 @@ export async function getOperationCohortMetrics(params: {
   appId: string
   geo: string
   mediaSource: string
+  daysSinceInstall?: number
 }): Promise<OperationCohortMetrics | null> {
-  const { campaign, operationDate, appId, geo, mediaSource } = params
+  const { campaign, operationDate, appId, geo, mediaSource, daysSinceInstall = 7 } = params
 
   // Cohort window: install dates from T+0 to T+6 (7 days of installs)
   const installDateStart = operationDate
@@ -783,7 +795,7 @@ export async function getOperationCohortMetrics(params: {
   // Check if we have D7 data for the latest cohort in window
   const today = new Date()
   const requiredDataDate = new Date(installDateEnd)
-  requiredDataDate.setDate(requiredDataDate.getDate() + 7) // D7 for last cohort
+  requiredDataDate.setDate(requiredDataDate.getDate() + daysSinceInstall) // Dn for last cohort
 
   if (today < requiredDataDate) {
     // Not enough time elapsed for D7 evaluation
@@ -798,6 +810,7 @@ export async function getOperationCohortMetrics(params: {
     mediaSource,
     installDateStart,
     installDateEnd,
+    daysSinceInstall,
   })
 
   if (metrics.cohortCount === 0) {
@@ -811,6 +824,7 @@ export async function getOperationCohortMetrics(params: {
     totalRevenueUsd: metrics.totalRevenueUsd,
     totalInstalls: metrics.totalInstalls,
     cohortCount: metrics.cohortCount,
+    stageDays: daysSinceInstall,
   }
 }
 

@@ -6,7 +6,10 @@
 
 ## Core
 - `accounts` (serial PK): `customerId` (unique 10-digit), `name`, optional `currency`/`timeZone`, `isActive`, `createdAt`, `lastSyncedAt`.
-- `change_events`: account-scoped Google Ads logs with `timestamp`, `userEmail`, `resourceType`, `operationType`, `resourceName`, `clientType`, `campaign`, `adGroup`, `summary`/`summaryZh`, `fieldChanges` JSONB, `changedFieldsPaths` JSONB array; unique on accountId+timestamp+resourceName+userEmail.
+- `change_events`: account-scoped Google Ads logs with `timestamp`, `userEmail`, `resourceType`, `operationType`, `resourceName`, `clientType`, `campaign`, `adGroup`, `summary`/`summaryZh`, `fieldChanges` JSONB, `changedFieldsPaths` JSONB array; unique on accountId+timestamp+resourceName+userEmail. **New:** `operation_scores` JSONB stores the latest stage results (T+1/T+3/T+7) linked to `operation_score` rows.
+- `campaigns`: full-state campaigns per account; keys `resource_name` + `account_id`, fields include `campaign_id`, `name`, `status`, `serving_status`, `primary_status`, `channel_type/sub_type`, `bidding_strategy_type`, `start_date`, `end_date`, `budget_id`, `budget_amount_micros` (bigint), `currency`, `last_modified_time`; indexed on account/status/channel.
+- `ad_groups`: keys `resource_name` + `account_id`, fields `ad_group_id`, `campaign_id`, `name`, `status`, `type`, bids (`cpc_bid_micros`, `cpm_bid_micros`, `target_cpa_micros`), `last_modified_time`; indexed on account/campaign/status/type.
+- `ads`: keys `resource_name` + `account_id`, fields `ad_id`, `ad_group_id`, `campaign_id`, `name`, `status`, `type`, `added_by_google_ads`, `final_urls/final_mobile_urls` JSONB arrays, `display_url`, `device_preference`, `system_managed_resource_source`, `last_modified_time`; indexed on account/ad_group/campaign/status/type.
 
 ## Baselines
 - `safety_baseline`: product/country/platform/channel medians (`baselineRoas7`, `baselineRet7`, `referencePeriod`, `lastUpdated`), unique per dimension. **Deprecated: Use `baseline_settings` with AppsFlyer data.**
@@ -16,7 +19,7 @@
 ## Evaluation & Actions
 - `campaign_evaluation`: campaign metrics (spend, ROAS/RET, achievement rates, `recommendationType`, `status`, `campaignType`, `evaluationDate`).
 - `creative_evaluation`: D3/D7 creative metrics (`impressions`, `installs`, `cvr`, `actualCpi`, `actualRoas`, thresholds, `creativeStatus`, `evaluationDate`).
-- `operation_score`: post-operation ROAS/RET with `operationId` (change_events FK), `optimizerEmail`, `operationType`, `operationDate`/`evaluationDate`.
+- `operation_score`: stage-scoped operation scores keyed by (`operation_id`, `score_stage`) with `campaign_id` (Google campaign resource_name), `optimizerEmail`, `operationType`, `operationDate`, `evaluationDate` (= score_date), stage factor (`score_stage`: T+1/T+3/T+7), achievements (`roas_achievement`, `retention_achievement`, `min_achievement`), baselines, `risk_level`, base/final score, operation magnitude + label, `value_before/after`, `change_percentage`, `special_recognition`, `is_bold_success`, `suggestion_type/detail`. Unique index on (`operation_id`, `score_stage`).
 - `optimizer_leaderboard`: aggregated counts and success rate per optimizer.
 - `action_recommendation`: actions tied to `campaignId`/`evaluationId` with JSON `actionOptions`, `selectedAction`, `executed`, timestamps.
 
@@ -38,7 +41,7 @@
 
 ## Commands
 - Migrations: `just db-status`, `just db-diff "name"`, `just db-apply`, `just db-studio`.
-- Snapshots: `just db-snapshot [limit]` to export JSON; `just db-restore [snapshot]` to reload.
+- Snapshots: `just db-snapshot [limit] [format]` (default: `limit=100`, `format=csv`). Random sample per table, applies `is_deleted = false` when present, writes CSV for preview plus JSON for restore. `just db-restore [snapshot]` reloads from JSON in the snapshot.
 - Latest snapshot example: check `context/db-snapshot/snapshot_*/` in the repo for the most recent dump.
 
 ## Status

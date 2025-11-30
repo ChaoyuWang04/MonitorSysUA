@@ -462,10 +462,10 @@ export function getBaselineWindow(baselineDays: number = 180): {
 }
 
 /**
- * Calculate median D7 ROAS from historical cohorts (safety baseline).
+ * Calculate median ROAS (up to target day, default D7) from historical cohorts (safety baseline).
  *
- * The safety baseline is the P50 (median) ROAS_D7 from mature cohorts,
- * used to evaluate current campaign performance.
+ * The safety baseline is the P50 (median) ROAS from mature cohorts,
+ * used to evaluate current campaign performance. `daysSinceInstall` defaults to 7.
  *
  * **Dimensions**: app + geo + mediaSource (NOT campaign-specific)
  * **Window**: Cohorts from (today - baselineDays - 30) to (today - baselineDays)
@@ -499,8 +499,9 @@ export async function calculateBaselineRoas(params: {
   geo: string
   mediaSource: string
   baselineDays?: number
+  daysSinceInstall?: number
 }): Promise<number | null> {
-  const { appId, geo, mediaSource, baselineDays = 180 } = params
+  const { appId, geo, mediaSource, baselineDays = 180, daysSinceInstall = 7 } = params
 
   const { start, end } = getBaselineWindow(baselineDays)
   const startStr = start.toISOString().split('T')[0]
@@ -523,7 +524,7 @@ export async function calculateBaselineRoas(params: {
         AND geo = ${geo}
         AND media_source = ${mediaSource}
         AND install_date BETWEEN ${startStr} AND ${endStr}
-        AND days_since_install <= 7
+        AND days_since_install <= ${daysSinceInstall}
       GROUP BY install_date
       HAVING SUM(cost_usd) > 0
     )

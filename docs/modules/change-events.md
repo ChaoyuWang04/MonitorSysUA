@@ -17,3 +17,4 @@
 - Working end-to-end for manual sync + list + detail.
 - Scheduling/cron not wired yet; run sync from UI or scripts.
 - Event summaries regeneration script (`regenerate_summaries.py`) exists; automation TBD.
+- `operation_scores` JSON now stores the latest stage scores (T+1/T+3/T+7) per change event, pointing to rows in `operation_score`; populated by the A7 evaluator.

@@ -78,11 +78,15 @@ export function getOperationStatusColor(
 
   switch (status) {
     case OperationStatus.EXCELLENT:
-      return 'success' // Green - Achievement rate ≥ 110%
-    case OperationStatus.NORMAL:
-      return 'info' // Blue - Achievement rate 85-110%
+      return 'success'
+    case OperationStatus.HEALTHY:
+      return 'info'
+    case OperationStatus.OBSERVE:
+      return 'warning'
     case OperationStatus.WARNING:
-      return 'warning' // Orange - Achievement rate < 85%
+      return 'warning'
+    case OperationStatus.DANGER:
+      return 'error'
     default:
       return 'default'
   }
@@ -197,10 +201,14 @@ export function getOperationStatusLabel(status: OperationStatus | null | undefin
   switch (status) {
     case OperationStatus.EXCELLENT:
       return 'Excellent'
-    case OperationStatus.NORMAL:
-      return 'Normal'
+    case OperationStatus.HEALTHY:
+      return 'Healthy'
+    case OperationStatus.OBSERVE:
+      return 'Observe'
     case OperationStatus.WARNING:
       return 'Warning'
+    case OperationStatus.DANGER:
+      return 'Danger'
     default:
       return 'Unknown'
   }
@@ -589,10 +597,14 @@ export function getOperationStatusIcon(status: OperationStatus | null | undefine
   switch (status) {
     case OperationStatus.EXCELLENT:
       return '🟢'
-    case OperationStatus.NORMAL:
+    case OperationStatus.HEALTHY:
+      return '🟢'
+    case OperationStatus.OBSERVE:
       return '🟡'
     case OperationStatus.WARNING:
       return '🟠'
+    case OperationStatus.DANGER:
+      return '🔴'
     default:
       return '❓'
   }

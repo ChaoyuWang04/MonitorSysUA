@@ -124,10 +124,14 @@ export enum OperationType {
  * Operation status based on achievement rate
  */
 export enum OperationStatus {
-  EXCELLENT = 'excellent',  // Achievement rate ≥ 110%
-  NORMAL = 'normal',        // Achievement rate 85-110%
-  WARNING = 'warning',      // Achievement rate < 85%
+  DANGER = 'danger',
+  WARNING = 'warning',
+  OBSERVE = 'observe',
+  HEALTHY = 'healthy',
+  EXCELLENT = 'excellent',
 }
+
+export type OperationScoreStage = 'T+1' | 'T+3' | 'T+7'
 
 /**
  * Operation score record
@@ -142,13 +146,26 @@ export interface OperationScore {
   operationType: OperationType | null
   operationDate: Date
   evaluationDate: Date
-  actualRoas7: number | null
-  actualRet7: number | null
-  baselineRoas7: number | null
-  baselineRet7: number | null
-  roasAchievementRate: number | null
-  retAchievementRate: number | null
-  // Score breakdown fields
+  scoreStage?: OperationScoreStage | null
+  stageFactor?: number | null
+  stageDays?: number | null
+  actualRoas?: number | null
+  actualRet?: number | null
+  baselineRoas?: number | null
+  baselineRet?: number | null
+  roasAchievement?: number | null
+  retentionAchievement?: number | null
+  minAchievement?: number | null
+  roasAchievementRate?: number | null
+  retAchievementRate?: number | null
+  baseScore?: number | null
+  finalScore?: number | null
+  // Legacy fields
+  actualRoas7?: number | null
+  actualRet7?: number | null
+  baselineRoas7?: number | null
+  baselineRet7?: number | null
+  // Score breakdown fields (UI derived)
   totalScore?: number | null
   decisionQualityScore?: number | null
   executionEfficiencyScore?: number | null
@@ -160,6 +177,10 @@ export interface OperationScore {
   avgResponseTime?: number | null
   // Status
   status?: OperationStatus | null
+  riskLevel?: OperationStatus | null
+  suggestionType?: string | null
+  specialRecognition?: string | null
+  operationMagnitude?: number | null
   createdAt: Date
 }
 

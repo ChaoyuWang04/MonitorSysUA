@@ -11,6 +11,7 @@ import {
   decimal,
   date,
   varchar,
+  bigint,
 } from 'drizzle-orm/pg-core'
 
 // ============================================
@@ -74,6 +75,7 @@ export const changeEvents = pgTable('change_events', {
   summaryZh: text('summary_zh'), // Chinese summary (user-facing, nullable for backward compatibility)
   fieldChanges: jsonb('field_changes'),
   changedFieldsPaths: jsonb('changed_fields_paths').$type<string[]>(),
+  operationScores: jsonb('operation_scores'),
 }, (table) => ({
   // Indexes for query performance
   accountIdIdx: index('account_id_idx').on(table.accountId), // NEW: Account index
@@ -98,6 +100,125 @@ export const changeEvents = pgTable('change_events', {
 // Type inference
 export type ChangeEvent = typeof changeEvents.$inferSelect
 export type NewChangeEvent = typeof changeEvents.$inferInsert
+
+// ============================================
+// CAMPAIGNS TABLE - Full state per account
+// ============================================
+export const campaigns = pgTable('campaigns', {
+  id: serial('id').primaryKey(),
+  accountId: integer('account_id')
+    .notNull()
+    .references(() => accounts.id, { onDelete: 'cascade' }),
+
+  resourceName: text('resource_name').notNull(),
+  campaignId: text('campaign_id').notNull(),
+
+  name: text('name'),
+  status: text('status'),
+  servingStatus: text('serving_status'),
+  primaryStatus: text('primary_status'),
+  channelType: text('channel_type'),
+  channelSubType: text('channel_sub_type'),
+  biddingStrategyType: text('bidding_strategy_type'),
+
+  startDate: date('start_date'),
+  endDate: date('end_date'),
+
+  budgetId: text('budget_id'),
+  budgetAmountMicros: bigint('budget_amount_micros', { mode: 'bigint' }),
+  currency: text('currency'),
+
+  lastModifiedTime: timestamp('last_modified_time', { withTimezone: true }),
+
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index('campaign_account_idx').on(table.accountId),
+  campaignIdIdx: index('campaign_campaign_id_idx').on(table.campaignId),
+  statusIdx: index('campaign_status_idx').on(table.status),
+  channelIdx: index('campaign_channel_idx').on(table.channelType),
+  uniqueResourcePerAccount: uniqueIndex('campaign_resource_account_uidx').on(table.accountId, table.resourceName),
+}))
+
+export type Campaign = typeof campaigns.$inferSelect
+export type NewCampaign = typeof campaigns.$inferInsert
+
+// ============================================
+// AD GROUPS TABLE
+// ============================================
+export const adGroups = pgTable('ad_groups', {
+  id: serial('id').primaryKey(),
+  accountId: integer('account_id')
+    .notNull()
+    .references(() => accounts.id, { onDelete: 'cascade' }),
+
+  resourceName: text('resource_name').notNull(),
+  adGroupId: text('ad_group_id').notNull(),
+  campaignId: text('campaign_id').notNull(),
+
+  name: text('name'),
+  status: text('status'),
+  type: text('type'),
+  cpcBidMicros: bigint('cpc_bid_micros', { mode: 'bigint' }),
+  cpmBidMicros: bigint('cpm_bid_micros', { mode: 'bigint' }),
+  targetCpaMicros: bigint('target_cpa_micros', { mode: 'bigint' }),
+
+  lastModifiedTime: timestamp('last_modified_time', { withTimezone: true }),
+
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index('ad_group_account_idx').on(table.accountId),
+  adGroupIdIdx: index('ad_group_id_idx').on(table.adGroupId),
+  campaignIdIdx: index('ad_group_campaign_id_idx').on(table.campaignId),
+  statusIdx: index('ad_group_status_idx').on(table.status),
+  typeIdx: index('ad_group_type_idx').on(table.type),
+  uniqueResourcePerAccount: uniqueIndex('ad_group_resource_account_uidx').on(table.accountId, table.resourceName),
+}))
+
+export type AdGroup = typeof adGroups.$inferSelect
+export type NewAdGroup = typeof adGroups.$inferInsert
+
+// ============================================
+// ADS TABLE
+// ============================================
+export const ads = pgTable('ads', {
+  id: serial('id').primaryKey(),
+  accountId: integer('account_id')
+    .notNull()
+    .references(() => accounts.id, { onDelete: 'cascade' }),
+
+  resourceName: text('resource_name').notNull(),
+  adId: text('ad_id').notNull(),
+  adGroupId: text('ad_group_id').notNull(),
+  campaignId: text('campaign_id').notNull(),
+
+  name: text('name'),
+  type: text('type'),
+  status: text('status'),
+  addedByGoogleAds: boolean('added_by_google_ads'),
+  finalUrls: jsonb('final_urls').$type<string[]>(),
+  finalMobileUrls: jsonb('final_mobile_urls').$type<string[]>(),
+  displayUrl: text('display_url'),
+  devicePreference: text('device_preference'),
+  systemManagedResourceSource: text('system_managed_resource_source'),
+
+  lastModifiedTime: timestamp('last_modified_time', { withTimezone: true }),
+
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index('ads_account_idx').on(table.accountId),
+  adIdIdx: index('ads_ad_id_idx').on(table.adId),
+  adGroupIdIdx: index('ads_ad_group_id_idx').on(table.adGroupId),
+  campaignIdIdx: index('ads_campaign_id_idx').on(table.campaignId),
+  statusIdx: index('ads_status_idx').on(table.status),
+  typeIdx: index('ads_type_idx').on(table.type),
+  uniqueResourcePerAccount: uniqueIndex('ads_resource_account_uidx').on(table.accountId, table.resourceName),
+}))
+
+export type Ad = typeof ads.$inferSelect
+export type NewAd = typeof ads.$inferInsert
 
 // ============================================
 // SAFETY BASELINE TABLE - 安全线基准表
@@ -336,19 +457,48 @@ export const operationScore = pgTable(
     // Operation metadata
     operationType: varchar('operation_type', { length: 50 }), // BUDGET_UPDATE/TROAS_UPDATE
     operationDate: date('operation_date').notNull(),
-    evaluationDate: date('evaluation_date').notNull(), // 操作后7天
+    evaluationDate: date('evaluation_date').notNull(), // Score date
+    scoreStage: varchar('score_stage', { length: 10 }).default('T+7').notNull(), // T+1/T+3/T+7
+    stageFactor: decimal('stage_factor', { precision: 4, scale: 2 }),
 
-    // Performance after operation (7 days later)
+    // Performance after operation (per stage)
+    actualRoas: decimal('actual_roas', { precision: 12, scale: 6 }),
+    actualRet: decimal('actual_ret', { precision: 12, scale: 6 }),
+    baselineRoas: decimal('baseline_roas', { precision: 12, scale: 6 }),
+    baselineRet: decimal('baseline_ret', { precision: 12, scale: 6 }),
+
+    // Legacy D7 fields (kept for backward compatibility and existing data)
     actualRoas7: decimal('actual_roas7', { precision: 10, scale: 4 }),
     actualRet7: decimal('actual_ret7', { precision: 10, scale: 4 }),
-
-    // Baseline comparison
     baselineRoas7: decimal('baseline_roas7', { precision: 10, scale: 4 }),
     baselineRet7: decimal('baseline_ret7', { precision: 10, scale: 4 }),
 
-    // Achievement rates (%)
+    // Achievement rates (ratio)
+    roasAchievement: decimal('roas_achievement', { precision: 12, scale: 6 }),
+    retentionAchievement: decimal('retention_achievement', { precision: 12, scale: 6 }),
+    minAchievement: decimal('min_achievement', { precision: 12, scale: 6 }),
+
+    // Compatibility (percentages)
     roasAchievementRate: decimal('roas_achievement_rate', { precision: 10, scale: 2 }),
     retAchievementRate: decimal('ret_achievement_rate', { precision: 10, scale: 2 }),
+
+    // Scoring and risk
+    riskLevel: varchar('risk_level', { length: 20 }), // danger/warning/observe/healthy/excellent
+    baseScore: integer('base_score'),
+    finalScore: decimal('final_score', { precision: 5, scale: 2 }),
+
+    // Operation magnitude and change
+    valueBefore: decimal('value_before', { precision: 12, scale: 4 }),
+    valueAfter: decimal('value_after', { precision: 12, scale: 4 }),
+    changePercentage: decimal('change_percentage', { precision: 6, scale: 4 }),
+    operationMagnitude: decimal('operation_magnitude', { precision: 6, scale: 4 }),
+    operationTypeLabel: varchar('operation_type_label', { length: 20 }), // 微调/常规调整/大胆操作
+
+    // Recognition and suggestions
+    isBoldSuccess: boolean('is_bold_success').default(false),
+    specialRecognition: varchar('special_recognition', { length: 100 }),
+    suggestionType: varchar('suggestion_type', { length: 50 }), // expand/shrink/observe/stop
+    suggestionDetail: text('suggestion_detail'),
 
     // Tracking
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -359,6 +509,9 @@ export const operationScore = pgTable(
 
     // Optimizer leaderboard index
     optimizerEmailIdx: index('optimizer_email_idx').on(table.optimizerEmail),
+
+    // Unique per operation per stage
+    operationStageIdx: uniqueIndex('operation_stage_uidx').on(table.operationId, table.scoreStage),
   })
 )
 
