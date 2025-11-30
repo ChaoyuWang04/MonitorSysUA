@@ -12,7 +12,7 @@ MonitorSysUA documentation set for architecture, modules, and system reference.
 View locally with `just docs-serve` (docsify on port 3001).
 
 Mermaid diagrams
-- Mermaid is available via docsify-mermaid; diagrams render when browsing the docs site.
+- Mermaid is available via docsify-mermaid; diagrams render when browsing the docs site (requires network access to jsDelivr CDN).
 - Example snippet:
 
 ```mermaid

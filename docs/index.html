@@ -14,7 +14,11 @@
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
 
   <script>
-    mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    if (window.mermaid) {
+      window.mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    } else {
+      console.warn('Mermaid failed to load; diagrams will not render.');
+    }
 
     window.$docsify = {
       name: 'MonitorSysUA Docs',
