@@ -39,7 +39,7 @@ MonitorSysUA 是一个**基于 Google Ads ChangeEvent API 的数据驱动优化�
 
 ### 1.3 MVP 验证成果
 
-在 `mvp/` 目录中使用 **Flask + SQLite + Python** 完成了概念验证：
+曾在 `mvp/` 目录（现已移除，可在 git 历史中查看）使用 **Flask + SQLite + Python** 完成了概念验证：
 
 ✅ **验证项**:
 1. Google Ads API 可行性（`google-ads-python` 库）
@@ -641,7 +641,7 @@ npm run build
 - **开发任务清单**: `docs/todo.md`
 - **测试指南**: `docs/TESTING-SUMMARY.md`
 - **环境变量模板**: `.env.example`
-- **MVP 原型**: `mvp/` 目录
+- **MVP 原型**: `mvp/` 目录（已从当前仓库移除，保留在 git 历史中）
 
 ### C. 联系方式
 

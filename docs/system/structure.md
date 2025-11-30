@@ -18,7 +18,6 @@ MonitorSysUA/
 ├── scripts/                    # `db-snapshot.ts`, `db-restore.ts`
 ├── docs/                       # Project docs (plan/finished subfolders ignored)
 ├── context/                    # Design principles + DB snapshots
-├── mvp/                        # Legacy Python prototype (kept for reference)
 ├── docker-compose.yml          # Postgres 16 (port 5433)
 ├── atlas.hcl                   # Atlas env config
 ├── justfile                    # Dev/DB/AppsFlyer commands

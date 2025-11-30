@@ -4,7 +4,7 @@
  * This is a TypeScript port of the Python MVP's deep_diff algorithm.
  * It recursively compares two objects and returns all field-level differences.
  *
- * Reference: mvp/googlemvptest.py:39-72
+ * Reference: legacy mvp/googlemvptest.py:39-72 (see git history)
  */
 
 export interface DiffResult {
