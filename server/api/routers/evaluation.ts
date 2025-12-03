@@ -317,6 +317,24 @@ export const evaluationRouter = createTRPCRouter({
     return result;
   }),
 
+  recalculateOperationScores: publicProcedure
+    .input(
+      z.object({
+        stages: z.array(z.enum(['T+1', 'T+3', 'T+7'])).optional(),
+      }).optional()
+    )
+    .mutation(async ({ input }) => {
+      const { evaluateAllOperationsFromAF } = await import(
+        "@/server/evaluation/wrappers/operation-evaluator"
+      );
+
+      const result = await evaluateAllOperationsFromAF({
+        stages: input?.stages,
+      });
+
+      return result;
+    }),
+
   /**
    * Get operation scores from database
    */
@@ -326,7 +344,6 @@ export const evaluationRouter = createTRPCRouter({
         accountId: z.number().optional(), // For future multi-account support
         optimizerEmail: z.string().optional(),
         campaignId: z.string().optional(),
-        scoreStage: z.enum(['T+1', 'T+3', 'T+7']).optional(),
         page: z.number().default(1),
         pageSize: z.number().default(50),
       })
@@ -339,7 +356,6 @@ export const evaluationRouter = createTRPCRouter({
       const scores = await getOperationScores({
         optimizerEmail: input.optimizerEmail,
         campaignId: input.campaignId,
-        scoreStage: input.scoreStage,
         page: input.page,
         pageSize: input.pageSize,
       });

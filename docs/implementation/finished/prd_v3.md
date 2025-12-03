@@ -485,9 +485,9 @@ def calculate_baseline():
     # 2. 按维度分组计算
     dimensions = ['app_id', 'geo', 'media_source']
 
-    # 3. 计算P50作为基准值
-    baseline_roas7 = historical_data.groupby(dimensions)['roas7'].quantile(0.5)
-    baseline_ret7 = historical_data.groupby(dimensions)['ret7'].quantile(0.5)
+    # 3. 计算加权均值作为基准值（ROAS按cost加权，RET按installs加权）
+    baseline_roas7 = (historical_data.groupby(dimensions)['revenue_usd'].sum() / historical_data.groupby(dimensions)['cost_usd'].sum())
+    baseline_ret7 = (historical_data.groupby(dimensions).apply(lambda df: (df['ret7'] * df['installs']).sum() / df['installs'].sum()))
 
     # 4. 每月1号自动更新
     schedule.monthly(day=1, hour=3)

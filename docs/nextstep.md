@@ -4,7 +4,7 @@ Context: Primary scope from `docs/implementation/finished/prd_v3.md` (MVP v3, 20
 
 ## Gap Summary (What’s Missing)
 - Cohort analysis API/UI: PRD calls for `/api/cohort` and cohort views (e.g., `campaign_metrics_daily`, `cohort_performance`) with visualizations; current system only has internal views (`af_cohort_metrics_daily`) and no dedicated endpoints or pages.
-- Safety line persistence/management: PRD defines `baseline_metrics` with multi-level lookup (app+geo+media_source → fallbacks); current implementation only has `baseline_settings` + on-demand P50 calc, no stored baseline metrics, no downgrade logic, no UI.
+- Safety line persistence/management: PRD defines `baseline_metrics` with multi-level lookup (app+geo+media_source → fallbacks); table + lookup now exist (weighted ROAS/RET, fallback window), still missing UI/override tooling.
 - Suggestion engine service: PRD requires `/api/suggestions` with five-level risk actions (expand/shrink/stop/observe) decoupled from evaluations; current recommendations live inside A3/A7 responses only, no standalone engine or UI surface.
 - Reports & alerts: PRD specifies daily/weekly/monthly reports and real-time alerts; current system only emails ETL failures, no report generation or delivery.
 - Automation of evaluations: PRD daily flow expects post-sync cohort refresh + T+1/T+3/T+7 scoring; current A2/A3/A7 batch functions exist but are manual (no scheduler/cron hooks).
@@ -19,7 +19,7 @@ Context: Primary scope from `docs/implementation/finished/prd_v3.md` (MVP v3, 20
 
 2) Safety line persistence & lookup
 - Create `baseline_metrics` table with Level 1–4 dimensions (app+geo+media_source → app) and monthly `next_update_date`.
-- Implement baseline calculation job writing to `baseline_metrics`; add downgrade lookup logic in backend helpers.
+- Implement baseline calculation job writing to `baseline_metrics`; add downgrade lookup logic in backend helpers. ✅ (job hook still TODO)
 - Add management UI (view, manual override, refresh trigger); wire A2/A7 to consume persisted baselines first.
 
 3) Suggestion engine service

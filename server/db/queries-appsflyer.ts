@@ -34,6 +34,9 @@ import {
   afEvents,
   afCohortKpiDaily,
   afSyncLog,
+  baselineMetrics,
+  BASELINE_DIMENSION_ALL,
+  type NewBaselineMetrics,
   type AfEvent,
   type AfCohortKpiDaily,
   type AfSyncLog,
@@ -464,12 +467,14 @@ export function getBaselineWindow(baselineDays: number = 180): {
 /**
  * Calculate median ROAS (up to target day, default D7) from historical cohorts (safety baseline).
  *
- * The safety baseline is the P50 (median) ROAS from mature cohorts,
- * used to evaluate current campaign performance. `daysSinceInstall` defaults to 7.
+ * This now uses the PRD 6.2.5 baseline_metrics model with four-level fallback:
+ * Level1: app + geo + media_source
+ * Level2: app + geo + ALL
+ * Level3: app + ALL + media_source
+ * Level4: app + ALL + ALL
  *
- * **Dimensions**: app + geo + mediaSource (NOT campaign-specific)
- * **Window**: Cohorts from (today - baselineDays - 30) to (today - baselineDays)
- * **Method**: P50 of daily ROAS_D7 values using PostgreSQL PERCENTILE_CONT
+ * Window: [today - (baselineDays + 30), today - baselineDays]
+ * Method: cost-weighted ROAS over the window (no P50), stored in baseline_metrics.
  *
  * @param params - Baseline parameters
  * @param params.appId - App identifier (required)
@@ -502,57 +507,23 @@ export async function calculateBaselineRoas(params: {
   daysSinceInstall?: number
 }): Promise<number | null> {
   const { appId, geo, mediaSource, baselineDays = 180, daysSinceInstall = 7 } = params
+  const baseline = await getBaselineMetrics({
+    appId,
+    geo,
+    mediaSource,
+    daysSinceInstall,
+    baselineDays,
+  })
 
-  const { start, end } = getBaselineWindow(baselineDays)
-  const startStr = start.toISOString().split('T')[0]
-  const endStr = end.toISOString().split('T')[0]
-
-  // Calculate median ROAS_D7 across all cohorts in the baseline window
-  // Aggregate by install_date (NOT by campaign) for stability
-  const result = await db.execute(sql`
-    WITH cohort_roas AS (
-      SELECT
-        install_date,
-        SUM(total_revenue_usd) as total_revenue,
-        SUM(cost_usd) as total_cost,
-        CASE
-          WHEN SUM(cost_usd) > 0 THEN SUM(total_revenue_usd) / SUM(cost_usd)
-          ELSE NULL
-        END as roas_d7
-      FROM af_cohort_metrics_daily
-      WHERE app_id = ${appId}
-        AND geo = ${geo}
-        AND media_source = ${mediaSource}
-        AND install_date BETWEEN ${startStr} AND ${endStr}
-        AND days_since_install <= ${daysSinceInstall}
-      GROUP BY install_date
-      HAVING SUM(cost_usd) > 0
-    )
-    SELECT
-      PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY roas_d7) as baseline_roas,
-      COUNT(*) as sample_count
-    FROM cohort_roas
-    WHERE roas_d7 IS NOT NULL
-  `)
-
-  const row = result.rows[0] as Record<string, unknown> | undefined
-
-  if (!row || row.baseline_roas === null) {
-    return null
-  }
-
-  return Number(row.baseline_roas)
+  return baseline?.baselineRoas ?? null
 }
 
 /**
  * Calculate median retention rate from historical cohorts (safety baseline).
  *
- * The safety baseline is the P50 (median) retention rate from mature cohorts,
- * used to evaluate current campaign retention performance.
- *
- * **Dimensions**: app + geo + mediaSource (NOT campaign-specific)
- * **Window**: Cohorts from (today - baselineDays - 30) to (today - baselineDays)
- * **Method**: Install-weighted P50 using PostgreSQL PERCENTILE_CONT
+ * Uses the PRD 6.2.5 baseline_metrics model with four-level fallback (see above).
+ * Window: [today - (baselineDays + 30), today - baselineDays]
+ * Method: install-weighted average retention over the window (no P50).
  *
  * @param params - Baseline parameters
  * @param params.appId - App identifier (required)
@@ -585,43 +556,363 @@ export async function calculateBaselineRetention(params: {
   baselineDays?: number
 }): Promise<number | null> {
   const { appId, geo, mediaSource, daysSinceInstall, baselineDays = 180 } = params
+  const baseline = await getBaselineMetrics({
+    appId,
+    geo,
+    mediaSource,
+    daysSinceInstall,
+    baselineDays,
+  })
 
-  const { start, end } = getBaselineWindow(baselineDays)
-  const startStr = start.toISOString().split('T')[0]
-  const endStr = end.toISOString().split('T')[0]
+  return baseline?.baselineRetention ?? null
+}
 
-  // Calculate weighted median retention rate
-  // Weight by installs for more accurate baseline
-  const result = await db.execute(sql`
-    WITH cohort_retention AS (
+// ============================================
+// BASELINE METRICS (PRD 6.2.5)
+// ============================================
+
+export interface BaselineMetricResult {
+  baselineRoas: number | null
+  baselineRetention: number | null
+  baselineCpi: number | null
+  sampleSize: number
+  sampleStartDate: string
+  sampleEndDate: string
+  levelUsed: 'L1' | 'L2' | 'L3' | 'L4'
+}
+
+interface BaselineParams {
+  appId: string
+  geo: string
+  mediaSource: string
+  daysSinceInstall: number
+  baselineDays?: number
+  lookbackWindowDays?: number
+}
+
+const BASELINE_LOOKBACK_WINDOW_DAYS = 30
+
+type BaselineLevel = {
+  label: BaselineMetricResult['levelUsed']
+  geo: string
+  mediaSource: string
+}
+
+const BASELINE_LEVELS = (geo: string, mediaSource: string): BaselineLevel[] => [
+  { label: 'L1', geo, mediaSource },
+  { label: 'L2', geo, mediaSource: BASELINE_DIMENSION_ALL },
+  { label: 'L3', geo: BASELINE_DIMENSION_ALL, mediaSource },
+  { label: 'L4', geo: BASELINE_DIMENSION_ALL, mediaSource: BASELINE_DIMENSION_ALL },
+]
+
+function mapStageToColumns(
+  stageDays: number
+): { roasColumn: 'baseline_roas_d3' | 'baseline_roas_d7'; retColumn: 'baseline_ret_d3' | 'baseline_ret_d7' } {
+  // Use D3 bucket for early stages (T+1/T+3), D7 for later
+  if (stageDays <= 3) {
+    return {
+      roasColumn: 'baseline_roas_d3',
+      retColumn: 'baseline_ret_d3',
+    }
+  }
+
+  return {
+    roasColumn: 'baseline_roas_d7',
+    retColumn: 'baseline_ret_d7',
+  }
+}
+
+async function computeBaselineForLevel(params: {
+  appId: string
+  geo: string
+  mediaSource: string
+  daysSinceInstall: number
+  baselineDays: number
+  lookbackWindowDays: number
+}): Promise<{
+  baselineRoas: number | null
+  baselineRetention: number | null
+  baselineCpi: number | null
+  sampleSize: number
+  sampleStartDate: string
+  sampleEndDate: string
+  } | null> {
+  const { appId, geo, mediaSource, daysSinceInstall, baselineDays, lookbackWindowDays } = params
+
+  const buildWhere = (startStr: string, endStr: string) => {
+    const whereClauses = [
+      sql`app_id = ${appId}`,
+      sql`install_date BETWEEN ${startStr} AND ${endStr}`,
+    ]
+
+    if (geo !== BASELINE_DIMENSION_ALL) {
+      whereClauses.push(sql`geo = ${geo}`)
+    }
+
+    if (mediaSource !== BASELINE_DIMENSION_ALL) {
+      whereClauses.push(sql`media_source = ${mediaSource}`)
+    }
+
+    return whereClauses.reduce((acc, clause, idx) => {
+      if (idx === 0) return clause
+      return sql`${acc} AND ${clause}`
+    })
+  }
+
+  const runWindow = async (startStr: string, endStr: string) => {
+    const whereSql = buildWhere(startStr, endStr)
+    const result = await db.execute(sql`
       SELECT
-        install_date,
-        SUM(installs * retention_rate) / NULLIF(SUM(installs), 0) as weighted_retention,
-        SUM(installs) as total_installs
-      FROM af_cohort_kpi_daily
-      WHERE app_id = ${appId}
-        AND geo = ${geo}
-        AND media_source = ${mediaSource}
-        AND install_date BETWEEN ${startStr} AND ${endStr}
-        AND days_since_install = ${daysSinceInstall}
-        AND retention_rate IS NOT NULL
-      GROUP BY install_date
-      HAVING SUM(installs) > 0
-    )
-    SELECT
-      PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY weighted_retention) as baseline_retention,
-      COUNT(*) as sample_count
-    FROM cohort_retention
-    WHERE weighted_retention IS NOT NULL
+        SUM(CASE WHEN days_since_install = 0 THEN cost_usd ELSE 0 END) AS total_cost_usd,
+        SUM(CASE WHEN days_since_install = 0 THEN installs ELSE 0 END) AS total_installs,
+        SUM(CASE WHEN days_since_install <= ${daysSinceInstall} THEN total_revenue_usd ELSE 0 END) AS total_revenue_usd,
+        SUM(CASE WHEN days_since_install = ${daysSinceInstall} THEN retention_rate * installs ELSE 0 END) AS retention_weighted,
+        SUM(CASE WHEN days_since_install = ${daysSinceInstall} THEN installs ELSE 0 END) AS retention_installs,
+        COUNT(DISTINCT install_date) AS sample_size
+      FROM af_cohort_metrics_daily
+      WHERE ${whereSql}
+    `)
+
+    const row = result.rows[0] as Record<string, unknown> | undefined
+    if (!row) return null
+
+    const totalCost = Number(row.total_cost_usd || 0)
+    const totalRevenue = Number(row.total_revenue_usd || 0)
+    const totalInstalls = Number(row.total_installs || 0)
+    const retentionWeighted = Number(row.retention_weighted || 0)
+    const retentionInstalls = Number(row.retention_installs || 0)
+    const sampleSize = Number(row.sample_size || 0)
+
+    if (sampleSize === 0) return null
+
+    const baselineRoas = totalCost > 0 ? totalRevenue / totalCost : null
+    const baselineRetention =
+      retentionInstalls > 0 ? retentionWeighted / retentionInstalls : null
+    const baselineCpi = totalInstalls > 0 ? totalCost / totalInstalls : null
+
+    if (baselineRoas === null && baselineRetention === null) {
+      return null
+    }
+
+    return {
+      baselineRoas,
+      baselineRetention,
+      baselineCpi,
+      sampleSize,
+      sampleStartDate: startStr,
+      sampleEndDate: endStr,
+    }
+  }
+
+  // Primary window (baselineDays anchor)
+  const end = new Date()
+  end.setDate(end.getDate() - baselineDays)
+  const start = new Date(end)
+  start.setDate(end.getDate() - lookbackWindowDays)
+
+  const baseResult = await runWindow(
+    start.toISOString().split('T')[0],
+    end.toISOString().split('T')[0]
+  )
+  if (baseResult) return baseResult
+
+  // Fallback to most recent available window if baseline window has no data
+  const availableRange = await db.execute(sql`
+    SELECT MIN(install_date) AS min_date, MAX(install_date) AS max_date
+    FROM af_cohort_kpi_daily
+    WHERE ${buildWhere('1900-01-01', '2999-12-31')}
   `)
 
-  const row = result.rows[0] as Record<string, unknown> | undefined
-
-  if (!row || row.baseline_retention === null) {
+  const rangeRow = availableRange.rows[0] as Record<string, unknown> | undefined
+  if (!rangeRow || !rangeRow.max_date) {
     return null
   }
 
-  return Number(row.baseline_retention)
+  const maxDate = new Date(rangeRow.max_date as string)
+  const minDate = rangeRow.min_date ? new Date(rangeRow.min_date as string) : null
+  const fallbackStart = new Date(maxDate)
+  fallbackStart.setDate(fallbackStart.getDate() - lookbackWindowDays)
+  const fallbackStartStr =
+    minDate && fallbackStart < minDate ? minDate.toISOString().split('T')[0] : fallbackStart.toISOString().split('T')[0]
+  const fallbackEndStr = maxDate.toISOString().split('T')[0]
+
+  return await runWindow(fallbackStartStr, fallbackEndStr)
+}
+
+async function upsertBaselineMetricsRow(params: {
+  appId: string
+  geo: string
+  mediaSource: string
+  platform?: string
+  daysSinceInstall: number
+  baselineDays: number
+  lookbackWindowDays: number
+  levelUsed: BaselineMetricResult['levelUsed']
+}): Promise<BaselineMetricResult | null> {
+  const {
+    appId,
+    geo,
+    mediaSource,
+    platform = BASELINE_DIMENSION_ALL,
+    daysSinceInstall,
+    baselineDays,
+    lookbackWindowDays,
+    levelUsed,
+  } = params
+
+  const computed = await computeBaselineForLevel({
+    appId,
+    geo,
+    mediaSource,
+    daysSinceInstall,
+    baselineDays,
+    lookbackWindowDays,
+  })
+
+  if (!computed) return null
+
+  const { roasColumn, retColumn } = mapStageToColumns(daysSinceInstall)
+
+  const insertValues: NewBaselineMetrics = {
+    appId,
+    geo,
+    mediaSource,
+    platform,
+    baselineRoasD3: null,
+    baselineRoasD7: null,
+    baselineRetD3: null,
+    baselineRetD7: null,
+    baselineCpi: computed.baselineCpi !== null ? computed.baselineCpi.toString() : null,
+    sampleStartDate: computed.sampleStartDate,
+    sampleEndDate: computed.sampleEndDate,
+    sampleSize: computed.sampleSize,
+    nextUpdateDate: computed.sampleEndDate || null,
+  }
+
+  const updateValues: Partial<NewBaselineMetrics> = {
+    baselineCpi: computed.baselineCpi !== null ? computed.baselineCpi.toString() : null,
+    sampleStartDate: computed.sampleStartDate,
+    sampleEndDate: computed.sampleEndDate,
+    sampleSize: computed.sampleSize,
+    updatedAt: new Date(),
+  }
+
+  if (roasColumn === 'baseline_roas_d3') {
+    insertValues.baselineRoasD3 = computed.baselineRoas !== null ? computed.baselineRoas.toString() : null
+    updateValues.baselineRoasD3 = computed.baselineRoas !== null ? computed.baselineRoas.toString() : null
+  } else {
+    insertValues.baselineRoasD7 = computed.baselineRoas !== null ? computed.baselineRoas.toString() : null
+    updateValues.baselineRoasD7 = computed.baselineRoas !== null ? computed.baselineRoas.toString() : null
+  }
+
+  if (retColumn === 'baseline_ret_d3') {
+    insertValues.baselineRetD3 = computed.baselineRetention !== null ? computed.baselineRetention.toString() : null
+    updateValues.baselineRetD3 = computed.baselineRetention !== null ? computed.baselineRetention.toString() : null
+  } else {
+    insertValues.baselineRetD7 = computed.baselineRetention !== null ? computed.baselineRetention.toString() : null
+    updateValues.baselineRetD7 = computed.baselineRetention !== null ? computed.baselineRetention.toString() : null
+  }
+
+  await db
+    .insert(baselineMetrics)
+    .values(insertValues)
+    .onConflictDoUpdate({
+      target: [
+        baselineMetrics.appId,
+        baselineMetrics.mediaSource,
+        baselineMetrics.geo,
+        baselineMetrics.platform,
+      ],
+      set: updateValues,
+    })
+
+  return {
+    baselineRoas: computed.baselineRoas,
+    baselineRetention: computed.baselineRetention,
+    baselineCpi: computed.baselineCpi,
+    sampleSize: computed.sampleSize,
+    sampleStartDate: computed.sampleStartDate,
+    sampleEndDate: computed.sampleEndDate,
+    levelUsed,
+  }
+}
+
+export async function getBaselineMetrics(params: BaselineParams): Promise<BaselineMetricResult | null> {
+  const {
+    appId,
+    geo,
+    mediaSource,
+    daysSinceInstall,
+    baselineDays = 180,
+    lookbackWindowDays = BASELINE_LOOKBACK_WINDOW_DAYS,
+  } = params
+
+  const { roasColumn, retColumn } = mapStageToColumns(daysSinceInstall)
+
+  for (const level of BASELINE_LEVELS(geo, mediaSource)) {
+    const roasSelector =
+      roasColumn === 'baseline_roas_d3'
+        ? baselineMetrics.baselineRoasD3
+        : baselineMetrics.baselineRoasD7
+    const retSelector =
+      retColumn === 'baseline_ret_d3'
+        ? baselineMetrics.baselineRetD3
+        : baselineMetrics.baselineRetD7
+
+    // 1) Try existing baseline
+    const existing = await db
+      .select({
+        roas: roasSelector,
+        ret: retSelector,
+        cpi: baselineMetrics.baselineCpi,
+        sampleStartDate: baselineMetrics.sampleStartDate,
+        sampleEndDate: baselineMetrics.sampleEndDate,
+        sampleSize: baselineMetrics.sampleSize,
+      })
+      .from(baselineMetrics)
+      .where(
+        and(
+          eq(baselineMetrics.appId, appId),
+          eq(baselineMetrics.geo, level.geo),
+          eq(baselineMetrics.mediaSource, level.mediaSource),
+          eq(baselineMetrics.platform, BASELINE_DIMENSION_ALL)
+        )
+      )
+      .limit(1)
+
+    const row = existing[0]
+    if (row && (row.roas !== null || row.ret !== null)) {
+      return {
+        baselineRoas: row.roas !== null ? Number(row.roas) : null,
+        baselineRetention: row.ret !== null ? Number(row.ret) : null,
+        baselineCpi: row.cpi !== null ? Number(row.cpi) : null,
+        sampleSize: Number(row.sampleSize || 0),
+        sampleStartDate: row.sampleStartDate || '',
+        sampleEndDate: row.sampleEndDate || '',
+        levelUsed: level.label,
+      }
+    }
+
+    // 2) Compute and upsert if missing
+    const computed = await upsertBaselineMetricsRow({
+      appId,
+      geo: level.geo,
+      mediaSource: level.mediaSource,
+      daysSinceInstall,
+      baselineDays,
+      lookbackWindowDays,
+      levelUsed: level.label,
+    })
+
+    if (computed) {
+      return {
+        ...computed,
+        levelUsed: level.label,
+      }
+    }
+  }
+
+  return null
 }
 
 // ============================================

@@ -295,6 +295,50 @@ export type BaselineSettings = typeof baselineSettings.$inferSelect
 export type NewBaselineSettings = typeof baselineSettings.$inferInsert
 
 // ============================================
+// BASELINE METRICS TABLE - AppsFlyer基线表 (PRD 6.2.5)
+// ============================================
+export const BASELINE_DIMENSION_ALL = 'ALL'
+
+export const baselineMetrics = pgTable(
+  'baseline_metrics',
+  {
+    id: serial('id').primaryKey(),
+    appId: varchar('app_id', { length: 255 }).notNull(),
+    mediaSource: varchar('media_source', { length: 100 }).notNull().default(BASELINE_DIMENSION_ALL),
+    geo: varchar('geo', { length: 10 }).notNull().default(BASELINE_DIMENSION_ALL),
+    platform: varchar('platform', { length: 20 }).default(BASELINE_DIMENSION_ALL),
+
+    baselineRoasD3: decimal('baseline_roas_d3', { precision: 6, scale: 4 }),
+    baselineRoasD7: decimal('baseline_roas_d7', { precision: 6, scale: 4 }),
+    baselineRetD3: decimal('baseline_ret_d3', { precision: 5, scale: 4 }),
+    baselineRetD7: decimal('baseline_ret_d7', { precision: 5, scale: 4 }),
+    baselineCpi: decimal('baseline_cpi', { precision: 10, scale: 4 }),
+    baselineCvr: decimal('baseline_cvr', { precision: 6, scale: 4 }),
+
+    sampleStartDate: date('sample_start_date'),
+    sampleEndDate: date('sample_end_date'),
+    sampleSize: integer('sample_size'),
+    nextUpdateDate: date('next_update_date'),
+
+    isActive: boolean('is_active').default(true),
+    manualOverride: boolean('manual_override').default(false),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (table) => ({
+    baselineMetricsUnique: uniqueIndex('baseline_metrics_unique').on(
+      table.appId,
+      table.mediaSource,
+      table.geo,
+      table.platform
+    ),
+  })
+)
+
+export type BaselineMetrics = typeof baselineMetrics.$inferSelect
+export type NewBaselineMetrics = typeof baselineMetrics.$inferInsert
+
+// ============================================
 // CREATIVE TEST BASELINE TABLE - 素材测试标准表
 // ============================================
 export const creativeTestBaseline = pgTable(

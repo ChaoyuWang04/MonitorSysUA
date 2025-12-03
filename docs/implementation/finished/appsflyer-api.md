@@ -314,7 +314,7 @@ Calculate median D7 ROAS from historical cohorts (safety baseline).
 
 **Calculation Details**:
 - **Window**: Cohorts from (today - baselineDays - 30) to (today - baselineDays)
-- **Method**: P50 (median) of D7 ROAS values
+- **Method**: Cost-weighted ROAS (no P50), stored in `baseline_metrics` with four-level fallback
 - **Dimensions**: app + geo + mediaSource (NOT campaign-specific)
 
 **Example**:

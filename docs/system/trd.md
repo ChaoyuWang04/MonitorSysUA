@@ -51,23 +51,25 @@ MonitorSysUA is a Google Ads monitoring and evaluation system that:
 
 ---
 
-### AD-002: P50 (Median) for Baseline Calculation
+### AD-002: Baseline Calculation (PRD 6.2.5, Weighted ROAS/RET)
 
-**Decision**: Use median (P50) instead of mean for safety baseline calculation.
+**Decision**: Use cost-weighted ROAS and install-weighted retention (RET) stored in `baseline_metrics`, with four-level fallback (app+geo+media_source → app+geo → app+media_source → app). No P50.
 
 **Rationale**:
-1. **Outlier resistance**: Median is robust against extreme ROAS/retention values
-2. **Industry standard**: Mobile UA typically uses P50 for baseline metrics
-3. **Conservative approach**: Median provides a realistic performance target
+1. **Alignment with PRD 6.2.5**: Baseline must be persisted and queryable with downgrade logic.
+2. **Data sparsity resilience**: Falls back to latest available window if the 180/210 anchor has no data.
+3. **Actionability**: Weighted averages better reflect spend/installs impact for scoring.
 
 **Implementation**:
 ```sql
-PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY roas_d7) AS baseline_roas
+-- Window: [today-(baselineDays+30), today-baselineDays], fallback to latest window if empty
+SUM(revenue) / SUM(cost)        AS baseline_roas
+SUM(retention*installs)/SUM(installs) AS baseline_ret
 ```
 
 **Trade-offs**:
-- Requires more complex SQL (window functions)
-- Less sensitive to improving trends
+- Less outlier-robust than median; mitigated by weighting and fallback windowing.
+- Requires maintaining `baseline_metrics` refresh cadence.
 
 ---
 

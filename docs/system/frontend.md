@@ -11,9 +11,10 @@
 | `/` | `app/(dashboard)/page.tsx` | Account-scoped stats cards + resource/operation breakdowns. |
 | `/accounts` | `app/(dashboard)/accounts/page.tsx` | Account CRUD, soft delete, sync trigger. |
 | `/events` | `app/(dashboard)/events/page.tsx` | Account-filtered change log with filters, search, detail modal, sync. |
+| `/entities` | `app/(dashboard)/entities/page.tsx` | Campaigns/AdGroups/Ads full-state DataGrids, filters (status/channel/type/media_source), manual sync, detail drawer with latest change history. |
 | `/evaluation/campaigns` | `app/(dashboard)/evaluation/campaigns/page.tsx` | Campaign evaluations list + detail dialog + action recommendations. |
 | `/evaluation/creatives` | `app/(dashboard)/evaluation/creatives/page.tsx` | D3/D7 creative evaluations, status badges, sync dialog. |
-| `/evaluation/operations` | `app/(dashboard)/evaluation/operations/page.tsx` | Operation scores and optimizer leaderboard. |
+| `/evaluation/operations` | `app/(dashboard)/evaluation/operations/page.tsx` | Operation scores (T+1/T+3/T+7 columns + manual “Recalculate scores” button) and optimizer leaderboard. |
 
 Layout: `app/layout.tsx` (theme/providers) → `(dashboard)/layout.tsx` (shell with sidebar/header) → pages (client components for interactivity).
 
@@ -22,6 +23,7 @@ Layout: `app/layout.tsx` (theme/providers) → `(dashboard)/layout.tsx` (shell w
 - Common: `common/confirm-dialog.tsx`, `common/empty-state.tsx`, `common/toast-provider.tsx`.
 - Layout: `layout/account-selector.tsx` (persists selection to localStorage).
 - Events: `events/event-detail.tsx`.
+- Entities: inline DataGrid + drawer in `entities/page.tsx` (reuse account selector + tRPC entities router; valueFormatters guarded for null/number).
 - Evaluation: `campaign-evaluation-dialog.tsx`, `creative-evaluation-dialog.tsx`, `operation-score-dialog.tsx`, `optimizer-leaderboard.tsx`, `status-chip.tsx`, `creative-status-badge.tsx`, `creative-sync-dialog.tsx`, `action-recommendation-card.tsx`, `action-execution-dialog.tsx`.
 
 ## State & Data

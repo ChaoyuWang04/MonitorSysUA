@@ -12,8 +12,9 @@
 - `ads`: keys `resource_name` + `account_id`, fields `ad_id`, `ad_group_id`, `campaign_id`, `name`, `status`, `type`, `added_by_google_ads`, `final_urls/final_mobile_urls` JSONB arrays, `display_url`, `device_preference`, `system_managed_resource_source`, `last_modified_time`; indexed on account/ad_group/campaign/status/type.
 
 ## Baselines
-- `safety_baseline`: product/country/platform/channel medians (`baselineRoas7`, `baselineRet7`, `referencePeriod`, `lastUpdated`), unique per dimension. **Deprecated: Use `baseline_settings` with AppsFlyer data.**
-- `baseline_settings`: configurable baseline window per app/geo/mediaSource (`windowDays` default 180, `minCohorts` default 30), unique on appId+geo+mediaSource. Used by AppsFlyer-based evaluation.
+- `baseline_metrics`: PRD 6.2.5 baseline table with four-level lookup (app+geo+media_source → app+geo → app+media_source → app). Stores cost-weighted ROAS and install-weighted retention (D3/D7), CPI, sample window (start/end, sample_size), flags (`is_active`, `manual_override`). Defaults use window `[today-(baselineDays+30), today-baselineDays]` with fallback to latest available data if empty.
+- `baseline_settings`: configurable baseline window per app/geo/mediaSource (`baselineDays` default 180, `minSampleSize` default 30), unique on appId+geo+mediaSource; feeds baseline_metrics calculation.
+- `safety_baseline`: legacy product/country/platform/channel baselines (`baselineRoas7`, `baselineRet7`, `referencePeriod`, `lastUpdated`); kept for compatibility, superseded by `baseline_metrics`.
 - `creative_test_baseline`: creative thresholds (`maxCpi`, `minRoasD3`, `minRoasD7`, `excellentCvr`), unique per dimension.
 
 ## Evaluation & Actions

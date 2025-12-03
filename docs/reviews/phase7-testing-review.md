@@ -142,8 +142,8 @@ Phase 7 completed comprehensive testing and validation of the AppsFlyer integrat
 
 | # | Test | Result |
 |---|------|--------|
-| 1 | `calculateBaselineFromAF` returns P50 ROAS | Passed |
-| 2 | `calculateBaselineFromAF` returns P50 retention | Passed |
+| 1 | `calculateBaselineFromAF` returns weighted ROAS from baseline_metrics | Passed |
+| 2 | `calculateBaselineFromAF` returns weighted retention from baseline_metrics | Passed |
 | 3 | `getOrCreateBaselineSettings` creates defaults | Passed |
 | 4 | `updateAllBaselinesFromAF` batch processing | Passed |
 

@@ -72,6 +72,7 @@ export function OperationScoreDialog({
   const executionScore = executionEfficiencyScore ?? totalScoreValue
   const riskScore = riskManagementScore ?? baseScore ?? totalScoreValue
   const statusValue = status ?? riskLevel ?? null
+  const stageOrder: Array<'T+1' | 'T+3' | 'T+7'> = ['T+1', 'T+3', 'T+7']
 
   const successRate = actionsExecuted && actionsExecuted > 0 && successfulActions !== undefined
     ? (successfulActions / actionsExecuted) * 100
@@ -146,6 +147,27 @@ export function OperationScoreDialog({
               </Typography>
             </CardContent>
           </Card>
+
+          {/* Stage Scores */}
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            {stageOrder.map((stage) => {
+              const stageData = operation.stages?.[stage]
+              const color = getOperationStatusColor(stageData?.riskLevel || null)
+              return (
+                <Chip
+                  key={stage}
+                  label={`${stage}: ${
+                    stageData?.finalScore !== null && stageData?.finalScore !== undefined
+                      ? Number(stageData.finalScore).toFixed(1)
+                      : '—'
+                  }`}
+                  color={color}
+                  sx={{ fontWeight: 600, minWidth: 110 }}
+                  variant={stageData?.riskLevel ? 'filled' : 'outlined'}
+                />
+              )
+            })}
+          </Stack>
 
           {/* Score Breakdown */}
           <Card elevation={0} sx={{ border: 1, borderColor: 'divider' }}>

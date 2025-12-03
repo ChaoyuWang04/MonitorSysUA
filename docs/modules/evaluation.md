@@ -25,3 +25,5 @@
 - Stage scoring: T+1/T+3/T+7 against AppsFlyer cohort metrics and baseline (ROAS/RET), base→final score mapping (0/40/60/80/100 with stage factors 0.5/0.8/1.0).
 - Data linkage: `change_events.campaign` (Google resource_name) → `operation_score.campaign_id`, `change_events.operation_scores` JSON mirrors latest stage results; AF context resolved by campaign name/resource with fallback to default app/geo/media_source.
 - Status: backend now writes stage scores to `operation_score` + `change_events.operation_scores`; daily auto-run not yet scheduled; action execution still mocked in frontend service.
+- Baseline source: PRD 6.2.5 `baseline_metrics` (cost-weighted ROAS, install-weighted RET) with four-level fallback (app+geo+media_source → app+geo → app+media_source → app); window `[today-(baselineDays+30), today-baselineDays]` with fallback to latest window if empty.
+- Triggers: change_event inserts kick off async scoring; Operation Scores page provides a manual “Recalculate scores” button (tRPC mutation) as fallback.

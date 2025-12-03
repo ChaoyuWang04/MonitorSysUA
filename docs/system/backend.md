@@ -18,13 +18,13 @@
 - **Google Ads Entities (full state)**: `entities.sync` → load account → Python `fetch_entities.py` (GAQL campaigns/ad_groups/ads) → TS bridge upsert + prune (hard delete REMOVED/missing) into `campaigns`, `ad_groups`, `ads` → update `accounts.lastSyncedAt`. Listings join latest `change_events` by `resource_name`; BigInt budget/bid fields normalized to number in API responses.
 - **AppsFlyer Sync**: `appsflyer.triggerManualSync` (or Just commands) → Python `sync_af_data.py`/`backfill.py` → write `af_events`, `af_cohort_kpi_daily` + `af_sync_log`.
 - **Evaluation (Phase 5)**: TypeScript wrappers query AppsFlyer tables directly → calculate metrics → persist to `campaign_evaluation`, `operation_score`, `optimizer_leaderboard`. Primary functions:
-  - A2 Baseline: `calculateBaselineFromAF()` queries `af_cohort_kpi_daily` for P50 ROAS/RET; configurable window via `baseline_settings`.
+  - A2 Baseline: `calculateBaselineFromAF()` resolves PRD 6.2.5 `baseline_metrics` (cost-weighted ROAS + install-weighted RET + CPI) with four-level fallback (app+geo+media_source → app+geo → app+media_source → app). Window `[today-(baselineDays+30), today-baselineDays]`; if empty, falls back to latest available data. Window length from `baseline_settings`.
   - A3 Campaign: `evaluateCampaignFromAF()` aggregates cohort metrics for evaluation; batch via `evaluateAllCampaignsFromAF()`.
   - A7 Operation: `evaluateOperationFromAF()` resolves AppsFlyer context from change events/campaigns, computes stage scores (T+1/T+3/T+7) vs baseline, writes to `operation_score` and mirrors into `change_events.operation_scores`; `evaluateOperations7DaysAgoFromAF()` batches by operation date.
 
 ## Integrations
 - **Google Ads API**: ChangeEvent stream per account via MCC credentials; summaries kept in English + Chinese; soft-delete for accounts.
-- **AppsFlyer API**: Token-based export of IAP/ad-revenue and cohort KPIs; baseline helpers compute median ROAS/retention windows.
+- **AppsFlyer API**: Token-based export of IAP/ad-revenue and cohort KPIs; baseline helpers compute weighted ROAS/retention windows into `baseline_metrics` (no P50).
 
 ## Google Ads Credentials
 - ChangeEvent sync loads `google-ads.yaml` (service account) from `local/credentials/google-ads/google-ads.yaml` by default; set `GOOGLE_ADS_CONFIG_PATH` to override.

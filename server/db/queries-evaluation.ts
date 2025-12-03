@@ -473,11 +473,10 @@ export async function getExcellentCreatives(campaignId?: string) {
 export async function getOperationScores(params: {
   optimizerEmail?: string
   campaignId?: string
-  scoreStage?: string
   page?: number
   pageSize?: number
 }) {
-  const { optimizerEmail, campaignId, scoreStage = 'T+7', page = 1, pageSize = 50 } = params
+  const { optimizerEmail, campaignId, page = 1, pageSize = 50 } = params
 
   const conditions = []
   if (optimizerEmail) {
@@ -486,9 +485,6 @@ export async function getOperationScores(params: {
   if (campaignId) {
     conditions.push(eq(operationScore.campaignId, campaignId))
   }
-  if (scoreStage) {
-    conditions.push(eq(operationScore.scoreStage, scoreStage))
-  }
 
   const where = conditions.length > 0 ? and(...conditions) : undefined
 
@@ -496,26 +492,73 @@ export async function getOperationScores(params: {
     .select()
     .from(operationScore)
     .where(where)
-    .orderBy(desc(operationScore.evaluationDate))
-    .limit(pageSize)
-    .offset((page - 1) * pageSize)
+    .orderBy(desc(operationScore.operationDate), desc(operationScore.evaluationDate))
 
-  const totalResult = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(operationScore)
-    .where(where)
+  const grouped = new Map<number, any>()
 
-  const total = Number(totalResult[0]?.count || 0)
+  for (const row of data) {
+    const opId = row.operationId || row.id
+    if (!grouped.has(opId)) {
+      grouped.set(opId, {
+        id: opId,
+        operationId: opId,
+        campaignId: row.campaignId,
+        optimizerEmail: row.optimizerEmail,
+        optimizerId: row.optimizerEmail,
+        optimizerName: row.optimizerEmail,
+        operationType: row.operationType,
+        operationDate: row.operationDate,
+        stages: {},
+      })
+    }
+
+    const group = grouped.get(opId)
+    if (row.scoreStage) {
+      group.stages[row.scoreStage] = {
+        stage: row.scoreStage,
+        finalScore: row.finalScore !== null && row.finalScore !== undefined ? Number(row.finalScore) : null,
+        baseScore: row.baseScore !== null && row.baseScore !== undefined ? Number(row.baseScore) : null,
+        minAchievement: row.minAchievement !== null && row.minAchievement !== undefined ? Number(row.minAchievement) : null,
+        riskLevel: row.riskLevel,
+        evaluationDate: row.evaluationDate,
+        dataStatus: row.riskLevel ? 'complete' : 'missing',
+        suggestionType: row.suggestionType,
+        specialRecognition: row.specialRecognition,
+      }
+    }
+  }
+
+  const stageOrder: Array<'T+7' | 'T+3' | 'T+1'> = ['T+7', 'T+3', 'T+1']
+
+  const normalizedData = Array.from(grouped.values()).map((group) => {
+    const pickStage = stageOrder.find((s) => group.stages[s])
+    const anchor = pickStage ? group.stages[pickStage] : null
+    return {
+      ...group,
+      t1Score: group.stages['T+1']?.finalScore ?? null,
+      t3Score: group.stages['T+3']?.finalScore ?? null,
+      t7Score: group.stages['T+7']?.finalScore ?? null,
+      t1Status: group.stages['T+1']?.riskLevel ?? null,
+      t3Status: group.stages['T+3']?.riskLevel ?? null,
+      t7Status: group.stages['T+7']?.riskLevel ?? null,
+      stages: group.stages,
+      finalScore: anchor?.finalScore ?? null,
+      baseScore: anchor?.baseScore ?? null,
+      status: anchor?.riskLevel ?? null,
+      riskLevel: anchor?.riskLevel ?? null,
+      suggestionType: anchor?.suggestionType ?? null,
+      specialRecognition: anchor?.specialRecognition ?? null,
+      evaluationDate: anchor?.evaluationDate ?? group.operationDate,
+      createdAt: anchor?.evaluationDate ?? group.operationDate,
+    }
+  })
+
+  const total = normalizedData.length
   const totalPages = Math.ceil(total / pageSize)
-
-  const normalizedData = data.map((row) => ({
-    ...row,
-    totalScore: row.finalScore ?? row.baseScore ?? null,
-    status: (row as unknown as { riskLevel?: string }).riskLevel || (row as unknown as { status?: string }).status || null,
-  }))
+  const pagedData = normalizedData.slice((page - 1) * pageSize, page * pageSize)
 
   return {
-    data: normalizedData,
+    data: pagedData,
     total,
     page,
     pageSize,

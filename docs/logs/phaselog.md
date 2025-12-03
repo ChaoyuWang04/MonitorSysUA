@@ -245,7 +245,7 @@ server/evaluation/test-evaluation.ts (updated)
 #### Features
 - Complete AppsFlyer cohort data integration (Phases 1-7)
 - Real-time evaluation using actual user behavior data
-- P50 baseline calculation from 180-day historical cohorts
+- Baseline calculation now stored in `baseline_metrics` (cost-weighted ROAS, install-weighted RET) with fallback window; replaces earlier P50 median approach.
 - Docker-based automated ETL with cron scheduling
 
 #### Documentation

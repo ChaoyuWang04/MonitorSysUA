@@ -7,10 +7,7 @@
 
 import { spawn } from 'child_process'
 import path from 'path'
-import {
-  calculateBaselineRoas,
-  calculateBaselineRetention,
-} from '../../db/queries-appsflyer'
+import { getBaselineMetrics } from '../../db/queries-appsflyer'
 import {
   getBaselineSettings,
   upsertBaselineSettings,
@@ -83,7 +80,7 @@ export async function getOrCreateBaselineSettings(params: {
     geo: params.geo,
     mediaSource: params.mediaSource,
     baselineDays: 180, // Default per PRD
-    minSampleSize: 30, // Min cohorts for valid P50
+    minSampleSize: 30,
   }
 
   const created = await upsertBaselineSettings(defaults)
@@ -93,8 +90,9 @@ export async function getOrCreateBaselineSettings(params: {
 /**
  * Calculate safety baseline using real AppsFlyer cohort data
  *
- * This is the primary function for Phase 5+, replacing mock data.
- * Uses configurable baseline window from baseline_settings table.
+ * Uses PRD 6.2.5 baseline_metrics with four-level fallback (app+geo+media_source → app+geo → app+media_source → app).
+ * Window: [today - (baselineDays + 30), today - baselineDays]
+ * Method: cost-weighted ROAS + install-weighted retention (no P50).
  *
  * @param params - Calculation parameters (appId, geo, mediaSource)
  * @returns Baseline calculation result with ROAS7 and RET7 values
@@ -117,46 +115,24 @@ export async function calculateBaselineFromAF(
     // Get configurable baseline window
     const settings = await getOrCreateBaselineSettings(params)
 
-    // Calculate P50 ROAS and Retention from AppsFlyer data
-    const [roasResult, retResult] = await Promise.all([
-      calculateBaselineRoas({
-        appId: params.appId,
-        geo: params.geo,
-        mediaSource: params.mediaSource,
-        baselineDays: settings.baselineDays,
-      }),
-      calculateBaselineRetention({
-        appId: params.appId,
-        geo: params.geo,
-        mediaSource: params.mediaSource,
-        daysSinceInstall: 7, // D7 retention
-        baselineDays: settings.baselineDays,
-      }),
-    ])
+    const baseline = await getBaselineMetrics({
+      appId: params.appId,
+      geo: params.geo,
+      mediaSource: params.mediaSource,
+      daysSinceInstall: 7,
+      baselineDays: settings.baselineDays,
+    })
 
-    const hasData = roasResult !== null || retResult !== null
+    const hasData = baseline !== null && (baseline.baselineRoas !== null || baseline.baselineRetention !== null)
     const now = new Date()
     const endDate = now.toISOString().split('T')[0]
     const startDate = new Date(now)
-    startDate.setDate(startDate.getDate() - settings.baselineDays)
+    startDate.setDate(startDate.getDate() - (settings.baselineDays + 30))
     const referencePeriod = `${startDate.toISOString().split('T')[0]} to ${endDate}`
 
-    // Store the calculated baseline in the safety_baseline table
-    if (hasData) {
-      await upsertSafetyBaseline({
-        productName: params.appId,
-        countryCode: params.geo,
-        platform: 'AppsFlyer', // Distinguish from mock data
-        channel: params.mediaSource,
-        baselineRoas7: roasResult?.toString() || null,
-        baselineRet7: retResult?.toString() || null,
-        referencePeriod,
-      })
-    }
-
     return {
-      baseline_roas7: roasResult,
-      baseline_ret7: retResult,
+      baseline_roas7: baseline?.baselineRoas ?? null,
+      baseline_ret7: baseline?.baselineRetention ?? null,
       reference_period: referencePeriod,
       dataSource: 'appsflyer',
       hasData,

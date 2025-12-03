@@ -7,10 +7,10 @@ import {
   Stack,
   Alert,
   TextField,
-  MenuItem,
   Paper,
   Tabs,
   Tab,
+  Button,
 } from '@mui/material'
 import {
   DataGrid,
@@ -79,6 +79,10 @@ export default function OperationScoresPage() {
     }
   )
 
+  const recalcMutation = trpc.evaluation.recalculateOperationScores.useMutation({
+    onSuccess: () => refetch(),
+  })
+
   const handleRowClick = (params: GridRowParams) => {
     setSelectedOperation(params.row as OperationScore)
     setDetailDialogOpen(true)
@@ -93,6 +97,10 @@ export default function OperationScoresPage() {
     refetch()
   }
 
+  const handleRecalculate = () => {
+    recalcMutation.mutate({})
+  }
+
   // DataGrid columns
   const columns: GridColDef[] = [
     {
@@ -100,6 +108,30 @@ export default function OperationScoresPage() {
       headerName: 'Date',
       width: 120,
       valueFormatter: (value) => formatDate(value),
+    },
+    {
+      field: 't1Score',
+      headerName: 'T+1',
+      width: 100,
+      align: 'right',
+      headerAlign: 'right',
+      valueFormatter: ({ value }) => (value !== null && value !== undefined ? Number(value).toFixed(1) : '—'),
+    },
+    {
+      field: 't3Score',
+      headerName: 'T+3',
+      width: 100,
+      align: 'right',
+      headerAlign: 'right',
+      valueFormatter: ({ value }) => (value !== null && value !== undefined ? Number(value).toFixed(1) : '—'),
+    },
+    {
+      field: 't7Score',
+      headerName: 'T+7',
+      width: 100,
+      align: 'right',
+      headerAlign: 'right',
+      valueFormatter: ({ value }) => (value !== null && value !== undefined ? Number(value).toFixed(1) : '—'),
     },
     {
       field: 'optimizerName',
@@ -261,6 +293,13 @@ export default function OperationScoresPage() {
             Daily evaluation scores for optimizer performance and decision quality
           </Typography>
         </Box>
+        <Button
+          variant="contained"
+          onClick={handleRecalculate}
+          disabled={recalcMutation.status === 'pending'}
+        >
+          {recalcMutation.status === 'pending' ? 'Recalculating…' : 'Recalculate scores'}
+        </Button>
       </Stack>
 
       {/* Tabs */}

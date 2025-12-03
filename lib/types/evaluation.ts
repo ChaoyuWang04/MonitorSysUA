@@ -133,6 +133,18 @@ export enum OperationStatus {
 
 export type OperationScoreStage = 'T+1' | 'T+3' | 'T+7'
 
+export interface OperationScoreStageData {
+  stage: OperationScoreStage
+  finalScore: number | null
+  baseScore: number | null
+  minAchievement: number | null
+  riskLevel: OperationStatus | null
+  evaluationDate?: Date | null
+  dataStatus?: 'complete' | 'pending' | 'missing'
+  suggestionType?: string | null
+  specialRecognition?: string | null
+}
+
 /**
  * Operation score record
  */
@@ -181,6 +193,13 @@ export interface OperationScore {
   suggestionType?: string | null
   specialRecognition?: string | null
   operationMagnitude?: number | null
+  stages?: Record<OperationScoreStage, OperationScoreStageData>
+  t1Score?: number | null
+  t3Score?: number | null
+  t7Score?: number | null
+  t1Status?: OperationStatus | null
+  t3Status?: OperationStatus | null
+  t7Status?: OperationStatus | null
   createdAt: Date
 }
 

@@ -13,7 +13,7 @@
 - **Backend logic**
   - `operation-evaluator.ts`:
     - Resolve AppsFlyer context from change_events.campaign (resource_name) and campaigns.name → fallback to `AF_APP_ID/AF_DEFAULT_GEO/AF_DEFAULT_MEDIA_SOURCE`.
-    - Per-stage eval (T+1/T+3/T+7): cohort window T0–T6, require maturity to stage day; baselines via AppsFlyer P50 ROAS/RET (stage day configurable).
+    - Per-stage eval (T+1/T+3/T+7): cohort window T0–T6, require maturity to stage day; baselines via PRD 6.2.5 `baseline_metrics` (weighted ROAS/RET with four-level fallback, no P50).
     - Scoring: min_achievement → base score (0/40/60/80/100), stage factors 0.5/0.8/1.0, risk levels danger/warning/observe/healthy/excellent, suggestions mapped from risk. Magnitude classification 微调/常规调整/大胆操作; special recognition badges.
     - Persist each stage to `operation_score` (UPSERT on op+stage) and mirror summaries into `change_events.operation_scores`.
     - Batch `evaluateOperations7DaysAgoFromAF` now executes real stage eval (default T+7).

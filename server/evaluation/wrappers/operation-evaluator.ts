@@ -7,7 +7,7 @@
 
 import { spawn } from 'child_process'
 import path from 'path'
-import { and, eq, gte, lte, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, lte, sql } from 'drizzle-orm'
 import { db } from '../../db'
 import {
   campaigns,
@@ -19,7 +19,7 @@ import {
   getOperationCohortMetrics,
   createOperationScore,
 } from '../../db/queries-evaluation'
-import { calculateBaselineRoas, calculateBaselineRetention } from '../../db/queries-appsflyer'
+import { getBaselineMetrics } from '../../db/queries-appsflyer'
 import { getOrCreateBaselineSettings } from './baseline-calculator'
 
 // ============================================
@@ -163,6 +163,48 @@ function classifyOperationMagnitude(changePercentage: number | null | undefined)
   return { magnitude: absChange, label: '大胆操作' }
 }
 
+function parseNumericValue(value: unknown): number | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') {
+    if (Number.isFinite(value)) return value
+    return null
+  }
+  if (typeof value === 'string') {
+    const cleaned = value.replace(/,/g, '')
+    const parsed = Number.parseFloat(cleaned)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
+function extractChangeValues(fieldChanges: unknown): {
+  valueBefore: number | null
+  valueAfter: number | null
+  changePercentage: number | null
+} {
+  if (!fieldChanges || typeof fieldChanges !== 'object') {
+    return { valueBefore: null, valueAfter: null, changePercentage: null }
+  }
+
+  const changes = fieldChanges as Record<string, unknown>
+
+  for (const key of Object.keys(changes)) {
+    const entry = (changes as Record<string, unknown>)[key] as Record<string, unknown> | undefined
+    if (!entry || typeof entry !== 'object') continue
+    const before = parseNumericValue((entry as Record<string, unknown>).old)
+    const after = parseNumericValue((entry as Record<string, unknown>).new)
+    if (before !== null && after !== null) {
+      if (before === 0) {
+        return { valueBefore: before, valueAfter: after, changePercentage: null }
+      }
+      const change = (after - before) / before
+      return { valueBefore: before, valueAfter: after, changePercentage: change }
+    }
+  }
+
+  return { valueBefore: null, valueAfter: null, changePercentage: null }
+}
+
 // ============================================
 // APPSFLYER-BASED EVALUATION (PRIMARY)
 // ============================================
@@ -175,6 +217,10 @@ interface OperationContext {
   mediaSource: string
   campaignKey: string
 }
+
+const TARGET_APP_ID = process.env.AF_APP_ID
+const TARGET_GEO = process.env.AF_DEFAULT_GEO
+const TARGET_MEDIA_SOURCE = process.env.AF_DEFAULT_MEDIA_SOURCE
 
 async function pickAfContext(campaignIdentifiers: string[]): Promise<{
   appId: string
@@ -276,7 +322,7 @@ async function evaluateStage(params: {
   })
 
   if (!metrics) {
-    return {
+    const placeholder: OperationStageResult & { operationScoreId?: number } = {
       stage,
       stageDays,
       baseScore: null,
@@ -288,28 +334,24 @@ async function evaluateStage(params: {
       dataStatus: 'pending',
       error: 'Insufficient cohort data for this stage',
     }
+    return placeholder
   }
 
-  const [baselineRoas, baselineRet] = await Promise.all([
-    calculateBaselineRoas({
-      appId: context.appId,
-      geo: context.geo,
-      mediaSource: context.mediaSource,
-      baselineDays,
-      daysSinceInstall: stageDays,
-    }),
-    calculateBaselineRetention({
-      appId: context.appId,
-      geo: context.geo,
-      mediaSource: context.mediaSource,
-      daysSinceInstall: stageDays,
-      baselineDays,
-    }),
-  ])
+  const baseline = await getBaselineMetrics({
+    appId: context.appId,
+    geo: context.geo,
+    mediaSource: context.mediaSource,
+    daysSinceInstall: stageDays,
+    baselineDays,
+  })
 
-  const roasAchievement = baselineRoas && baselineRoas > 0 && metrics.actualRoas7 !== null
-    ? metrics.actualRoas7 / baselineRoas
-    : null
+  const baselineRoas = baseline?.baselineRoas ?? null
+  const baselineRet = baseline?.baselineRetention ?? null
+
+  const roasAchievement =
+    baselineRoas && baselineRoas > 0 && metrics.actualRoas7 !== null
+      ? metrics.actualRoas7 / baselineRoas
+      : null
 
   const retentionAchievement = baselineRet && baselineRet > 0 && metrics.actualRet7 !== null
     ? metrics.actualRet7 / baselineRet
@@ -329,17 +371,16 @@ async function evaluateStage(params: {
   const suggestionType = mapSuggestionType(riskLevel)
 
   // Operation magnitude (optional)
-  const changePct = (
-    context.changeEvent.fieldChanges as Record<string, unknown> | null | undefined
-  )?.change_percentage as number | undefined
-  const operationMagnitude = classifyOperationMagnitude(changePct ?? null)
+  const parsedChanges = extractChangeValues(context.changeEvent.fieldChanges)
+  const effectiveChangePct = parsedChanges.changePercentage ?? null
+  const operationMagnitude = classifyOperationMagnitude(effectiveChangePct)
 
   // Score date = operation date + stageDays
   const evaluationDate = new Date(operationDate)
   evaluationDate.setDate(evaluationDate.getDate() + stageDays)
 
   let savedScoreId: number | undefined
-  const shouldPersist = metrics !== null && baseScore !== null
+  const shouldPersist = true
 
   if (shouldPersist) {
     const payload: NewOperationScore = {
@@ -363,9 +404,9 @@ async function evaluateStage(params: {
       riskLevel,
       baseScore,
       finalScore: finalScore !== null ? Number(finalScore).toFixed(2) : null,
-      valueBefore: null,
-      valueAfter: null,
-      changePercentage: changePct !== undefined && changePct !== null ? changePct.toString() : null,
+      valueBefore: parsedChanges.valueBefore !== null ? parsedChanges.valueBefore.toString() : null,
+      valueAfter: parsedChanges.valueAfter !== null ? parsedChanges.valueAfter.toString() : null,
+      changePercentage: effectiveChangePct !== null ? effectiveChangePct.toString() : null,
       operationMagnitude: operationMagnitude.magnitude !== null ? operationMagnitude.magnitude.toString() : null,
       operationTypeLabel: operationMagnitude.label,
       isBoldSuccess: baseScore !== null && baseScore >= 80 && (operationMagnitude.magnitude || 0) > 0.2,
@@ -404,7 +445,9 @@ async function evaluateStage(params: {
     dataStatus: baseScore === null ? 'missing' : 'complete',
     error:
       baseScore === null
-        ? 'Baseline missing or insufficient to compute score'
+        ? baseline === null
+          ? 'Baseline missing for this level'
+          : 'Baseline present but insufficient to compute score'
         : undefined,
   }
 }
@@ -417,6 +460,41 @@ export async function evaluateOperationFromAF(params: {
 
   try {
     const context = await resolveOperationContext(operationId)
+    const isTargetContext =
+      context.appId === TARGET_APP_ID &&
+      context.geo === TARGET_GEO &&
+      context.mediaSource === TARGET_MEDIA_SOURCE
+
+    if (!isTargetContext) {
+      return {
+        operationId,
+        campaignId: context.campaignId,
+        campaignName: context.campaignName,
+        optimizerEmail: context.changeEvent.userEmail,
+        operationType: context.changeEvent.operationType,
+        operationDate: new Date(context.changeEvent.timestamp).toISOString().split('T')[0],
+        stages: DEFAULT_STAGES.map((stage) => ({
+          stage,
+          stageDays: STAGE_DAY_MAP[stage],
+          baseScore: null,
+          finalScore: null,
+          minAchievement: null,
+          roasAchievement: null,
+          retentionAchievement: null,
+          riskLevel: null,
+          dataStatus: 'missing',
+          error: 'Operation context not in target app/geo/media_source',
+        })),
+        dataSource: 'appsflyer',
+        context: {
+          appId: context.appId,
+          geo: context.geo,
+          mediaSource: context.mediaSource,
+          campaignKey: context.campaignKey,
+        },
+      }
+    }
+
     const baselineSettings = await getOrCreateBaselineSettings({
       appId: context.appId,
       geo: context.geo,
@@ -583,6 +661,35 @@ export async function evaluateOperations7DaysAgoFromAF(
       error: `Batch evaluation failed: ${errorMessage}`,
       dataSource: 'appsflyer',
     }
+  }
+}
+
+export async function evaluateAllOperationsFromAF(params?: { stages?: ScoreStage[] }) {
+  const stages = params?.stages || DEFAULT_STAGES
+
+  const operations = await db
+    .select({ id: changeEvents.id })
+    .from(changeEvents)
+    .orderBy(desc(changeEvents.timestamp))
+
+  const results: Array<{ operationId: number; status: OperationStageResult['dataStatus'] }> = []
+
+  for (const op of operations) {
+    const evaluation = await evaluateOperationFromAF({ operationId: op.id, stages })
+    const status = evaluation.stages.every((stage) => stage.dataStatus === 'complete')
+      ? 'complete'
+      : evaluation.stages.some((stage) => stage.dataStatus === 'pending')
+        ? 'pending'
+        : 'missing'
+
+    results.push({ operationId: op.id, status })
+  }
+
+  return {
+    total: operations.length,
+    complete: results.filter((r) => r.status === 'complete').length,
+    pending: results.filter((r) => r.status === 'pending').length,
+    missing: results.filter((r) => r.status === 'missing').length,
   }
 }
 

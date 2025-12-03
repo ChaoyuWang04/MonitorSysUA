@@ -83,8 +83,8 @@ The `mock_creative_performance` table is **preserved** for A4 Creative Evaluatio
 
 | Mock Field | AppsFlyer Equivalent | Notes |
 |------------|---------------------|-------|
-| `baselineRoas7` | `calculateBaselineRoas()` | P50 from historical cohorts |
-| `baselineRet7` | `calculateBaselineRetention()` | P50 from historical cohorts |
+| `baselineRoas7` | `calculateBaselineRoas()` | Weighted ROAS from `baseline_metrics` (no P50) |
+| `baselineRet7` | `calculateBaselineRetention()` | Weighted retention from `baseline_metrics` (no P50) |
 | `referencePeriod` | `window.start` - `window.end` | 180-210 days ago |
 
 ---
