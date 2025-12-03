@@ -320,8 +320,9 @@ export const evaluationRouter = createTRPCRouter({
   recalculateOperationScores: publicProcedure
     .input(
       z.object({
+        accountId: z.number(),
         stages: z.array(z.enum(['T+1', 'T+3', 'T+7'])).optional(),
-      }).optional()
+      })
     )
     .mutation(async ({ input }) => {
       const { evaluateAllOperationsFromAF } = await import(
@@ -329,6 +330,7 @@ export const evaluationRouter = createTRPCRouter({
       );
 
       const result = await evaluateAllOperationsFromAF({
+        accountId: input.accountId,
         stages: input?.stages,
       });
 
@@ -341,7 +343,7 @@ export const evaluationRouter = createTRPCRouter({
   getOperationScores: publicProcedure
     .input(
       z.object({
-        accountId: z.number().optional(), // For future multi-account support
+        accountId: z.number(),
         optimizerEmail: z.string().optional(),
         campaignId: z.string().optional(),
         page: z.number().default(1),
@@ -354,6 +356,7 @@ export const evaluationRouter = createTRPCRouter({
       );
 
       const scores = await getOperationScores({
+        accountId: input.accountId,
         optimizerEmail: input.optimizerEmail,
         campaignId: input.campaignId,
         page: input.page,

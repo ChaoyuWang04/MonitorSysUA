@@ -460,41 +460,6 @@ export async function evaluateOperationFromAF(params: {
 
   try {
     const context = await resolveOperationContext(operationId)
-    const isTargetContext =
-      context.appId === TARGET_APP_ID &&
-      context.geo === TARGET_GEO &&
-      context.mediaSource === TARGET_MEDIA_SOURCE
-
-    if (!isTargetContext) {
-      return {
-        operationId,
-        campaignId: context.campaignId,
-        campaignName: context.campaignName,
-        optimizerEmail: context.changeEvent.userEmail,
-        operationType: context.changeEvent.operationType,
-        operationDate: new Date(context.changeEvent.timestamp).toISOString().split('T')[0],
-        stages: DEFAULT_STAGES.map((stage) => ({
-          stage,
-          stageDays: STAGE_DAY_MAP[stage],
-          baseScore: null,
-          finalScore: null,
-          minAchievement: null,
-          roasAchievement: null,
-          retentionAchievement: null,
-          riskLevel: null,
-          dataStatus: 'missing',
-          error: 'Operation context not in target app/geo/media_source',
-        })),
-        dataSource: 'appsflyer',
-        context: {
-          appId: context.appId,
-          geo: context.geo,
-          mediaSource: context.mediaSource,
-          campaignKey: context.campaignKey,
-        },
-      }
-    }
-
     const baselineSettings = await getOrCreateBaselineSettings({
       appId: context.appId,
       geo: context.geo,
@@ -664,12 +629,16 @@ export async function evaluateOperations7DaysAgoFromAF(
   }
 }
 
-export async function evaluateAllOperationsFromAF(params?: { stages?: ScoreStage[] }) {
+export async function evaluateAllOperationsFromAF(params?: { stages?: ScoreStage[]; accountId?: number }) {
   const stages = params?.stages || DEFAULT_STAGES
+  const { accountId } = params || {}
+
+  const whereClause = accountId ? eq(changeEvents.accountId, accountId) : undefined
 
   const operations = await db
     .select({ id: changeEvents.id })
     .from(changeEvents)
+    .where(whereClause)
     .orderBy(desc(changeEvents.timestamp))
 
   const results: Array<{ operationId: number; status: OperationStageResult['dataStatus'] }> = []

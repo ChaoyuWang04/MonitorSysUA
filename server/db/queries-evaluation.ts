@@ -471,59 +471,63 @@ export async function getExcellentCreatives(campaignId?: string) {
  * Get operation scores with pagination and filtering
  */
 export async function getOperationScores(params: {
+  accountId: number
   optimizerEmail?: string
   campaignId?: string
   page?: number
   pageSize?: number
 }) {
-  const { optimizerEmail, campaignId, page = 1, pageSize = 50 } = params
+  const { accountId, optimizerEmail, campaignId, page = 1, pageSize = 50 } = params
 
-  const conditions = []
-  if (optimizerEmail) {
-    conditions.push(eq(operationScore.optimizerEmail, optimizerEmail))
-  }
-  if (campaignId) {
-    conditions.push(eq(operationScore.campaignId, campaignId))
-  }
+  const conditions = [eq(changeEvents.accountId, accountId)]
+  if (optimizerEmail) conditions.push(eq(operationScore.optimizerEmail, optimizerEmail))
+  if (campaignId) conditions.push(eq(operationScore.campaignId, campaignId))
 
   const where = conditions.length > 0 ? and(...conditions) : undefined
 
   const data = await db
-    .select()
+    .select({
+      op: operationScore,
+      change: changeEvents,
+    })
     .from(operationScore)
+    .leftJoin(changeEvents, eq(operationScore.operationId, changeEvents.id))
     .where(where)
     .orderBy(desc(operationScore.operationDate), desc(operationScore.evaluationDate))
 
   const grouped = new Map<number, any>()
 
   for (const row of data) {
-    const opId = row.operationId || row.id
+    const score = row.op
+    const change = row.change
+    const opId = score.operationId || score.id
     if (!grouped.has(opId)) {
       grouped.set(opId, {
         id: opId,
         operationId: opId,
-        campaignId: row.campaignId,
-        optimizerEmail: row.optimizerEmail,
-        optimizerId: row.optimizerEmail,
-        optimizerName: row.optimizerEmail,
-        operationType: row.operationType,
-        operationDate: row.operationDate,
+        campaignId: score.campaignId,
+        optimizerEmail: score.optimizerEmail,
+        optimizerId: score.optimizerEmail,
+        optimizerName: score.optimizerEmail,
+        operationType: score.operationType,
+        operationDate: score.operationDate,
+        accountId: change?.accountId,
         stages: {},
       })
     }
 
     const group = grouped.get(opId)
-    if (row.scoreStage) {
-      group.stages[row.scoreStage] = {
-        stage: row.scoreStage,
-        finalScore: row.finalScore !== null && row.finalScore !== undefined ? Number(row.finalScore) : null,
-        baseScore: row.baseScore !== null && row.baseScore !== undefined ? Number(row.baseScore) : null,
-        minAchievement: row.minAchievement !== null && row.minAchievement !== undefined ? Number(row.minAchievement) : null,
-        riskLevel: row.riskLevel,
-        evaluationDate: row.evaluationDate,
-        dataStatus: row.riskLevel ? 'complete' : 'missing',
-        suggestionType: row.suggestionType,
-        specialRecognition: row.specialRecognition,
+    if (score.scoreStage) {
+      group.stages[score.scoreStage] = {
+        stage: score.scoreStage,
+        finalScore: score.finalScore !== null && score.finalScore !== undefined ? Number(score.finalScore) : null,
+        baseScore: score.baseScore !== null && score.baseScore !== undefined ? Number(score.baseScore) : null,
+        minAchievement: score.minAchievement !== null && score.minAchievement !== undefined ? Number(score.minAchievement) : null,
+        riskLevel: score.riskLevel,
+        evaluationDate: score.evaluationDate,
+        dataStatus: score.riskLevel ? 'complete' : 'missing',
+        suggestionType: score.suggestionType,
+        specialRecognition: score.specialRecognition,
       }
     }
   }

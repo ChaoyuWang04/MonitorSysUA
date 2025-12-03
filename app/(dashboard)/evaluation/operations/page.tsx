@@ -98,7 +98,8 @@ export default function OperationScoresPage() {
   }
 
   const handleRecalculate = () => {
-    recalcMutation.mutate({})
+    if (!selectedAccountId) return
+    recalcMutation.mutate({ accountId: selectedAccountId })
   }
 
   // DataGrid columns
