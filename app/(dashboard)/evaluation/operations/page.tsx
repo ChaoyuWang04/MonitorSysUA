@@ -193,9 +193,9 @@ export default function OperationScoresPage() {
       headerAlign: 'right',
       valueFormatter: (params) => {
         const val =
-          (params as { value: number | null | undefined; row: any }).value ??
-          (params as { row: any }).row?.baseScore ??
-          (params as { row: any }).row?.finalScore
+          (params as { value?: number | null; row?: any } | undefined)?.value ??
+          (params as { row?: any } | undefined)?.row?.baseScore ??
+          (params as { row?: any } | undefined)?.row?.finalScore
 
         return val !== null && val !== undefined ? Number(val).toFixed(1) : 'N/A'
       },
@@ -208,9 +208,9 @@ export default function OperationScoresPage() {
       headerAlign: 'right',
       valueFormatter: (params) => {
         const val =
-          (params as { value: number | null | undefined; row: any }).value ??
-          (params as { row: any }).row?.baseScore ??
-          (params as { row: any }).row?.finalScore
+          (params as { value?: number | null; row?: any } | undefined)?.value ??
+          (params as { row?: any } | undefined)?.row?.baseScore ??
+          (params as { row?: any } | undefined)?.row?.finalScore
 
         return val !== null && val !== undefined ? Number(val).toFixed(1) : 'N/A'
       },
@@ -223,9 +223,9 @@ export default function OperationScoresPage() {
       headerAlign: 'right',
       valueFormatter: (params) => {
         const val =
-          (params as { value: number | null | undefined; row: any }).value ??
-          (params as { row: any }).row?.baseScore ??
-          (params as { row: any }).row?.finalScore
+          (params as { value?: number | null; row?: any } | undefined)?.value ??
+          (params as { row?: any } | undefined)?.row?.baseScore ??
+          (params as { row?: any } | undefined)?.row?.finalScore
 
         return val !== null && val !== undefined ? Number(val).toFixed(1) : 'N/A'
       },
