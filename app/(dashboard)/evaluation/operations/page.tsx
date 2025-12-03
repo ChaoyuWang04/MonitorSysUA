@@ -115,7 +115,10 @@ export default function OperationScoresPage() {
       width: 100,
       align: 'right',
       headerAlign: 'right',
-      valueFormatter: ({ value }) => (value !== null && value !== undefined ? Number(value).toFixed(1) : '—'),
+      valueFormatter: (params) => {
+        const val = (params as { value?: number | null })?.value
+        return val !== null && val !== undefined ? Number(val).toFixed(1) : '—'
+      },
     },
     {
       field: 't3Score',
@@ -123,7 +126,10 @@ export default function OperationScoresPage() {
       width: 100,
       align: 'right',
       headerAlign: 'right',
-      valueFormatter: ({ value }) => (value !== null && value !== undefined ? Number(value).toFixed(1) : '—'),
+      valueFormatter: (params) => {
+        const val = (params as { value?: number | null })?.value
+        return val !== null && val !== undefined ? Number(val).toFixed(1) : '—'
+      },
     },
     {
       field: 't7Score',
@@ -131,7 +137,10 @@ export default function OperationScoresPage() {
       width: 100,
       align: 'right',
       headerAlign: 'right',
-      valueFormatter: ({ value }) => (value !== null && value !== undefined ? Number(value).toFixed(1) : '—'),
+      valueFormatter: (params) => {
+        const val = (params as { value?: number | null })?.value
+        return val !== null && val !== undefined ? Number(val).toFixed(1) : '—'
+      },
     },
     {
       field: 'optimizerName',
