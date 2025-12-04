@@ -480,50 +480,62 @@ export async function getOperationScores(params: {
 }) {
   const { accountId, optimizerEmail, campaignId, page = 1, pageSize = 50 } = params
 
+  // Filters align with change_events list so every event surfaces even without scores
   const conditions = [eq(changeEvents.accountId, accountId)]
-  if (optimizerEmail) conditions.push(eq(operationScore.optimizerEmail, optimizerEmail))
-  if (campaignId) conditions.push(eq(operationScore.campaignId, campaignId))
+  if (optimizerEmail) conditions.push(eq(changeEvents.userEmail, optimizerEmail))
+  if (campaignId) conditions.push(eq(changeEvents.campaign, campaignId))
 
   const where = conditions.length > 0 ? and(...conditions) : undefined
 
+  // change_events is the primary source; left join any existing operation_score rows
   const data = await db
     .select({
-      op: operationScore,
       change: changeEvents,
+      op: operationScore,
     })
-    .from(operationScore)
-    .leftJoin(changeEvents, eq(operationScore.operationId, changeEvents.id))
+    .from(changeEvents)
+    .leftJoin(operationScore, eq(operationScore.operationId, changeEvents.id))
     .where(where)
-    .orderBy(desc(operationScore.operationDate), desc(operationScore.evaluationDate))
+    .orderBy(desc(changeEvents.timestamp), desc(operationScore.evaluationDate))
 
   const grouped = new Map<number, any>()
 
   for (const row of data) {
-    const score = row.op
     const change = row.change
-    const opId = score.operationId || score.id
+    const score = row.op
+    const opId = change.id
+
     if (!grouped.has(opId)) {
       grouped.set(opId, {
         id: opId,
         operationId: opId,
-        campaignId: score.campaignId,
-        optimizerEmail: score.optimizerEmail,
-        optimizerId: score.optimizerEmail,
-        optimizerName: score.optimizerEmail,
-        operationType: score.operationType,
-        operationDate: score.operationDate,
-        accountId: change?.accountId,
-        stages: {},
+        campaignId: change.campaign,
+        optimizerEmail: change.userEmail,
+        optimizerId: change.userEmail,
+        optimizerName: change.userEmail,
+        operationType: change.operationType,
+        operationDate: change.timestamp,
+        accountId: change.accountId,
+        stages: {} as Record<string, unknown>,
       })
     }
 
-    const group = grouped.get(opId)
-    if (score.scoreStage) {
+    if (score && score.scoreStage) {
+      const group = grouped.get(opId)
       group.stages[score.scoreStage] = {
         stage: score.scoreStage,
-        finalScore: score.finalScore !== null && score.finalScore !== undefined ? Number(score.finalScore) : null,
-        baseScore: score.baseScore !== null && score.baseScore !== undefined ? Number(score.baseScore) : null,
-        minAchievement: score.minAchievement !== null && score.minAchievement !== undefined ? Number(score.minAchievement) : null,
+        finalScore:
+          score.finalScore !== null && score.finalScore !== undefined
+            ? Number(score.finalScore)
+            : null,
+        baseScore:
+          score.baseScore !== null && score.baseScore !== undefined
+            ? Number(score.baseScore)
+            : null,
+        minAchievement:
+          score.minAchievement !== null && score.minAchievement !== undefined
+            ? Number(score.minAchievement)
+            : null,
         riskLevel: score.riskLevel,
         evaluationDate: score.evaluationDate,
         dataStatus: score.riskLevel ? 'complete' : 'missing',
@@ -538,6 +550,8 @@ export async function getOperationScores(params: {
   const normalizedData = Array.from(grouped.values()).map((group) => {
     const pickStage = stageOrder.find((s) => group.stages[s])
     const anchor = pickStage ? group.stages[pickStage] : null
+    const operationDate = group.operationDate
+
     return {
       ...group,
       t1Score: group.stages['T+1']?.finalScore ?? null,
@@ -553,8 +567,8 @@ export async function getOperationScores(params: {
       riskLevel: anchor?.riskLevel ?? null,
       suggestionType: anchor?.suggestionType ?? null,
       specialRecognition: anchor?.specialRecognition ?? null,
-      evaluationDate: anchor?.evaluationDate ?? group.operationDate,
-      createdAt: anchor?.evaluationDate ?? group.operationDate,
+      evaluationDate: anchor?.evaluationDate ?? operationDate,
+      createdAt: anchor?.evaluationDate ?? operationDate,
     }
   })
 

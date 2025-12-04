@@ -11,11 +11,7 @@ import { join } from 'path'
 import type { NewChangeEvent } from '../db/schema'
 
 function resolvePythonExecutable() {
-  const venvPath = join(process.cwd(), 'server', 'google-ads', '.venv')
   const candidates = [
-    join(venvPath, 'bin', 'python3'),
-    join(venvPath, 'bin', 'python'),
-    join(venvPath, 'Scripts', 'python.exe'),
     '/Library/Frameworks/Python.framework/Versions/3.12/bin/python3',
     '/usr/local/bin/python3',
     '/opt/homebrew/bin/python3',

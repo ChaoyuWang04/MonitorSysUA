@@ -33,7 +33,7 @@
 
 ## Google Ads Python Runtime
 - Dependencies for Google Ads Python scripts are pinned in `server/google-ads/requirements.txt` (includes `google-ads` 28.4.0). Install system-wide with `python3 -m pip install -r server/google-ads/requirements.txt` before syncing.
-- The bridge prefers system Python at `/Library/Frameworks/Python.framework/Versions/3.12/bin/python3` (then `/usr/local/bin/python3`, `/opt/homebrew/bin/python3`, else `python3`), so make sure the dependency is available there.
+- The bridge uses system Python in order: `/Library/Frameworks/Python.framework/Versions/3.12/bin/python3` → `/usr/local/bin/python3` → `/opt/homebrew/bin/python3` → fallback `python3`. Both events and entities sync share this resolution (no virtualenv expected), so ensure `google-ads` is available on one of these interpreters.
 - Scripts explicitly request API version `v22` when loading services/types to avoid implicit downgrades; keep `google-ads` on the latest pinned version to match.
 - Missing dependencies exit with a JSON error so the UI surfaces actionable guidance instead of a generic `ModuleNotFoundError`.
 
