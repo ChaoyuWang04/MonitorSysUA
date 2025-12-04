@@ -2,7 +2,8 @@
 
 ## Overview
 - PostgreSQL 16 (Docker, port 5433) with Drizzle ORM 0.44.7; migrations via Atlas.
-- Schema source: `server/db/schema.ts` (14 tables); snapshots live in `context/db-snapshot/`.
+- Schema source: `server/db/schema.ts` (14 tables); snapshots live in `context/db-snapshot/` for quick restore.
+- Soft-delete and uniqueness are enforced at DB layer; all app queries go through Drizzle helpers.
 
 ## Core
 - `accounts` (serial PK): `customerId` (unique 10-digit), `name`, optional `currency`/`timeZone`, `isActive`, `createdAt`, `lastSyncedAt`.
@@ -10,12 +11,14 @@
 - `campaigns`: full-state campaigns per account; keys `resource_name` + `account_id`, fields include `campaign_id`, `name`, `status`, `serving_status`, `primary_status`, `channel_type/sub_type`, `bidding_strategy_type`, `start_date`, `end_date`, `budget_id`, `budget_amount_micros` (bigint), `currency`, `last_modified_time`; indexed on account/status/channel.
 - `ad_groups`: keys `resource_name` + `account_id`, fields `ad_group_id`, `campaign_id`, `name`, `status`, `type`, bids (`cpc_bid_micros`, `cpm_bid_micros`, `target_cpa_micros`), `last_modified_time`; indexed on account/campaign/status/type.
 - `ads`: keys `resource_name` + `account_id`, fields `ad_id`, `ad_group_id`, `campaign_id`, `name`, `status`, `type`, `added_by_google_ads`, `final_urls/final_mobile_urls` JSONB arrays, `display_url`, `device_preference`, `system_managed_resource_source`, `last_modified_time`; indexed on account/ad_group/campaign/status/type.
+- Numeric storage: budgets/bids stored as bigint/decimal; conversion to number is handled in query layer for API responses.
 
 ## Baselines
 - `baseline_metrics`: PRD 6.2.5 baseline table with four-level lookup (app+geo+media_source → app+geo → app+media_source → app). Stores cost-weighted ROAS and install-weighted retention (D3/D7), CPI, sample window (start/end, sample_size), flags (`is_active`, `manual_override`). Defaults use window `[today-(baselineDays+30), today-baselineDays]` with fallback to latest available data if empty.
 - `baseline_settings`: configurable baseline window per app/geo/mediaSource (`baselineDays` default 180, `minSampleSize` default 30), unique on appId+geo+mediaSource; feeds baseline_metrics calculation.
 - `safety_baseline`: legacy product/country/platform/channel baselines (`baselineRoas7`, `baselineRet7`, `referencePeriod`, `lastUpdated`); kept for compatibility, superseded by `baseline_metrics`.
 - `creative_test_baseline`: creative thresholds (`maxCpi`, `minRoasD3`, `minRoasD7`, `excellentCvr`), unique per dimension.
+- Retention and ROAS are stored as decimals; consuming services should treat null as “insufficient data”.
 
 ## Evaluation & Actions
 - `campaign_evaluation`: campaign metrics (spend, ROAS/RET, achievement rates, `recommendationType`, `status`, `campaignType`, `evaluationDate`).
@@ -23,6 +26,7 @@
 - `operation_score`: stage-scoped operation scores keyed by (`operation_id`, `score_stage`) with `campaign_id` (Google campaign resource_name), `optimizerEmail`, `operationType`, `operationDate`, `evaluationDate` (= score_date), stage factor (`score_stage`: T+1/T+3/T+7), achievements (`roas_achievement`, `retention_achievement`, `min_achievement`), baselines, `risk_level`, base/final score, operation magnitude + label, `value_before/after`, `change_percentage`, `special_recognition`, `is_bold_success`, `suggestion_type/detail`. Unique index on (`operation_id`, `score_stage`).
 - `optimizer_leaderboard`: aggregated counts and success rate per optimizer.
 - `action_recommendation`: actions tied to `campaignId`/`evaluationId` with JSON `actionOptions`, `selectedAction`, `executed`, timestamps.
+- Operation scores are also mirrored into `change_events.operation_scores` for quick listing without joins.
 
 ## Mock Data (Deprecated)
 - `mock_campaign_performance`, `mock_creative_performance`: seed/test data for evaluation engines. **Deprecated since Phase 5: Evaluation now uses AppsFlyer data.**
@@ -38,16 +42,17 @@
 
 ### Views
 - `af_revenue_cohort_daily`: Aggregates `af_events` by cohort dimensions, splits revenue into `iap_revenue_usd`, `ad_revenue_usd`, `total_revenue_usd`.
-- `af_cohort_metrics_daily`: Joins revenue view with `af_cohort_kpi_daily` for complete cohort picture (revenue + installs + cost + retention).
+- `af_cohort_metrics_daily`: Joins revenue view with `af_cohort_kpi_daily` for complete cohort picture (revenue + installs + cost + retention). Used by query layer via raw SQL.
 
 ## Commands
 - Migrations: `just db-status`, `just db-diff "name"`, `just db-apply`, `just db-studio`.
 - Snapshots: `just db-snapshot [limit] [format]` (default: `limit=100`, `format=csv`). Random sample per table, applies `is_deleted = false` when present, writes CSV for preview plus JSON for restore. `just db-restore [snapshot]` reloads from JSON in the snapshot.
 - Latest snapshot example: check `context/db-snapshot/snapshot_*/` in the repo for the most recent dump.
+- Safety: never run write SQL outside migrations; avoid truncates. Query script `scripts/db-query.sh` only allows SELECT.
 
 ## Status
 - Atlas-managed migrations align with `server/db/schema.ts`; no pending schema drift noted locally.
-- Unique constraints enforce account-scoped dedupe for change events and baselines.
-- **Phase 5 Complete**: Evaluation now uses AppsFlyer data (A2 baseline, A3 campaign, A7 operation). Mock data generators deprecated.
+- Unique constraints enforce account-scoped dedupe for change events and baselines; operation scores unique per operation+stage.
+- **Phase 5 Complete**: Evaluation now uses AppsFlyer data (A2 baseline, A3 campaign, A7 operation). Mock data generators deprecated except creative tests.
 - AppsFlyer tables populate via Python ETL (`just af-sync-yesterday`); evaluation wrappers query `af_cohort_kpi_daily` and `af_events`.
-- Snapshots are available for quick restores; production backup/restore flow not yet defined.
+- Snapshots are available for quick restores; production backup/restore flow not yet defined. Add PITR/managed backups for production.

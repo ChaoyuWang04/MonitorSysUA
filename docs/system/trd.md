@@ -60,12 +60,7 @@ MonitorSysUA is a Google Ads monitoring and evaluation system that:
 2. **Data sparsity resilience**: Falls back to latest available window if the 180/210 anchor has no data.
 3. **Actionability**: Weighted averages better reflect spend/installs impact for scoring.
 
-**Implementation**:
-```sql
--- Window: [today-(baselineDays+30), today-baselineDays], fallback to latest window if empty
-SUM(revenue) / SUM(cost)        AS baseline_roas
-SUM(retention*installs)/SUM(installs) AS baseline_ret
-```
+**Implementation**: Window `[today-(baselineDays+30), today-baselineDays]`, cost-weighted ROAS and install-weighted retention. If the anchor window is empty, fall back to the latest available window. Persist results to `baseline_metrics` for four-level lookup.
 
 **Trade-offs**:
 - Less outlier-robust than median; mitigated by weighting and fallback windowing.
@@ -129,12 +124,7 @@ SUM(retention*installs)/SUM(installs) AS baseline_ret
 2. **Comparability**: Matches AppsFlyer dashboard calculations
 3. **Decision making**: Cumulative ROAS answers "is this cohort profitable?"
 
-**Implementation**:
-```sql
-SELECT SUM(event_revenue_usd)
-FROM af_events
-WHERE install_date = ? AND days_since_install <= ?
-```
+**Implementation**: Sum revenue from D0 through Dn (inclusive) per cohort and divide by cost; retention uses the rate reported at the target day (e.g., D7) from `af_cohort_kpi_daily`.
 
 ---
 
@@ -163,10 +153,7 @@ WHERE install_date = ? AND days_since_install <= ?
 3. **Consistency**: Unified API pattern across the application
 4. **Performance**: Automatic batching, minimal overhead
 
-**Implementation**:
-- Router: `server/api/routers/appsflyer.ts`
-- Client: `lib/trpc/client.ts`
-- 10 procedures (8 queries, 2 mutations)
+**Implementation**: Thin routers per domain (`accounts`, `events`, `entities`, `stats`, `evaluation`, `appsflyer`) with Zod validation; client uses `httpBatchLink` and React Query integration for caching; error formatter exposes field-level issues.
 
 ---
 
@@ -192,7 +179,7 @@ WHERE install_date = ? AND days_since_install <= ?
 │                    Evaluation System                          │
 ├──────────────────────────────────────────────────────────────┤
 │  A2: Baseline Calculator                                      │
-│  └── calculateBaselineFromAF() → P50 ROAS/RET from history   │
+│  └── calculateBaselineFromAF() → weighted ROAS/RET from history   │
 │                                                               │
 │  A3: Campaign Evaluator                                       │
 │  └── evaluateCampaignFromAF() → Achievement vs baseline      │
