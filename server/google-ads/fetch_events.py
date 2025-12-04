@@ -9,7 +9,6 @@ Usage:
 Returns:
     JSON array of change events to stdout
 """
-
 import json
 import os
 import sys
@@ -18,6 +17,7 @@ from pathlib import Path
 from google.ads.googleads.client import GoogleAdsClient
 from google.ads.googleads.errors import GoogleAdsException
 from google.protobuf.json_format import MessageToDict
+
 
 
 def proto_to_dict(proto_obj):
@@ -226,23 +226,19 @@ def generate_chinese_summary(resource_type, operation_type, field_changes, curre
 
 
 def resolve_config_path(config_path: str | Path | None = None) -> Path:
-    """Resolve Google Ads YAML config path with env override and sensible default."""
-    # Priority: explicit arg -> env var -> default local path
+    """Resolve Google Ads YAML config path with optional explicit override."""
+    # Priority: explicit arg -> default local path
     if config_path:
         candidate = Path(config_path)
     else:
-        env_path = os.getenv("GOOGLE_ADS_CONFIG_PATH")
-        if env_path:
-            candidate = Path(env_path)
-        else:
-            candidate = Path(__file__).resolve().parents[2] / "local" / "credentials" / "google-ads" / "google-ads.yaml"
+        candidate = Path(__file__).resolve().parents[2] / "local" / "credentials" / "google-ads" / "google-ads.yaml"
 
     candidate = candidate.expanduser().resolve()
 
     if not candidate.exists():
         raise FileNotFoundError(
             f"Google Ads config not found at {candidate}. "
-            "Set GOOGLE_ADS_CONFIG_PATH or place google-ads.yaml in local/credentials/google-ads/."
+            "Place google-ads.yaml in local/credentials/google-ads/ or pass an explicit path."
         )
 
     return candidate
@@ -265,12 +261,13 @@ def fetch_change_events(customer_id, days=7, currency='USD', config_path: str | 
 
     # Load client from YAML configuration
     resolved_config_path = resolve_config_path(config_path)
+    # Force latest supported API version to avoid implicit downgrade
+    api_version = "v22"
     client = GoogleAdsClient.load_from_storage(str(resolved_config_path))
     if login_customer_id:
         # Use MCC login header when provided (supports multi-manager setups)
         client.login_customer_id = login_customer_id
-
-    ga_service = client.get_service("GoogleAdsService")
+    ga_service = client.get_service("GoogleAdsService", version=api_version)
 
     # Calculate date range (inclusive) - Google Ads allows max 30 days
     start_date = (datetime.now(timezone.utc) - timedelta(days=date_range_days - 1)).strftime("%Y-%m-%d")
@@ -305,9 +302,9 @@ def fetch_change_events(customer_id, days=7, currency='USD', config_path: str | 
     """
 
     # Get enum types
-    ChangeEventResourceTypeEnum = client.get_type("ChangeEventResourceTypeEnum").ChangeEventResourceType
-    ResourceChangeOperationEnum = client.get_type("ResourceChangeOperationEnum").ResourceChangeOperation
-    ClientTypeEnum = client.get_type("ChangeClientTypeEnum").ChangeClientType
+    ChangeEventResourceTypeEnum = client.get_type("ChangeEventResourceTypeEnum", version=api_version).ChangeEventResourceType
+    ResourceChangeOperationEnum = client.get_type("ResourceChangeOperationEnum", version=api_version).ResourceChangeOperation
+    ClientTypeEnum = client.get_type("ChangeClientTypeEnum", version=api_version).ChangeClientType
 
     try:
         response = ga_service.search(customer_id=customer_id, query=query)

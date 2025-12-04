@@ -6,8 +6,24 @@
  */
 
 import { spawn } from 'child_process'
+import { existsSync } from 'fs'
 import { join } from 'path'
 import type { NewChangeEvent } from '../db/schema'
+
+function resolvePythonExecutable() {
+  const venvPath = join(process.cwd(), 'server', 'google-ads', '.venv')
+  const candidates = [
+    join(venvPath, 'bin', 'python3'),
+    join(venvPath, 'bin', 'python'),
+    join(venvPath, 'Scripts', 'python.exe'),
+    '/Library/Frameworks/Python.framework/Versions/3.12/bin/python3',
+    '/usr/local/bin/python3',
+    '/opt/homebrew/bin/python3',
+  ]
+
+  const found = candidates.find((candidate) => existsSync(candidate))
+  return found ?? 'python3'
+}
 
 /**
  * Fetch and parse ChangeEvent data from Google Ads API (via Python)
@@ -28,11 +44,14 @@ export async function fetchAndParseChangeEvents(
     // Path to Python script
     const scriptPath = join(process.cwd(), 'server', 'google-ads', 'fetch_events.py')
 
+    // Prefer project-local virtualenv if present to ensure google-ads deps are available
+    const pythonExecutable = resolvePythonExecutable()
+
     // Spawn Python process with currency parameter
     const args = [scriptPath, customerId, days.toString(), currency]
 
     // Set login customer dynamically per account (Google Ads expects login_customer_id header)
-    const pythonProcess = spawn('python3', args, {
+    const pythonProcess = spawn(pythonExecutable, args, {
       env: {
         ...process.env,
         GOOGLE_ADS_LOGIN_CUSTOMER_ID: customerId,

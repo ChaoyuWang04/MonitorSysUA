@@ -27,9 +27,15 @@
 - **AppsFlyer API**: Token-based export of IAP/ad-revenue and cohort KPIs; baseline helpers compute weighted ROAS/retention windows into `baseline_metrics` (no P50).
 
 ## Google Ads Credentials
-- ChangeEvent sync loads `google-ads.yaml` (service account) from `local/credentials/google-ads/google-ads.yaml` by default; set `GOOGLE_ADS_CONFIG_PATH` to override.
+- ChangeEvent sync loads `google-ads.yaml` (service account) from `local/credentials/google-ads/google-ads.yaml` (no env fallback).
 - Keep the service account JSON in the same folder (default entry points to `./local/credentials/google-ads/<file>.json`); the `local/credentials/` folder is gitignored to avoid leaking secrets.
-- The Python client uses `GOOGLE_ADS_LOGIN_CUSTOMER_ID` for the login header; the Node bridge sets this per account to the account’s customer ID when syncing, so login is not fixed in the YAML.
+- The Node bridge sets `GOOGLE_ADS_LOGIN_CUSTOMER_ID` per account when spawning Python so the login header matches the target account.
+
+## Google Ads Python Runtime
+- Dependencies for Google Ads Python scripts are pinned in `server/google-ads/requirements.txt` (includes `google-ads` 28.4.0). Install system-wide with `python3 -m pip install -r server/google-ads/requirements.txt` before syncing.
+- The bridge prefers system Python at `/Library/Frameworks/Python.framework/Versions/3.12/bin/python3` (then `/usr/local/bin/python3`, `/opt/homebrew/bin/python3`, else `python3`), so make sure the dependency is available there.
+- Scripts explicitly request API version `v22` when loading services/types to avoid implicit downgrades; keep `google-ads` on the latest pinned version to match.
+- Missing dependencies exit with a JSON error so the UI surfaces actionable guidance instead of a generic `ModuleNotFoundError`.
 
 ## Patterns
 - Python bridge via `child_process.spawn` with JSON over stdout; detached background for ETL runs.
