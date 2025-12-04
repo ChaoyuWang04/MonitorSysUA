@@ -6,10 +6,13 @@
   - [Change Events](modules/change-events.md)
   - [Evaluation](modules/evaluation.md)
   - [AppsFlyer](modules/appsflyer.md)
+- Implementation (WIP)
+  - [Operation Scores](implementation/wip/operation-scores.md)
 - Mermaid
   - [Folder overview](Mermaid/README.md)
   - [AppsFlyer → Evaluation Flow](Mermaid/appsflyer-evaluation-flow.md)
   - [Google Ads ChangeEvent Sync](Mermaid/google-ads-change-events.md)
+  - [Operation Scores Flow](Mermaid/operation-scores-flow.md)
 - System
   - [Structure](system/structure.md)
   - [Frontend](system/frontend.md)

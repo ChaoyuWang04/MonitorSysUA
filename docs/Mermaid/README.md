@@ -4,6 +4,7 @@ Quick links to rendered diagrams when browsing the docs site:
 
 - [AppsFlyer → Evaluation Flow](appsflyer-evaluation-flow.md)
 - [Google Ads ChangeEvent Sync](google-ads-change-events.md)
+- [Operation Scores Flow](operation-scores-flow.md)
 
 Notes
 - Rendered via docsify + docsify-mermaid (loaded in `docs/index.html`).
