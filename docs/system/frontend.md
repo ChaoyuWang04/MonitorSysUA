@@ -14,7 +14,7 @@
 | `/entities` | `app/(dashboard)/entities/page.tsx` | Campaigns/AdGroups/Ads full-state DataGrids, filters (status/channel/type/media_source), manual sync, detail drawer with latest change history. |
 | `/evaluation/campaigns` | `app/(dashboard)/evaluation/campaigns/page.tsx` | Campaign evaluations list + detail dialog + action recommendations. |
 | `/evaluation/creatives` | `app/(dashboard)/evaluation/creatives/page.tsx` | D3/D7 creative evaluations, status badges, sync dialog. |
-| `/evaluation/operations` | `app/(dashboard)/evaluation/operations/page.tsx` | Operation scores (T+1/T+3/T+7 columns + manual “Recalculate scores” button) and optimizer leaderboard. |
+| `/evaluation/operations` | `app/(dashboard)/evaluation/operations/page.tsx` | Operation scores (T+1/T+3/T+7 columns) with manual actions: Sync Events, Sync AppsFlyer Data (cohort KPI), Recalculate scores; includes optimizer leaderboard. |
 
 Layout: `app/layout.tsx` (theme/providers) → `(dashboard)/layout.tsx` (shell with sidebar/header) → pages (client components for interactivity).
 
@@ -43,5 +43,5 @@ Layout: `app/layout.tsx` (theme/providers) → `(dashboard)/layout.tsx` (shell w
 - Dashboards, accounts, events, and all evaluation pages are wired and usable with real data.
 - Account selection is required before any data call; toasts cover happy/error paths.
 - Action execution dialogs still use mock services; real execution endpoints not connected.
-- No AppsFlyer-facing UI yet; ETL runs via scripts only.
+- AppsFlyer manual sync is available via operations page (cohort KPI), alongside events sync.
 - No authentication/roles; assume internal trusted users.

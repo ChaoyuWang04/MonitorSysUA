@@ -12,6 +12,59 @@ import { z } from 'zod'
 import { createTRPCRouter, publicProcedure } from '../trpc'
 import * as af from '@/server/db/queries-appsflyer'
 
+function formatDateYYYYMMDD(date: Date): string {
+  return date.toISOString().split('T')[0]
+}
+
+function getDefaultDateRange(days: number): { start: string; end: string } {
+  const end = new Date()
+  end.setDate(end.getDate() - 1)
+  const start = new Date(end)
+  start.setDate(start.getDate() - (days - 1))
+  return {
+    start: formatDateYYYYMMDD(start),
+    end: formatDateYYYYMMDD(end),
+  }
+}
+
+async function startManualSync(params: {
+  syncType: 'events' | 'cohort_kpi'
+  dateRangeStart: string
+  dateRangeEnd: string
+}) {
+  const syncLog = await af.createSyncLog({
+    syncType: params.syncType,
+    dateRangeStart: new Date(params.dateRangeStart),
+    dateRangeEnd: new Date(params.dateRangeEnd),
+  })
+
+  const { spawn } = await import('child_process')
+  const { join } = await import('path')
+  const afDir = ['server', 'appsflyer'].join('/')
+  const pythonPath = join(process.cwd(), afDir, '.venv', 'bin', 'python')
+  const scriptPath = join(process.cwd(), afDir, 'sync_af_data.py')
+
+  const args = [
+    '--from-date',
+    params.dateRangeStart,
+    '--to-date',
+    params.dateRangeEnd,
+    params.syncType === 'events' ? '--events-only' : '--kpi-only',
+  ]
+
+  const child = spawn(pythonPath, [scriptPath, ...args], {
+    detached: true,
+    stdio: 'ignore',
+  })
+  child.unref()
+
+  return {
+    success: true as const,
+    syncLogId: syncLog.id,
+    message: `Started ${params.syncType} sync for ${params.dateRangeStart} to ${params.dateRangeEnd}`,
+  }
+}
+
 export const appsflyerRouter = createTRPCRouter({
   // ============================================
   // EVENT PROCEDURES
@@ -227,41 +280,34 @@ export const appsflyerRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ input }) => {
-      // 1. Create sync log entry to track progress
-      const syncLog = await af.createSyncLog({
+      return await startManualSync({
         syncType: input.syncType,
-        dateRangeStart: new Date(input.dateRangeStart),
-        dateRangeEnd: new Date(input.dateRangeEnd),
+        dateRangeStart: input.dateRangeStart,
+        dateRangeEnd: input.dateRangeEnd,
       })
+    }),
 
-      // 2. Spawn Python ETL process in background
-      // Uses existing sync_af_data.py CLI: --from-date, --to-date, --events-only/--kpi-only
-      const { spawn } = await import('child_process')
-      const { join } = await import('path')
-      // Dynamic path construction to avoid Turbopack static analysis
-      const afDir = ['server', 'appsflyer'].join('/')
-      const pythonPath = join(process.cwd(), afDir, '.venv', 'bin', 'python')
-      const scriptPath = join(process.cwd(), afDir, 'sync_af_data.py')
-
-      const args = [
-        '--from-date',
-        input.dateRangeStart,
-        '--to-date',
-        input.dateRangeEnd,
-        input.syncType === 'events' ? '--events-only' : '--kpi-only',
-      ]
-
-      // Non-blocking spawn - process runs in background
-      const child = spawn(pythonPath, [scriptPath, ...args], {
-        detached: true,
-        stdio: 'ignore',
+  /**
+   * Trigger AppsFlyer cohort KPI sync for the last N days (default 7)
+   * Reuses Python ETL via startManualSync with --kpi-only
+   */
+  syncAppsFlyerData: publicProcedure
+    .input(
+      z.object({
+        days: z.number().min(1).max(30).default(7),
       })
-      child.unref()
+    )
+    .mutation(async ({ input }) => {
+      const range = getDefaultDateRange(input.days)
+      const result = await startManualSync({
+        syncType: 'cohort_kpi',
+        dateRangeStart: range.start,
+        dateRangeEnd: range.end,
+      })
 
       return {
-        success: true,
-        syncLogId: syncLog.id,
-        message: `Started ${input.syncType} sync for ${input.dateRangeStart} to ${input.dateRangeEnd}`,
+        ...result,
+        dateRange: range,
       }
     }),
 })

@@ -40,7 +40,7 @@
 - Events: `getEventsByDateRange`, `getEventsByInstallDate`, `getRevenueByCohort`.
 - Cohorts: `getCohortKpi`, `getCohortMetrics`, `getLatestCohortData`.
 - Baselines: `calculateBaselineRoas`, `calculateBaselineRetention`.
-- Sync: `getSyncStatus`, `triggerManualSync` (spawns Python ETL; returns `syncLogId`).
+- Sync: `getSyncStatus`, `triggerManualSync` (spawns Python ETL; returns `syncLogId`), `syncAppsFlyerData` (cohort KPI sync for last N days; defaults to 7; returns sync log id + date range).
 - 规范：内部 OpenAPI（tRPC 调用层）见 `docs/api/internal/appsflyer/appsflyer-trpc.yaml`。
 
 ## Patterns

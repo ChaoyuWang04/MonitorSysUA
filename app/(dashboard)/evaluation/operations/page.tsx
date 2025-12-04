@@ -18,12 +18,13 @@ import {
   GridPaginationModel,
   GridRowParams,
 } from '@mui/x-data-grid'
-import { Speed as SpeedIcon } from '@mui/icons-material'
+import { Speed as SpeedIcon, Sync as SyncIcon } from '@mui/icons-material'
 import { trpc } from '@/lib/trpc/client'
 import { useAccount } from '@/lib/contexts/account-context'
 import { EmptyState } from '@/components/common/empty-state'
 import { OperationScoreDialog } from '@/components/evaluation/operation-score-dialog'
 import { OptimizerLeaderboard } from '@/components/evaluation/optimizer-leaderboard'
+import { useToast } from '@/components/common/toast-provider'
 import {
   formatPercentage,
   formatDate,
@@ -44,6 +45,7 @@ import { OperationStatus, type OperationScore } from '@/lib/types/evaluation'
  */
 export default function OperationScoresPage() {
   const { selectedAccountId } = useAccount()
+  const toast = useToast()
 
   // Tab state
   const [activeTab, setActiveTab] = useState(0)
@@ -83,6 +85,28 @@ export default function OperationScoresPage() {
     onSuccess: () => refetch(),
   })
 
+  const syncEventsMutation = trpc.events.sync.useMutation({
+    onSuccess: (result) => {
+      toast.success(result.message || 'Events synced successfully')
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to sync events')
+    },
+  })
+
+  const syncAppsFlyerMutation = trpc.appsflyer.syncAppsFlyerData.useMutation({
+    onError: (err) => {
+      toast.error(err.message || 'Failed to start AppsFlyer sync')
+    },
+  })
+
+  const {
+    refetch: refetchCohortSyncStatus,
+  } = trpc.appsflyer.getSyncStatus.useQuery(
+    { syncType: 'cohort_kpi', limit: 1 },
+    { enabled: false }
+  )
+
   const handleRowClick = (params: GridRowParams) => {
     setSelectedOperation(params.row as OperationScore)
     setDetailDialogOpen(true)
@@ -100,6 +124,53 @@ export default function OperationScoresPage() {
   const handleRecalculate = () => {
     if (!selectedAccountId) return
     recalcMutation.mutate({ accountId: selectedAccountId })
+  }
+
+  const handleSyncEvents = async () => {
+    if (!selectedAccountId) return
+    try {
+      await syncEventsMutation.mutateAsync({ accountId: selectedAccountId, days: 7 })
+    } catch (error) {
+      // Error handled in onError
+    }
+  }
+
+  const waitForCohortSync = async () => {
+    for (let i = 0; i < 20; i += 1) {
+      const { data } = await refetchCohortSyncStatus()
+      const latest = data?.latest
+      if (!latest || latest.status !== 'running') {
+        return latest
+      }
+      await new Promise((resolve) => setTimeout(resolve, 3000))
+    }
+    return null
+  }
+
+  const handleSyncAppsFlyer = async () => {
+    try {
+      const result = await syncAppsFlyerMutation.mutateAsync({ days: 7 })
+      toast.info(
+        `Started AppsFlyer cohort sync (${result.dateRange.start} to ${result.dateRange.end})`
+      )
+
+      const latest = await waitForCohortSync()
+
+      if (latest?.status === 'success') {
+        const count = latest.recordsProcessed ?? 0
+        const start = latest.dateRangeStart || result.dateRange.start
+        const end = latest.dateRangeEnd || result.dateRange.end
+        toast.success(`AppsFlyer cohort sync completed: ${count} records (${start} to ${end})`)
+      } else if (latest?.status === 'failed') {
+        toast.error(
+          `AppsFlyer cohort sync failed: ${latest.errorMessage || 'Unknown error encountered'}`
+        )
+      } else {
+        toast.warning('AppsFlyer cohort sync status unknown. Please check sync logs.')
+      }
+    } catch (error) {
+      // Error handled in onError
+    }
   }
 
   // DataGrid columns
@@ -303,13 +374,36 @@ export default function OperationScoresPage() {
             Daily evaluation scores for optimizer performance and decision quality
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          onClick={handleRecalculate}
-          disabled={recalcMutation.status === 'pending'}
-        >
-          {recalcMutation.status === 'pending' ? 'Recalculating…' : 'Recalculate scores'}
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button
+            variant="outlined"
+            startIcon={<SyncIcon />}
+            onClick={handleSyncEvents}
+            disabled={syncEventsMutation.status === 'pending'}
+            sx={{ textTransform: 'none' }}
+          >
+            {syncEventsMutation.status === 'pending' ? 'Syncing Events…' : 'Sync Events'}
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<SyncIcon />}
+            onClick={handleSyncAppsFlyer}
+            disabled={syncAppsFlyerMutation.status === 'pending'}
+            sx={{ textTransform: 'none' }}
+          >
+            {syncAppsFlyerMutation.status === 'pending'
+              ? 'Syncing AppsFlyer…'
+              : 'Sync AppsFlyer Data'}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleRecalculate}
+            disabled={recalcMutation.status === 'pending'}
+            sx={{ textTransform: 'none' }}
+          >
+            {recalcMutation.status === 'pending' ? 'Recalculating…' : 'Recalculate scores'}
+          </Button>
+        </Stack>
       </Stack>
 
       {/* Tabs */}
