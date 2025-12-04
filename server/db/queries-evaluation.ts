@@ -32,7 +32,7 @@ import {
   afCohortKpiDaily,
   afEvents,
 } from './schema'
-import { and, desc, eq, sql, gte, lte, sum } from 'drizzle-orm'
+import { and, desc, eq, inArray, sql, gte, lte, sum } from 'drizzle-orm'
 
 // ============================================
 // SAFETY BASELINE FUNCTIONS
@@ -487,41 +487,56 @@ export async function getOperationScores(params: {
 
   const where = conditions.length > 0 ? and(...conditions) : undefined
 
-  // change_events is the primary source; left join any existing operation_score rows
-  const data = await db
-    .select({
-      change: changeEvents,
-      op: operationScore,
-    })
+  // Fetch change events first (primary dataset)
+  const totalResult = await db
+    .select({ count: sql<number>`count(*)` })
     .from(changeEvents)
-    .leftJoin(operationScore, eq(operationScore.operationId, changeEvents.id))
     .where(where)
-    .orderBy(desc(changeEvents.timestamp), desc(operationScore.evaluationDate))
 
+  const total = Number(totalResult[0]?.count || 0)
+  const totalPages = Math.ceil(total / pageSize)
+  const offset = (page - 1) * pageSize
+
+  const changeRows = await db
+    .select()
+    .from(changeEvents)
+    .where(where)
+    .orderBy(desc(changeEvents.timestamp))
+    .limit(pageSize)
+    .offset(offset)
+
+  const operationIds = changeRows.map((row) => row.id)
+
+  const scoreRows = operationIds.length
+    ? await db
+        .select()
+        .from(operationScore)
+        .where(inArray(operationScore.operationId, operationIds))
+    : []
+
+  // Group by change event, then fill stages with any available scores
   const grouped = new Map<number, any>()
 
-  for (const row of data) {
-    const change = row.change
-    const score = row.op
-    const opId = change.id
+  for (const change of changeRows) {
+    grouped.set(change.id, {
+      id: change.id,
+      operationId: change.id,
+      campaignId: change.campaign,
+      optimizerEmail: change.userEmail,
+      optimizerId: change.userEmail,
+      optimizerName: change.userEmail,
+      operationType: change.operationType,
+      operationDate: change.timestamp,
+      accountId: change.accountId,
+      stages: {} as Record<string, unknown>,
+    })
+  }
 
-    if (!grouped.has(opId)) {
-      grouped.set(opId, {
-        id: opId,
-        operationId: opId,
-        campaignId: change.campaign,
-        optimizerEmail: change.userEmail,
-        optimizerId: change.userEmail,
-        optimizerName: change.userEmail,
-        operationType: change.operationType,
-        operationDate: change.timestamp,
-        accountId: change.accountId,
-        stages: {} as Record<string, unknown>,
-      })
-    }
+  for (const score of scoreRows) {
+    const group = grouped.get(score.operationId || score.id)
+    if (!group) continue
 
-    if (score && score.scoreStage) {
-      const group = grouped.get(opId)
+    if (score.scoreStage) {
       group.stages[score.scoreStage] = {
         stage: score.scoreStage,
         finalScore:
@@ -572,12 +587,8 @@ export async function getOperationScores(params: {
     }
   })
 
-  const total = normalizedData.length
-  const totalPages = Math.ceil(total / pageSize)
-  const pagedData = normalizedData.slice((page - 1) * pageSize, page * pageSize)
-
   return {
-    data: pagedData,
+    data: normalizedData,
     total,
     page,
     pageSize,

@@ -36,8 +36,8 @@ Scope: summarizes the existing Operation Scores page, data model, scoring algori
 - change_events snapshot: updates `change_events.operation_scores` JSON with stage summaries after evaluation.
 
 ## List assembly (server/db/queries-evaluation.getOperationScores)
-- **Primary table now `change_events`**: filters by `accountId` (mandatory), optional optimizer (matches `change_events.userEmail`) and campaign (`change_events.campaign`). Left-joins `operation_score` by `operationId` so every change event surfaces even if no score exists.
-- Groups rows per operationId, builds `stages` map from any joined `operation_score` rows. Convenience fields (`t1Score` etc.) and anchor stage selection `T+7→T+3→T+1` still apply; if no scores, anchor remains null and dates fall back to operation timestamp. Pagination remains in-memory slice after grouping.
+- **Primary table `change_events`**: filters by `accountId` (mandatory), optional optimizer (matches `change_events.userEmail`) and campaign (`change_events.campaign`). Pulls paginated change events first, then fetches any `operation_score` rows for those operationIds (in-array query) so every change event surfaces even if no score exists.
+- Groups rows per operationId, builds `stages` map from matched `operation_score` rows. Convenience fields (`t1Score` etc.) and anchor stage selection `T+7→T+3→T+1` still apply; if no scores, anchor remains null and dates fall back to operation timestamp.
 
 ## Batch recalc (evaluateAllOperationsFromAF)
 - Iterates all `change_events` (optionally limited by `accountId`), runs `evaluateOperationFromAF` for requested stages, and returns counts of complete/pending/missing; does not skip immature operations (pending returned until data available).
