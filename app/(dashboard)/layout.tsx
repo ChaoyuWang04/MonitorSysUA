@@ -23,6 +23,7 @@ import {
   Assessment as AssessmentIcon,
   Image as ImageIcon,
   Speed as SpeedIcon,
+  Campaign as CampaignIcon,
 } from '@mui/icons-material'
 import { usePathname, useRouter } from 'next/navigation'
 import { AccountSelector } from '@/components/layout/account-selector'
@@ -53,6 +54,7 @@ export default function DashboardLayout({
   const menuItems: MenuItemOrDivider[] = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
     { text: 'Events', icon: <EventNoteIcon />, path: '/events' },
+    { text: 'Campaigns & Ads', icon: <CampaignIcon />, path: '/entities' },
     { text: 'Accounts', icon: <AccountIcon />, path: '/accounts' },
     'divider',
     { text: 'Campaign Evaluation', icon: <AssessmentIcon />, path: '/evaluation/campaigns' },

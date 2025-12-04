@@ -136,15 +136,17 @@ db-reset:
 db-shell:
     docker exec -it monitorsysua-postgres psql -U postgres -d monitor_sys_ua
 
-# Create database snapshot (JSON export)
-# Usage: just db-snapshot [limit]
+# Create database snapshot (CSV preview + JSON for restore)
+# Usage: just db-snapshot [limit] [format]
 # Examples:
-#   just db-snapshot          # Default: 10000 rows per table
-#   just db-snapshot 1000     # Limit to 1000 rows per table
-#   just db-snapshot 0        # No limit (export all)
-db-snapshot limit="10000":
+#   just db-snapshot                  # Default: 100 rows per table, CSV preview
+#   just db-snapshot 200              # Limit to 200 rows per table
+#   just db-snapshot 0                # No limit (export all)
+#   just db-snapshot 100 csv          # Explicit CSV preview (JSON still written for restore)
+#   just db-snapshot 100 json         # JSON only
+db-snapshot limit="100" format="csv":
     @mkdir -p context/db-snapshot
-    npx tsx scripts/db-snapshot.ts --limit {{limit}}
+    npx tsx scripts/db-snapshot.ts --limit {{limit}} --format {{format}}
 
 # Restore database from snapshot
 # Usage: just db-restore [snapshot_name]

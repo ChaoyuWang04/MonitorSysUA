@@ -58,7 +58,7 @@
 | `just db-apply` | Apply pending migrations |
 | `just db-studio` | Open Drizzle Studio |
 | `just af-sync-yesterday` | Sync AppsFlyer data |
-| `just db-snapshot [limit]` | Export DB to JSON snapshot |
+| `just db-snapshot [limit] [format]` | Export DB snapshot (CSV preview, JSON kept for restore) |
 | `just db-restore [snapshot]` | Restore from snapshot |
 
 ## Environment Variables

@@ -1,8 +1,8 @@
 /**
  * Database Snapshot Script
- * Exports all tables to JSON format with schema information
+ * Exports all tables with schema information (CSV for preview, JSON kept for restore)
  *
- * Usage: npx tsx scripts/db-snapshot.ts --limit 10000
+ * Usage: npx tsx scripts/db-snapshot.ts --limit 100 --format csv
  */
 
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -11,12 +11,48 @@ import { sql } from 'drizzle-orm'
 import * as fs from 'fs'
 import * as path from 'path'
 
+type OutputFormat = 'csv' | 'json' | 'both'
+
+// Defaults
+const DEFAULT_LIMIT = 100
+const DEFAULT_FORMAT: OutputFormat = 'csv'
+
 // Parse command line arguments
-const args = process.argv.slice(2)
-const limitIndex = args.indexOf('--limit')
-const limit = limitIndex !== -1 ? parseInt(args[limitIndex + 1], 10) : 10000
+function parseArgs(argv: string[]): { limit: number; format: OutputFormat } {
+  let parsedLimit = DEFAULT_LIMIT
+  let parsedFormat: OutputFormat = DEFAULT_FORMAT
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i]
+    if (arg === '--limit') {
+      const raw = argv[i + 1]
+      parsedLimit = raw ? parseInt(raw, 10) : DEFAULT_LIMIT
+      i += 1
+    }
+    if (arg === '--format') {
+      const raw = (argv[i + 1] || '').toLowerCase()
+      if (raw === 'csv' || raw === 'json' || raw === 'both') {
+        parsedFormat = raw
+      }
+      i += 1
+    }
+  }
+
+  if (Number.isNaN(parsedLimit) || parsedLimit < 0) {
+    parsedLimit = DEFAULT_LIMIT
+  }
+
+  return { limit: parsedLimit, format: parsedFormat }
+}
+
+const { limit, format } = parseArgs(process.argv.slice(2))
 
 // Database connection
+if (!process.env.DATABASE_URL) {
+  console.error('DATABASE_URL is not set. Aborting snapshot.')
+  process.exit(1)
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 })
@@ -29,6 +65,9 @@ const tables = [
   { name: 'baseline_settings', deps: [] },
   { name: 'creative_test_baseline', deps: [] },
   { name: 'change_events', deps: ['accounts'] },
+  { name: 'campaigns', deps: ['accounts'] },
+  { name: 'ad_groups', deps: ['accounts'] },
+  { name: 'ads', deps: ['accounts'] },
   { name: 'campaign_evaluation', deps: [] },
   { name: 'creative_evaluation', deps: [] },
   { name: 'operation_score', deps: ['change_events'] },
@@ -52,6 +91,7 @@ interface Metadata {
   createdAt: string
   database: string
   limit: number
+  format: OutputFormat
   tables: Record<string, TableInfo>
 }
 
@@ -67,27 +107,60 @@ interface TableSchema {
   columns: ColumnInfo[]
 }
 
-async function getTableCount(tableName: string): Promise<number> {
-  const result = await db.execute(sql.raw(`SELECT COUNT(*) as count FROM ${tableName}`))
+function escapeCsv(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (value instanceof Date) return value.toISOString()
+  if (typeof value === 'object') return JSON.stringify(value)
+  const str = String(value)
+  if (/[",\n]/.test(str)) {
+    return `"${str.replace(/"/g, '""')}"`
+  }
+  return str
+}
+
+function writeCsv(tableName: string, rows: Record<string, unknown>[], columns: ColumnInfo[], dir: string) {
+  const headers = columns.map((c) => c.name)
+  const lines = [headers.join(',')]
+
+  for (const row of rows) {
+    const values = headers.map((key) => escapeCsv(row[key]))
+    lines.push(values.join(','))
+  }
+
+  const csvPath = path.join(dir, `${tableName}.csv`)
+  fs.writeFileSync(csvPath, lines.join('\n'))
+}
+
+async function hasColumn(tableName: string, columnName: string): Promise<boolean> {
+  const result = await db.execute(sql.raw(`
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_name = '${tableName}' AND column_name = '${columnName}'
+    LIMIT 1
+  `))
+
+  return (result.rowCount ?? 0) > 0
+}
+
+async function getTableCount(tableName: string, whereClause: string): Promise<number> {
+  const result = await db.execute(sql.raw(`SELECT COUNT(*) as count FROM ${tableName}${whereClause}`))
   return parseInt((result.rows[0] as { count: string }).count, 10)
 }
 
-async function getTableData(tableName: string, rowLimit: number): Promise<unknown[]> {
-  const query = rowLimit > 0
-    ? sql.raw(`SELECT * FROM ${tableName} ORDER BY id LIMIT ${rowLimit}`)
-    : sql.raw(`SELECT * FROM ${tableName} ORDER BY id`)
+async function getTableData(tableName: string, rowLimit: number, whereClause: string): Promise<unknown[]> {
+  // Random sample to avoid bias; default to random() since limit is small (<=100)
+  const baseWhere = whereClause || ''
 
-  try {
+  if (rowLimit > 0) {
+    const query = sql.raw(`SELECT * FROM ${tableName}${baseWhere} ORDER BY random() LIMIT ${rowLimit}`)
     const result = await db.execute(query)
     return result.rows as unknown[]
-  } catch {
-    // Table might not have 'id' column, try without ORDER BY
-    const fallbackQuery = rowLimit > 0
-      ? sql.raw(`SELECT * FROM ${tableName} LIMIT ${rowLimit}`)
-      : sql.raw(`SELECT * FROM ${tableName}`)
-    const result = await db.execute(fallbackQuery)
-    return result.rows as unknown[]
   }
+
+  // Unlimited export
+  const query = sql.raw(`SELECT * FROM ${tableName}${baseWhere}`)
+  const result = await db.execute(query)
+  return result.rows as unknown[]
 }
 
 async function getTableSchema(tableName: string): Promise<TableSchema> {
@@ -128,6 +201,7 @@ async function getTableSchema(tableName: string): Promise<TableSchema> {
 async function main() {
   console.log('Starting database snapshot...')
   console.log(`Row limit per table: ${limit === 0 ? 'unlimited' : limit}`)
+  console.log(`Preview format: ${format}`)
 
   // Create snapshot directory with timestamp
   const now = new Date()
@@ -143,6 +217,7 @@ async function main() {
     createdAt: now.toISOString(),
     database: 'monitor_sys_ua',
     limit,
+    format,
     tables: {},
   }
 
@@ -153,14 +228,17 @@ async function main() {
     process.stdout.write(`Exporting ${table.name}... `)
 
     try {
-      // Get total count
-      const totalInDb = await getTableCount(table.name)
+      // Get schema (also used for CSV header and is_deleted detection)
+      const schema = await getTableSchema(table.name)
+      schemaInfo[table.name] = schema
 
-      // Get schema
-      schemaInfo[table.name] = await getTableSchema(table.name)
+      const whereClause = (await hasColumn(table.name, 'is_deleted')) ? ' WHERE is_deleted = false' : ''
+
+      // Get total count (respecting soft-delete filter if present)
+      const totalInDb = await getTableCount(table.name, whereClause)
 
       // Get data with limit
-      const data = await getTableData(table.name, limit)
+      const data = await getTableData(table.name, limit, whereClause)
       const rowCount = data.length
       const truncated = limit > 0 && totalInDb > limit
 
@@ -180,10 +258,15 @@ async function main() {
         data,
       }
 
+      // JSON is always written to keep db-restore compatible
       fs.writeFileSync(
         path.join(snapshotDir, `${table.name}.json`),
         JSON.stringify(tableData, null, 2)
       )
+
+      if (format === 'csv' || format === 'both') {
+        writeCsv(table.name, data as Record<string, unknown>[], schema.columns, snapshotDir)
+      }
 
       console.log(`${rowCount}/${totalInDb} rows${truncated ? ' (truncated)' : ''}`)
     } catch (error) {
