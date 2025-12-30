@@ -1,19 +1,19 @@
-# Accounts Module
+# 账号模块
 
-## Scope
-- Manage Google Ads accounts used across all modules.
-- Provide account context for dashboards, events, stats, and evaluations.
+## 范围与作用
+- 管理 Google Ads 账号（含 MCC），为所有页面/接口提供账号上下文。
+- 账号信息含货币、时区、最近同步时间；软删除保护历史数据。
 
-## Capabilities
-- List, create, edit, and soft-delete accounts with currency/timezone metadata.
-- Display MCC info and last sync time; soft-delete protects historical data.
-- Persist account selection in the UI and gate all queries by the chosen account.
+## 核心能力
+- 列表/创建/编辑/软删除账号。
+- UI 记忆选中账号（AccountProvider），所有查询、看板、事件、评估均按所选账号过滤。
+- 展示 MCC 信息与 lastSyncedAt，便于排查同步状态。
 
-## Flow
-- Frontend DataGrid shows all accounts; dialogs handle add/edit; confirmation handles delete.
-- Mutations invalidate cached lists; selection is stored via `AccountProvider` so other pages pull the same accountId.
+## 使用流程
+1) 在账号列表 DataGrid 操作新增/编辑/删除（确认框防误删）。
+2) 选择账号后，页面全局复用该 accountId 进行数据拉取。
+3) 变更账号后自动失效缓存并重拉关联数据。
 
-## Status
-- Multi-account path is live for accounts, events, stats, and evaluation queries.
-- No authentication yet; assume trusted internal usage.
-- Future: add role-based access and bulk import if needed.
+## 现状与后续
+- 多账号路径已用于事件、统计、评估查询。
+- 暂未接入鉴权，假定内部可信；后续可加 RBAC 与批量导入。

@@ -1,12 +1,12 @@
 ## Core Directives
-Think ultra hard. Plan doc reading wisely (context limits). Always articulate reasoning step-by-step, identify affected system parts. Ask questions to align expectations. After changes: update docs in `docs/` (specify which: api.md/backend.md/database.md/frontend.md/prd.md/structure.md/trd.md) + git commit.
+Talk to me with Chinese but write everything in English. Think ultra hard. Plan doc reading wisely (context limits). Always articulate reasoning step-by-step, identify affected system parts. Ask questions to align expectations. After changes: update docs in `docs/`  + git commit.
 ### Standard Flow
 **Phase 1: Requirement Analysis**
 1. Identify core requirement 2. Determine scope (which parts affected) 3. Define success criteria
 **Phase 2: Current State Assessment**
 1. Create search plan (including reading relevant docs in `docs/` first) 2. Execute search and read files 3. Document current implementation (patterns, reusable parts)
 **Phase 3: Planning**
-1. Identify target workspace(s) 2. Create ordered task list 3. Identify which docs to update (API changes→api.md, DB changes→database.md, FE changes→frontend.md, BE logic→backend.md, new features→prd.md, structure changes→structure.md, tech decisions→trd.md) 4. **Confirm plan with user before proceeding**
+1. Identify target workspace(s) 2. Create ordered task list 3. Identify which docs to update (API changes→api.md, DB changes→docs/system/database.md, FE changes→frontend.md, BE logic→backend.md, new features→prd.md, structure changes→structure.md, tech decisions→trd.md) 4. **Confirm plan with user before proceeding**
 **Phase 4: Execution**
 1. Announce plan ("Will modify X files...") 2. Execute step-by-step per workspace rules 3. Validate each step 4. Update identified docs in `docs/` (keep concise but include necessary details) 5. Git commit with proper message
 
@@ -67,7 +67,15 @@ Design Doc → Schema Definition → Migration → Database → ORM. Single sour
 **Safe operations (no confirmation needed):** SELECT queries, view migration status, generate migration files (not apply), review SQL files
 **Before any DB operation:** Check NODE_ENV + DATABASE_URL port, print environment info, wait for confirmation
 ### Standard Flow
-1. Update design: `docs/database.md` 2. Update schema: `server/db/schema.ts` (Drizzle) 3. Generate migration: `just db-diff "description"` (Atlas) 4. **STOP: Show me the SQL file** 5. Review SQL: `atlas/migrations/*.sql` 6. **STOP: Wait for approval** 7. Apply: `just db-apply` 8. Verify: `just db-status` 9. Export schema: `just db-export` 10. (Drizzle auto-generates types from schema.ts)
+0. Prep: ensure `.env` `DATABASE_URL` points to target DB, DB is up.
+1. Update design: `docs/system/database.md`.
+2. Sync schema: `server/db/schema.ts` (Drizzle is schema source; Atlas reads via `atlas.hcl`).
+3. Generate migration: `just db-diff "<name>"` → outputs to `atlas/migrations/`.
+4. Review SQL: inspect new `atlas/migrations/*.sql` (indexes/constraints/defaults/nullability).
+5. Apply: `just db-apply`.
+6. Verify: `just db-status`.
+7. Export schema (optional): `just db-export` to refresh `.drizzle/` for diff/audit.
+8. Types/ORM: Drizzle uses `server/db/schema.ts` as source; run `just type-check` if validation needed.
 
 
 

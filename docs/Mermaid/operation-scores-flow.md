@@ -1,10 +1,8 @@
 # Operation Scores Flow (Frontend ↔ Backend)
-
 ```mermaid
 flowchart LR
   subgraph UI[Frontend]
-    Page[Operation Scores page
-    app/(dashboard)/evaluation/operations]
+    Page[Operation Scores page<br/>app/dashboard/evaluation/operations]
     Recalc[Button: Recalculate scores]
     Leader[Optimizer Leaderboard tab]
   end
@@ -16,29 +14,19 @@ flowchart LR
   end
 
   subgraph DBQ[DB Queries / Wrappers]
-    List[getOperationScores
-    (group by operation, stage anchor T+7→T+3→T+1)]
-    EvalAll[evaluateAllOperationsFromAF
-    (iterate change_events)]
+    List[getOperationScores<br/>group by operation, stage anchor T+7→T+3→T+1]
+    EvalAll[evaluateAllOperationsFromAF<br/>iterate change_events]
     EvalOne[evaluateOperationFromAF]
-    Agg[getOperationCohortMetrics
-    + getBaselineMetrics]
-    Upsert[createOperationScore
-    (upsert by operationId+stage)
-    + update change_events.operation_scores]
-    LegacyLeader[python operation_evaluator.py
-    (mock-era aggregation)]
+    Agg[getOperationCohortMetrics<br/>+ getBaselineMetrics]
+    Upsert[createOperationScore<br/>upsert by operationId+stage<br/>+ update change_events.operation_scores]
+    LegacyLeader[python operation_evaluator.py<br/>mock-era aggregation]
   end
 
   subgraph Data[Data Sources]
-    CE[change_events
-    (operation context,
-    field_changes)]
+    CE[change_events<br/>operation context,<br/>field_changes]
     Ops[operation_score]
-    AF[AppsFlyer cohort metrics
-    af_cohort_metrics_daily]
-    Baseline[baseline_metrics
-    + baseline_settings]
+    AF[AppsFlyer cohort metrics<br/>af_cohort_metrics_daily]
+    Baseline[baseline_metrics<br/>+ baseline_settings]
   end
 
   Page -->|load table| GetScores

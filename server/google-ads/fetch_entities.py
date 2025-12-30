@@ -21,17 +21,9 @@ import sys
 import traceback
 from pathlib import Path
 from typing import Any, Dict, List
+from google.ads.googleads.client import GoogleAdsClient
+from google.ads.googleads.errors import GoogleAdsException
 
-try:
-  from google.ads.googleads.client import GoogleAdsClient
-  from google.ads.googleads.errors import GoogleAdsException
-except ModuleNotFoundError:
-  error_msg = {
-    "error": True,
-    "message": "Missing python package 'google-ads'. Install with `python3 -m pip install -r server/google-ads/requirements.txt`.",
-  }
-  print(json.dumps(error_msg), file=sys.stderr)
-  sys.exit(1)
 
 
 def resolve_config_path(config_path: str | Path | None = None) -> Path:
