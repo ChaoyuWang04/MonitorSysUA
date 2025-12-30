@@ -7,6 +7,7 @@
   - [Evaluation](modules/evaluation.md)
   - [AppsFlyer](modules/appsflyer.md)
 - Implementation (WIP)
+  - [NextStep](implementation/wip/nextstep.md)
   - [Operation Scores](implementation/wip/operation-scores.md)
 - Mermaid
   - [Folder overview](Mermaid/README.md)
@@ -19,6 +20,7 @@
   - [Backend](system/backend.md)
   - [API](system/api.md)
   - [Database](system/database.md)
+  - [Database Connection](system/database-connection.md)
 - Planning
   - [Product & API PRD](planning_never_touch/prd_for_schema_and_api.md)
   - [Todo](planning_never_touch/todo.md)

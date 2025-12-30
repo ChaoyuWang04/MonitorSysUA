@@ -5,6 +5,9 @@
 - Schema source: `server/db/schema.ts` (14 tables); snapshots live in `context/db-snapshot/` for quick restore.
 - Soft-delete and uniqueness are enforced at DB layer; all app queries go through Drizzle helpers.
 
+## External Connection (Host Machine)
+- For connecting from another host-side project, see `docs/system/database-connection.md`.
+
 ## Core
 - `accounts` (serial PK): `customerId` (unique 10-digit), `name`, optional `currency`/`timeZone`, `isActive`, `createdAt`, `lastSyncedAt`.
 - `change_events`: account-scoped Google Ads logs with `timestamp`, `userEmail`, `resourceType`, `operationType`, `resourceName`, `clientType`, `campaign`, `adGroup`, `summary`/`summaryZh`, `fieldChanges` JSONB, `changedFieldsPaths` JSONB array; unique on accountId+timestamp+resourceName+userEmail. **New:** `operation_scores` JSONB stores the latest stage results (T+1/T+3/T+7) linked to `operation_score` rows.
