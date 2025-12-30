@@ -2,6 +2,7 @@
 
 MonitorSysUA documentation set for architecture, modules, and system reference.
 
+- Project overview and quick start: see `README.md` at repo root.
 - Architecture: high-level mermaid map of frontend, backend, and Python services.
 - Modules: feature guides for Accounts, Change Events, Evaluation (A2-A5), and AppsFlyer ETL.
 - System: stack overviews for frontend, backend, API, database, and repo structure.
